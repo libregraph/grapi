@@ -10,3 +10,4 @@ from .calendar import CalendarResource
 from .event import EventResource
 from .contact import ContactResource
 from .profilephoto import ProfilePhotoResource
+from .subscription import SubscriptionResource
