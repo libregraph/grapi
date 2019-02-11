@@ -36,7 +36,7 @@ from MAPI.Struct import (
 import kopano
 kopano.set_bin_encoding('base64')
 
-from ... import utils
+from . import utils
 
 logging.getLogger("requests").setLevel(logging.WARNING)
 
