@@ -24,7 +24,7 @@ class BackendResource(object): # TODO merge with rest.py
 
 class NotifyAPI(falcon.API):
     def __init__(self, options=None, middleware=None, backends=None):
-        backends = ['kopano', 'imap', 'caldav']
+#        backends = ['ldap', 'imap', 'caldav']
 
         if backends is None:
             backends = ['kopano']

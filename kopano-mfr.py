@@ -105,6 +105,8 @@ def opt_args():
                       default=METRICS_LISTEN, help="metrics process address")
     parser.add_option("", "--process-name", dest='process_name', default=PROCESS_NAME,
                       help="set process name", metavar="NAME")
+    parser.add_option("", "--backends", dest='backends', default='kopano',
+                      help="backends to enable (comma-separated)", metavar="LIST")
 
     options, args = parser.parse_args()
     if args:
@@ -157,7 +159,8 @@ def run_app(socket_path, n, options):
         middleware=[FalconMetrics()]
     else:
         middleware=None
-    app = kopano_rest.RestAPI(options=options, middleware=middleware)
+    backends = options.backends.split(',')
+    app = kopano_rest.RestAPI(options=options, middleware=middleware, backends=backends)
     app.add_error_handler(Exception, error_handler)
     unix_socket = 'unix:' + os.path.join(socket_path, 'rest%d.sock' % n)
     logging.info('starting rest worker: %s', unix_socket)
@@ -171,7 +174,8 @@ def run_notify(socket_path, options):
         middleware=[FalconMetrics()]
     else:
         middleware=None
-    app = kopano_rest.NotifyAPI(options=options, middleware=middleware)
+    backends = options.backends.split(',')
+    app = kopano_rest.NotifyAPI(options=options, middleware=middleware, backends=backends)
     app.add_error_handler(Exception, error_handler)
     unix_socket = 'unix:' + os.path.join(socket_path, 'notify.sock')
     logging.info('starting notify worker: %s', unix_socket)
