@@ -111,53 +111,56 @@ class RestAPI(falcon.API):
         return __import__('backend.'+name, globals=globals(), fromlist=[''], level=2)
 
     def add_routes(self, default_backend, options):
-        directory = default_backend['directory']
-        mail = default_backend['mail']
-        calendar = default_backend['calendar']
+        directory = default_backend.get('directory')
+        if directory:
+            users = BackendResource(directory, 'UserResource')
+            groups = BackendResource(directory, 'GroupResource')
+            contactfolders = BackendResource(directory, 'ContactFolderResource')
+            contacts = BackendResource(directory, 'ContactResource')
+            photos = BackendResource(directory, 'ProfilePhotoResource')
 
-        users = BackendResource(directory, 'UserResource')
-        groups = BackendResource(directory, 'GroupResource')
-        contactfolders = BackendResource(directory, 'ContactFolderResource')
-        contacts = BackendResource(directory, 'ContactResource')
-        photos = BackendResource(directory, 'ProfilePhotoResource')
+            self.route(PREFIX+'/me', users)
+            self.route(PREFIX+'/users', users, method=False) # TODO method == ugly
+            self.route(PREFIX+'/users/{userid}', users)
+            self.route(PREFIX+'/groups', groups, method=False)
+            self.route(PREFIX+'/groups/{groupid}', groups)
 
-        messages = BackendResource(mail, 'MessageResource')
-        attachments = BackendResource(mail, 'AttachmentResource')
-        mailfolders = BackendResource(mail, 'MailFolderResource')
+            for user in (PREFIX+'/me', PREFIX+'/users/{userid}'):
+                self.route(user+'/contactFolders/{folderid}', contactfolders)
+                self.route(user+'/contacts/{itemid}', contacts)
+                self.route(user+'/contactFolders/{folderid}/contacts/{itemid}', contacts)
+                self.route(user+'/photo', photos)
+                self.route(user+'/photos/{photoid}', photos)
+                self.route(user+'/contacts/{itemid}/photo', photos)
+                self.route(user+'/contacts/{itemid}/photos/{photoid}', photos)
+                self.route(user+'/contactFolders/{folderid}/contacts/{itemid}/photo', photos)
+                self.route(user+'/contactFolders/{folderid}/contacts/{itemid}/photos/{photoid}', photos)
 
-        calendars = BackendResource(calendar, 'CalendarResource')
-        events = BackendResource(calendar, 'EventResource')
-        calendar_attachments = BackendResource(calendar, 'AttachmentResource')
+        mail = default_backend.get('mail')
+        if mail:
+            messages = BackendResource(mail, 'MessageResource')
+            attachments = BackendResource(mail, 'AttachmentResource')
+            mailfolders = BackendResource(mail, 'MailFolderResource')
 
-        self.route(PREFIX+'/me', users)
-        self.route(PREFIX+'/users', users, method=False) # TODO method == ugly
-        self.route(PREFIX+'/users/{userid}', users)
-        self.route(PREFIX+'/groups', groups, method=False)
-        self.route(PREFIX+'/groups/{groupid}', groups)
+            for user in (PREFIX+'/me', PREFIX+'/users/{userid}'):
+                self.route(user+'/mailFolders/{folderid}', mailfolders)
+                self.route(user+'/messages/{itemid}', messages)
+                self.route(user+'/mailFolders/{folderid}/messages/{itemid}', messages)
+                self.route(user+'/messages/{itemid}/attachments/{attachmentid}', attachments)
+                self.route(user+'/mailFolders/{folderid}/messages/{itemid}/attachments/{attachmentid}', attachments)
 
-        for user in (PREFIX+'/me', PREFIX+'/users/{userid}'):
-            self.route(user+'/contactFolders/{folderid}', contactfolders)
-            self.route(user+'/contacts/{itemid}', contacts)
-            self.route(user+'/contactFolders/{folderid}/contacts/{itemid}', contacts)
-            self.route(user+'/photo', photos)
-            self.route(user+'/photos/{photoid}', photos)
-            self.route(user+'/contacts/{itemid}/photo', photos)
-            self.route(user+'/contacts/{itemid}/photos/{photoid}', photos)
-            self.route(user+'/contactFolders/{folderid}/contacts/{itemid}/photo', photos)
-            self.route(user+'/contactFolders/{folderid}/contacts/{itemid}/photos/{photoid}', photos)
+        calendar = default_backend.get('calendar')
+        if calendar:
+            calendars = BackendResource(calendar, 'CalendarResource')
+            events = BackendResource(calendar, 'EventResource')
+            calendar_attachments = BackendResource(calendar, 'AttachmentResource')
 
-            self.route(user+'/mailFolders/{folderid}', mailfolders)
-            self.route(user+'/messages/{itemid}', messages)
-            self.route(user+'/mailFolders/{folderid}/messages/{itemid}', messages)
-            self.route(user+'/messages/{itemid}/attachments/{attachmentid}', attachments)
-            self.route(user+'/mailFolders/{folderid}/messages/{itemid}/attachments/{attachmentid}', attachments)
-
-            self.route(user+'/events/{eventid}/attachments/{attachmentid}', calendar_attachments) # TODO other routes
-            self.route(user+'/calendar/events/{eventid}/attachments/{attachmentid}', calendar_attachments)
-            self.route(user+'/calendars/{folderid}/events/{eventid}/attachments/{attachmentid}', calendar_attachments)
-
-            self.route(user+'/calendar', calendars)
-            self.route(user+'/calendars/{folderid}', calendars)
-            self.route(user+'/events/{eventid}', events)
-            self.route(user+'/calendar/events/{eventid}', events)
-            self.route(user+'/calendars/{folderid}/events/{eventid}', events)
+            for user in (PREFIX+'/me', PREFIX+'/users/{userid}'):
+                self.route(user+'/calendar', calendars)
+                self.route(user+'/calendars/{folderid}', calendars)
+                self.route(user+'/events/{eventid}', events)
+                self.route(user+'/calendar/events/{eventid}', events)
+                self.route(user+'/calendars/{folderid}/events/{eventid}', events)
+                self.route(user+'/events/{eventid}/attachments/{attachmentid}', calendar_attachments) # TODO other routes
+                self.route(user+'/calendar/events/{eventid}/attachments/{attachmentid}', calendar_attachments)
+                self.route(user+'/calendars/{folderid}/events/{eventid}/attachments/{attachmentid}', calendar_attachments)
