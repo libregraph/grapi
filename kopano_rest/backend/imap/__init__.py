@@ -1,7 +1,7 @@
 from .resource import Resource
 
 from .user import UserResource
+from .message import MessageResource
 
-MessageResource = Resource
 AttachmentResource = Resource
 MailFolderResource = Resource

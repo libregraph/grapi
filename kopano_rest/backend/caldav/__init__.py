@@ -1,9 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from .calendar import CalendarResource
+from .resource import Resource
 
-class Resource(object):
-    def __init__(self, options):
-        self.options = options
-
-EventResource = Resource
+from .user import UserResource
+from .event import EventResource
