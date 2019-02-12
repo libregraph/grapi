@@ -27,7 +27,7 @@ except ImportError:
     SETPROCTITLE = False
 
 import bjoern
-import kopano_rest
+import grapi
 
 """
 Master Fleet Runner
@@ -160,7 +160,7 @@ def run_app(socket_path, n, options):
     else:
         middleware=None
     backends = options.backends.split(',')
-    app = kopano_rest.RestAPI(options=options, middleware=middleware, backends=backends)
+    app = grapi.RestAPI(options=options, middleware=middleware, backends=backends)
     app.add_error_handler(Exception, error_handler)
     unix_socket = 'unix:' + os.path.join(socket_path, 'rest%d.sock' % n)
     logging.info('starting rest worker: %s', unix_socket)
@@ -175,7 +175,7 @@ def run_notify(socket_path, options):
     else:
         middleware=None
     backends = options.backends.split(',')
-    app = kopano_rest.NotifyAPI(options=options, middleware=middleware, backends=backends)
+    app = grapi.NotifyAPI(options=options, middleware=middleware, backends=backends)
     app.add_error_handler(Exception, error_handler)
     unix_socket = 'unix:' + os.path.join(socket_path, 'notify.sock')
     logging.info('starting notify worker: %s', unix_socket)

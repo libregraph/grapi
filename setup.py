@@ -8,7 +8,7 @@ from distutils.command.build_py import build_py
 from setuptools import setup, find_packages
 
 
-version_base = 'kopano_rest'
+version_base = 'grapi'
 here = os.path.abspath(os.path.dirname(__file__))
 
 try:
@@ -40,11 +40,11 @@ class my_build_py(build_py, object):
                 version_file.write('__version__ = "%s"\n' % metadata['version'])
 
 
-setup(name='kopano-rest',
+setup(name='grapi',
       version=metadata['version'],
       url='https://kopano.io',
-      description='REST API for Kopano Groupware Core',
-      long_description='HTTP REST API for Kopano Groupware Core. Uses python-kopano to interface with a Kopano Server.',
+      description='REST API for groupware applications/standards',
+      long_description='REST API for Groupware applications/standards.',
       author='Kopano',
       author_email='development@kopano.io',
       keywords=['kopano'],

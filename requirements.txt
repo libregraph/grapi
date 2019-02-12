@@ -7,6 +7,4 @@ ujson
 pytz
 dateutil
 requests
-kopano
-MAPI
 jsonschema

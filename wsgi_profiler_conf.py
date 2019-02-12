@@ -33,7 +33,7 @@ def profiler_summary(worker, req):
     s = io.StringIO()
     worker.profile.disable()
     ps = pstats.Stats(worker.profile, stream=s)
-    ps.dump_stats('kopano_rest.pstats')
+    ps.dump_stats('grapi.pstats')
 
     ps = ps.sort_stats('cumulative')
     ps.print_stats(PROFILE_LIMIT)
