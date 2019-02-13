@@ -12,5 +12,11 @@ setup(name='grapi',
       license='AGPL',
 
       packages=find_packages(include=['grapi', 'grapi.*']),
-      zip_safe=False
+      zip_safe=False,
+
+      entry_points={
+          'console_scripts': [
+              'grapi-mfr = grapi.mfr.main'
+          ]
+        }
       )

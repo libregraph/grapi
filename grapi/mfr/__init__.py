@@ -11,6 +11,8 @@ import signal
 import sys
 import time
 
+import grapi.api.v1 as grapi
+
 import falcon
 
 try:
@@ -27,8 +29,6 @@ except ImportError:
     SETPROCTITLE = False
 
 import bjoern
-
-import grapi.api.v1 as grapi
 
 """
 Master Fleet Runner

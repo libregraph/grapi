@@ -3,8 +3,8 @@ import multiprocessing
 import sys
 from wsgiref.simple_server import make_server
 
-from .api_v1.rest import RestAPI
-from .api_v1.notify import NotifyAPI
+from grapi.api.v1 import RestAPI
+from grapi.api.v1 import NotifyAPI
 
 REST_PORT = int(sys.argv[1]) if len(sys.argv) > 2 else 8000
 NOTIFY_PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 8001
