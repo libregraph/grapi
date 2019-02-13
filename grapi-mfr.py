@@ -27,7 +27,8 @@ except ImportError:
     SETPROCTITLE = False
 
 import bjoern
-import grapi
+
+import grapi.api.v1 as grapi
 
 """
 Master Fleet Runner
