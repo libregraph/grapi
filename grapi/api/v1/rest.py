@@ -107,8 +107,7 @@ class RestAPI(falcon.API):
             self.add_route(path+'/{method}', resource)
 
     def import_backend(self, name):
-        # import ..backend.<name>
-        return __import__('backend.'+name, globals=globals(), fromlist=[''], level=2)
+        return __import__('grapi.backend.'+name, globals=globals(), fromlist=[''])
 
     def add_routes(self, default_backend, options):
         directory = default_backend.get('directory')

@@ -39,8 +39,7 @@ class NotifyAPI(falcon.API):
                 self.add_routes(backend, options)
 
     def import_backend(self, name): # TODO share with rest.py
-        # import ..backend.<name>
-        return __import__('backend.'+name, globals=globals(), fromlist=[''], level=2)
+        return __import__('grapi.backend.'+name, globals=globals(), fromlist=[''])
 
     def add_routes(self, backend_name, options):
         backend = self.import_backend(backend_name)
