@@ -17,7 +17,7 @@ class CalendarResource(FolderResource):
     })
 
     def on_get(self, req, resp, userid=None, folderid=None, method=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
 
         folder = _folder(store, folderid or 'calendar')
 
@@ -43,7 +43,7 @@ class CalendarResource(FolderResource):
         self.respond(req, resp, data, fields)
 
     def on_post(self, req, resp, userid=None, folderid=None, method=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
         folder = store.calendar # TODO
 
         if method == 'events':

@@ -16,7 +16,7 @@ class GroupResource(Resource):
     }
 
     def on_get(self, req, resp, userid=None, groupid=None, method=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
 
         if groupid:
             for group in server.groups(): # TODO server.group(groupid/entryid=..)

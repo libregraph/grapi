@@ -66,7 +66,7 @@ class UserResource(Resource):
 
     # TODO redirect to other resources?
     def on_get(self, req, resp, userid=None, method=None):
-        server, store = _server_store(req, userid if userid != 'delta' else None, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
 
         if not userid and req.path.split('/')[-1] != 'users':
             userid = kopano.Store(server=server,
@@ -158,7 +158,7 @@ class UserResource(Resource):
 
     # TODO redirect to other resources?
     def on_post(self, req, resp, userid=None, method=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
         fields = self.load_json(req)
 
         if method == 'sendMail':

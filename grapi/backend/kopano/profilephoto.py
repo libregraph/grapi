@@ -18,7 +18,7 @@ class ProfilePhotoResource(Resource):
     }
 
     def on_get(self, req, resp, userid=None, folderid=None, itemid=None, photoid=None, method=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
         photo = None
 
         if userid:
@@ -49,7 +49,7 @@ class ProfilePhotoResource(Resource):
         self.on_put(*args, **kwargs)
 
     def on_put(self, req, resp, userid=None, folderid=None, itemid=None, method=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
         folder = _folder(store, folderid or 'contacts')
         contact = _item(folder, itemid)
         contact.set_photo('noname', req.stream.read(), req.get_header('Content-Type'))

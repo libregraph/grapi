@@ -21,7 +21,7 @@ class AttachmentResource(Resource):
     }
 
     def on_get(self, req, resp, userid=None, folderid=None, itemid=None, eventid=None, attachmentid=None, method=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
 
         if folderid:
             folder = _folder(store, folderid)
@@ -48,7 +48,7 @@ class AttachmentResource(Resource):
             self.respond(req, resp, data, all_fields=all_fields)
 
     def on_delete(self, req, resp, userid=None, folderid=None, itemid=None, eventid=None, attachmentid=None, method=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
 
         if folderid: # TODO same code above
             folder = _folder(store, folderid)

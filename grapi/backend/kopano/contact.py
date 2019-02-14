@@ -75,7 +75,7 @@ class ContactResource(ItemResource):
     deleted_resource = DeletedContactResource
 
     def on_get(self, req, resp, userid=None, folderid=None, itemid=None, method=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
         folder = _folder(store, folderid or 'contacts') # TODO all folders?
 
         if method:
@@ -91,7 +91,7 @@ class ContactResource(ItemResource):
         self.respond(req, resp, data)
 
     def on_delete(self, req, resp, userid=None, folderid=None, itemid=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
         item = _item(store, itemid)
 
         store.delete(item)

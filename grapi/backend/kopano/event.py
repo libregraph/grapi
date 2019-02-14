@@ -174,7 +174,7 @@ class EventResource(ItemResource):
     # TODO delta functionality seems to include expanding recurrences!? check with MSGE
 
     def on_get(self, req, resp, userid=None, folderid=None, eventid=None, method=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
         folder = _folder(store, folderid or 'calendar')
         event = folder.event(eventid)
 
@@ -195,7 +195,7 @@ class EventResource(ItemResource):
             self.respond(req, resp, event)
 
     def on_post(self, req, resp, userid=None, folderid=None, eventid=None, method=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
         folder = _folder(store, folderid or 'calendar')
         item = folder.event(eventid)
         fields = json.loads(req.stream.read().decode('utf-8'))
@@ -222,7 +222,7 @@ class EventResource(ItemResource):
             raise HTTPBadRequest("Unsupported segment '%s'" % method)
 
     def on_patch(self, req, resp, userid=None, folderid=None, eventid=None, method=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
         folder = _folder(store, folderid or 'calendar')
         item = folder.event(eventid)
 
@@ -235,7 +235,7 @@ class EventResource(ItemResource):
         self.respond(req, resp, item, EventResource.fields)
 
     def on_delete(self, req, resp, userid=None, folderid=None, eventid=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
         folder = _folder(store, folderid or 'calendar')
         event = folder.event(eventid)
         folder.delete(event)

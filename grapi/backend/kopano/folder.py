@@ -32,7 +32,7 @@ class FolderResource(Resource):
     }
 
     def on_delete(self, req, resp, userid=None, folderid=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
         folder = _folder(store, folderid)
 
         store.delete(folder)

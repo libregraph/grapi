@@ -25,7 +25,7 @@ class ContactFolderResource(FolderResource):
     container_classes = ('IPF.Contact',)
 
     def on_get(self, req, resp, userid=None, folderid=None, method=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
 
         if folderid == 'delta':
             req.context['deltaid'] = '{folderid}'
@@ -46,7 +46,7 @@ class ContactFolderResource(FolderResource):
             raise HTTPBadRequest("Unsupported segment '%s'" % method)
 
     def on_post(self, req, resp, userid=None, folderid=None, method=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
         folder = _folder(store, folderid)
 
         if method == 'contacts':

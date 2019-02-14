@@ -69,7 +69,7 @@ class MessageResource(ItemResource):
     }
 
     def on_get(self, req, resp, userid=None, folderid=None, itemid=None, method=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
         folder = _folder(store, folderid or 'inbox') # TODO all folders?
 
         if itemid == 'delta': # TODO move to MailFolder resource somehow?
@@ -91,7 +91,7 @@ class MessageResource(ItemResource):
         self.respond(req, resp, item)
 
     def on_post(self, req, resp, userid=None, folderid=None, itemid=None, method=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
         folder = _folder(store, folderid or 'inbox') # TODO all folders?
         item = _item(folder, itemid)
 
@@ -127,7 +127,7 @@ class MessageResource(ItemResource):
             raise HTTPBadRequest("Unsupported segment type")
 
     def on_patch(self, req, resp, userid=None, folderid=None, itemid=None, method=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
         folder = _folder(store, folderid or 'inbox') # TODO all folders?
         item = _item(folder, itemid)
 
@@ -140,7 +140,7 @@ class MessageResource(ItemResource):
         self.respond(req, resp, item, MessageResource.fields)
 
     def on_delete(self, req, resp, userid=None, folderid=None, itemid=None):
-        server, store = _server_store(req, userid, self.options)
+        server, store, userid = _server_store(req, userid, self.options)
         item = _item(store, itemid)
 
         store.delete(item)
