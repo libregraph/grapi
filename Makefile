@@ -6,6 +6,7 @@ PYLINT ?= pylint
 # Variables
 
 PYTHONPATH ?= .
+ARGS ?=
 
 # Rules
 
@@ -20,8 +21,8 @@ lint:
 
 .PHONY: start-mfr
 start-mfr:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) grapi/mfr/__init__.py
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) grapi/mfr/__init__.py $(ARGS)
 
 .PHONY: start-devrunner
 start-devrunner:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) scripts/devrunner.py
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) scripts/devrunner.py $(ARGS)
