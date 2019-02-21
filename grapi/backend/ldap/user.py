@@ -106,4 +106,4 @@ class UserResource(Resource):
             }
 
         resp.content_type = "application/json"
-        resp.body = json.dumps(data, indent=2) # TODO stream
+        resp.body = json.dumps(data, indent=2, ensure_ascii=False).encode('utf-8') # TODO stream
