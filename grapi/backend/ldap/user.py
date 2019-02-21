@@ -5,16 +5,25 @@ import json
 import os
 
 import ldap
+from ldap.controls import SimplePagedResultsControl
 
 from .resource import Resource
 
-HOST = 'ldaps://ldap.kopano.io:636'
-USER = os.getenv('GRAPI_USER')
-PASSWORD = os.getenv('GRAPI_PASSWORD')
-BASE = 'dc=hoags,dc=org'
-AUTH = 'uid=%s,ou=users,dc=hoags,dc=org' % USER
+PAGESIZE = 1000
+ldap.set_option(ldap.OPT_REFERRALS, 0)
+ldap.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
 
 class UserResource(Resource):
+    l = None
+
+    uri = "ldap://127.0.0.1:389"
+    baseDN = ""
+    bindDN = None
+    bindPW = None
+
+    searchScope = ldap.SCOPE_SUBTREE
+    searchFilter = "(objectClass=inetOrgPerson)"
+
     fields = {
         'id': lambda user: user.userid,
         'displayName': lambda user: user.fullname,
@@ -27,37 +36,65 @@ class UserResource(Resource):
         'userPrincipalName': lambda user: user.name,
     }
 
+    def __init__(self, options):
+        Resource.__init__(self, options)
+
+        self.uri = os.getenv("LDAP_URI")
+        self.baseDN = os.getenv("LDAP_BASEDN")
+        self.bindDN = os.getenv("LDAP_BINDDN")
+        self.bindPW = os.getenv("LDAP_BINDPW")
+
+        if not self.uri or  not self.baseDN:
+            raise RuntimeError("missing LDAP_URI or LDAP_BASEDN in environment")
+
+        self.l = ldap.initialize(self.uri)
+        if self.bindDN is not None and self.bindPW is not None:
+            self.l.simple_bind_s(self.bindDN, self.bindPW)
+
     def on_get(self, req, resp, userid=None, method=None):
-        l = ldap.initialize(HOST)
-        l.simple_bind_s(AUTH, PASSWORD)
+        l = self.l
 
         value = []
 
+        searchFilter = self.searchFilter
         if userid:
-            result = l.search(BASE, ldap.SCOPE_SUBTREE, '(uidNumber=%s)' % userid)
-        else:
-            result = l.search(BASE, ldap.SCOPE_SUBTREE, '(objectClass=kopano-user)')
+            searchFilter = "(&" + searchFilter + ("(uid=%s)" % userid) + ")"
 
-        count = 0
-        while 1:
-            t, d = l.result(result, 0)
-            if d == []:
-                break
-            else:
-                if b'kopano-user' in d[0][1]['objectClass']:
-                    name = codecs.decode(d[0][1]['cn'][0], 'utf-8')
-                    mail = codecs.decode(d[0][1]['mail'][0], 'utf-8')
-                    uidnum = codecs.decode(d[0][1]['uidNumber'][0], 'utf-8')
+        lc = SimplePagedResultsControl(True, size=PAGESIZE, cookie='')
+
+        while True:
+            msgid = l.search_ext(
+                self.baseDN,
+                self.searchScope,
+                searchFilter,
+                ['objectClass', 'cn', 'mail', 'uid'],
+                serverctrls=[lc]
+            )
+
+            rtype, rdata, rmsgid, serverctrls = l.result3(msgid)
+
+            for dn, attrs in rdata:
+                if b'inetOrgPerson' in attrs['objectClass']:
+                    name = codecs.decode(attrs['cn'][0], 'utf-8')
+                    mail = codecs.decode(attrs['mail'][0], 'utf-8')
+                    uid = codecs.decode(attrs['uid'][0], 'utf-8')
                     d = {x: '' for x in self.fields}
                     d.update({
                         'displayName': name,
                         'mail': mail,
-                        'id': uidnum,
+                        'id': uid,
+                        'userPrincipalName': uid
                     })
                     value.append(d)
-                    count += 1
-                    if count >= 10:
-                        break
+
+            pctrls = [c for c in serverctrls if c.controlType == SimplePagedResultsControl.controlType]
+            if not pctrls:
+                break
+
+            cookie = pctrls[0].cookie
+            if not cookie:
+                break
+            lc.cookie = cookie
 
         if userid:
             data = value[0]
