@@ -57,11 +57,22 @@ class UserResource(Resource):
         value = []
 
         searchFilter = self.searchFilter
+        size = PAGESIZE
+        top = 10
+        end = top
+        count = 0
+        skip = 0
         if userid:
             searchFilter = "(&" + searchFilter + ("(uid=%s)" % userid) + ")"
+        else:
+            args = self.parse_qs(req)
+            top = int(args.get('$top', [top])[0])
+            skip = int(args.get('$skip', [skip])[0])
+            end = top + skip
+            if end < size:
+                size = end
 
-        lc = SimplePagedResultsControl(True, size=PAGESIZE, cookie='')
-
+        lc = SimplePagedResultsControl(True, size=size, cookie='')
         while True:
             msgid = l.search_ext(
                 self.baseDN,
@@ -71,9 +82,12 @@ class UserResource(Resource):
                 serverctrls=[lc]
             )
 
-            rtype, rdata, rmsgid, serverctrls = l.result3(msgid)
+            rtype, rdata, rmsgid, serverctrls = l.result3(msgid, all=1)
 
             for dn, attrs in rdata:
+                count += 1
+                if skip and count <= skip:
+                    continue
                 if b'inetOrgPerson' in attrs['objectClass']:
                     name = codecs.decode(attrs['cn'][0], 'utf-8')
                     mail = codecs.decode(attrs['mail'][0], 'utf-8')
@@ -86,6 +100,11 @@ class UserResource(Resource):
                         'userPrincipalName': uid
                     })
                     value.append(d)
+                if end and count >= end:
+                    break
+
+            if end and count >= end:
+                break
 
             pctrls = [c for c in serverctrls if c.controlType == SimplePagedResultsControl.controlType]
             if not pctrls:
@@ -101,7 +120,7 @@ class UserResource(Resource):
         else:
             data = {
                 '@odata.context': '/api/gc/v1/users',
-                '@odata.nextLink': '/api/gc/v1/users?$skip=10',
+                '@odata.nextLink': '/api/gc/v1/users?$skip=%d' % (top + skip),
                 'value': value,
             }
 
