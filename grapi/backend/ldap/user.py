@@ -8,6 +8,7 @@ import ldap
 from ldap.controls import SimplePagedResultsControl
 
 from .resource import Resource
+from .utils import _get_ldap_attr_value
 
 PAGESIZE = 1000
 ldap.set_option(ldap.OPT_REFERRALS, 0)
@@ -97,24 +98,29 @@ class UserResource(Resource):
                 count += 1
                 if skip and count <= skip:
                     continue
-                if b'inetOrgPerson' in attrs['objectClass']:
-                    cn = codecs.decode(attrs['cn'][0], 'utf-8')
-                    mail = codecs.decode(attrs['mail'][0], 'utf-8')
-                    uid = codecs.decode(attrs['uid'][0], 'utf-8')
-                    givenName = codecs.decode(attrs['givenName'][0], 'utf-8')
-                    sn = codecs.decode(attrs['sn'][0], 'utf-8')
-                    title = codecs.decode(attrs['title'][0], 'utf-8')
-                    d = {x: '' for x in self.fields}
-                    d.update({
-                        'displayName': cn,
-                        'mail': mail,
-                        'id': uid,
-                        'userPrincipalName': uid,
-                        'surname': sn,
-                        'givenName': givenName,
-                        'title': title,
-                    })
-                    value.append(d)
+
+                try:
+                    uid = _get_ldap_attr_value(attrs, 'uid')
+                except KeyError:
+                    # Ignore entries which have no uid.
+                    continue
+                cn = _get_ldap_attr_value(attrs, 'cn', '')
+                mail = _get_ldap_attr_value(attrs, 'mail', '')
+                givenName = _get_ldap_attr_value(attrs, 'givenName', '')
+                sn = _get_ldap_attr_value(attrs, 'sn', '')
+                title = _get_ldap_attr_value(attrs, 'title', '')
+                d = {x: '' for x in self.fields}
+                d.update({
+                    'displayName': cn,
+                    'mail': mail,
+                    'id': uid,
+                    'userPrincipalName': uid,
+                    'surname': sn,
+                    'givenName': givenName,
+                    'title': title,
+                })
+                value.append(d)
+
                 if end and count >= end:
                     break
 
