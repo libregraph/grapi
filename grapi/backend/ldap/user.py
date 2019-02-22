@@ -24,6 +24,9 @@ class UserResource(Resource):
     searchScope = ldap.SCOPE_SUBTREE
     searchFilter = "(objectClass=inetOrgPerson)"
 
+    useridSearchFilterTemplate = "(uid=%(userid)s)"
+    searchSearchFilterTemplate = "(|(mail=*%(search)s*)(givenName=*%(search)s*)(sn=*%(search)s*))"
+
     retryMax = 3
     retryDelay = 1.0
 
@@ -66,11 +69,14 @@ class UserResource(Resource):
         count = 0
         skip = 0
         if userid:
-            searchFilter = "(&" + searchFilter + ("(uid=%s)" % userid) + ")"
+            searchFilter = "(&" + searchFilter + (self.useridSearchFilterTemplate % {"userid": userid}) + ")"
         else:
             args = self.parse_qs(req)
             top = int(args.get('$top', [top])[0])
             skip = int(args.get('$skip', [skip])[0])
+            search = args.get('$search', [None])[0]
+            if search:
+                searchFilter = "(&" + searchFilter + (self.searchSearchFilterTemplate % {"search": search}) + ")"
             end = top + skip
             if end < size:
                 size = end
@@ -81,7 +87,7 @@ class UserResource(Resource):
                 self.baseDN,
                 self.searchScope,
                 searchFilter,
-                ['objectClass', 'cn', 'mail', 'uid'],
+                ['objectClass', 'cn', 'mail', 'uid', 'givenName', 'sn', 'title'],
                 serverctrls=[lc]
             )
 
@@ -92,15 +98,21 @@ class UserResource(Resource):
                 if skip and count <= skip:
                     continue
                 if b'inetOrgPerson' in attrs['objectClass']:
-                    name = codecs.decode(attrs['cn'][0], 'utf-8')
+                    cn = codecs.decode(attrs['cn'][0], 'utf-8')
                     mail = codecs.decode(attrs['mail'][0], 'utf-8')
                     uid = codecs.decode(attrs['uid'][0], 'utf-8')
+                    givenName = codecs.decode(attrs['givenName'][0], 'utf-8')
+                    sn = codecs.decode(attrs['sn'][0], 'utf-8')
+                    title = codecs.decode(attrs['title'][0], 'utf-8')
                     d = {x: '' for x in self.fields}
                     d.update({
-                        'displayName': name,
+                        'displayName': cn,
                         'mail': mail,
                         'id': uid,
-                        'userPrincipalName': uid
+                        'userPrincipalName': uid,
+                        'surname': sn,
+                        'givenName': givenName,
+                        'title': title,
                     })
                     value.append(d)
                 if end and count >= end:
@@ -123,9 +135,10 @@ class UserResource(Resource):
         else:
             data = {
                 '@odata.context': '/api/gc/v1/users',
-                '@odata.nextLink': '/api/gc/v1/users?$skip=%d' % (top + skip),
                 'value': value,
             }
+            if len(value) >= top:
+                data['@odata.nextLink'] = '/api/gc/v1/users?$skip=%d' % (top + skip)
 
         resp.content_type = "application/json"
         resp.body = json.dumps(data, indent=2, ensure_ascii=False).encode('utf-8') # TODO stream
