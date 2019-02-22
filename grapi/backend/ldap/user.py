@@ -24,6 +24,9 @@ class UserResource(Resource):
     searchScope = ldap.SCOPE_SUBTREE
     searchFilter = "(objectClass=inetOrgPerson)"
 
+    retryMax = 3
+    retryDelay = 1.0
+
     fields = {
         'id': lambda user: user.userid,
         'displayName': lambda user: user.fullname,
@@ -47,7 +50,7 @@ class UserResource(Resource):
         if not self.uri or  not self.baseDN:
             raise RuntimeError("missing LDAP_URI or LDAP_BASEDN in environment")
 
-        self.l = ldap.initialize(self.uri)
+        self.l = ldap.ldapobject.ReconnectLDAPObject(self.uri, retry_max=self.retryMax, retry_delay=self.retryDelay)
         if self.bindDN is not None and self.bindPW is not None:
             self.l.simple_bind_s(self.bindDN, self.bindPW)
 
