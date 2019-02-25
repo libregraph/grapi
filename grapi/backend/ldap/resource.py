@@ -7,7 +7,7 @@ except ImportError:
 
 import falcon
 
-# NOTE(longsleep): Duplicated from kppano backend. Move to general location.
+# NOTE(longsleep): Duplicated from kopano backend. Move to general location.
 def _parse_qs(req):
     args = urlparse.parse_qs(req.query_string)
     for arg, values in args.items():
