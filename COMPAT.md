@@ -21,179 +21,179 @@ Extensions:
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/attachment.md)
 
-[Get attachment](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/attachment_get.md)
+[Get attachment](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/attachment-get.md)
 
 (Extension: use attachment/id/$value to get attachment in binary.)
 
-[Delete attachment](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/attachment_delete.md)
+[Delete attachment](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/attachment-delete.md)
 
 ## calendar Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/calendar.md)
 
-[Get calendar](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/calendar_get.md)
+[Get calendar](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/calendar-get.md)
 
-[List calendarView](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/calendar_list_calendarview.md)
+[List calendarView](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/calendar-list-calendarview.md)
 
-[List events](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/calendar_list_events.md)
+[List events](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/calendar-list-events.md)
 
-[Create event](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/calendar_post_events.md)
+[Create event](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/calendar-post-events.md)
 
 ## contact Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/contact.md)
 
-[Get contact](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/contact_get.md)
+[Get contact](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/contact-get.md)
 
-[Delete contact](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/contact_delete.md)
+[Delete contact](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/contact-delete.md)
 
-[delta](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/contact_delta.md)
+[delta](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/contact-delta.md)
 
 ## contactFolder Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/contactfolder.md)
 
-[Get contactFolder](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/contactfolder_get.md)
+[Get contactFolder](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/contactfolder-get.md)
 
-[List contacts](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/contactfolder_list_contacts.md)
+[List contacts](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/contactfolder-list-contacts.md)
 
-[Create contact](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/contactfolder_post_contacts.md)
+[Create contact](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/contactfolder-post-contacts.md)
 
-[delta](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/contactfolder_delta.md)
+[delta](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/contactfolder-delta.md)
 
 ## event Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/event.md)
 
-[Get event](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/event_get.md)
+[Get event](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/event-get.md)
 
-[Update event](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/event_update.md)
+[Update event](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/event-update.md)
 
-[Delete event](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/event_delete.md)
+[Delete event](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/event-delete.md)
 
-[accept event](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/event_accept.md)
+[accept event](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/event-accept.md)
 
-[tentativelyAccept event](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/event_tentativelyaccept.md)
+[tentativelyAccept event](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/event-tentativelyaccept.md)
 
-[decline event](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/event_decline.md)
+[decline event](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/event-decline.md)
 
-[List instances](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/event_list_instances.md)
+[List instances](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/event-list-instances.md)
 
-[List attachments](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/event_list_attachments.md)
+[List attachments](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/event-list-attachments.md)
 
-[Add attachment](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/event_post_attachments.md)
+[Add attachment](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/event-post-attachments.md)
 
 ## group Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/group.md)
 
-[Get group](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/group_get.md)
+[Get group](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/group-get.md)
 
-[List members](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/group_list_members.md)
+[List members](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/group-list-members.md)
 
 ## mailFolder Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/mailfolder.md)
 
-[Get mailFolder](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/mailfolder_get.md)
+[Get mailFolder](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/mailfolder-get.md)
 
-[Create childFolder](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/mailfolder_post_childfolders.md)
+[Create childFolder](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/mailfolder-post-childfolders.md)
 
-[List childFolders](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/mailfolder_list_childfolders.md)
+[List childFolders](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/mailfolder-list-childfolders.md)
 
-[Create message](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/mailfolder_post_messages.md)
+[Create message](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/mailfolder-post-messages.md)
 
-[List messages](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/mailfolder_list_messages.md)
+[List messages](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/mailfolder-list-messages.md)
 
-[Delete mailFolder](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/mailfolder_delete.md)
+[Delete mailFolder](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/mailfolder-delete.md)
 
-[copy](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/mailfolder_copy.md)
+[copy](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/mailfolder-copy.md)
 
-[move](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/mailfolder_move.md)
+[move](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/mailfolder-move.md)
 
-[delta](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/mailfolder_delta.md)
+[delta](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/mailfolder-delta.md)
 
 ## message Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/message.md)
 
-[Get message](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message_get.md)
+[Get message](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message-get.md)
 
-[Update message](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message_update.md)
+[Update message](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message-update.md)
 
-[Delete message](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message_delete.md)
+[Delete message](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message-delete.md)
 
-[createReply](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message_createreply.md)
+[createReply](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message-createreply.md)
 
-[createReplyAll](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message_createreplyall.md)
+[createReplyAll](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message-createreplyall.md)
 
-[send](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message_send.md)
+[send](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message-send.md)
 
-[List attachments](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message_list_attachments.md)
+[List attachments](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message-list-attachments.md)
 
-[Add attachment](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message_post_attachments.md)
+[Add attachment](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message-post-attachments.md)
 
-[copy](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message_copy.md)
+[copy](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message-copy.md)
 
-[move](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message_move.md)
+[move](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message-move.md)
 
-[delta](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message_delta.md)
+[delta](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message-delta.md)
 
 ## profilePhoto Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/profilephoto.md)
 
-[Get profilePhoto](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/profilephoto_get.md)
+[Get profilePhoto](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/profilephoto-get.md)
 
-[Update profilePhoto](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/profilephoto_update.md)
+[Update profilePhoto](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/profilephoto-update.md)
 
 ## subscription Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/subscription.md)
 
-[Create subscription](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/subscription_post_subscriptions.md)
+[Create subscription](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/subscription-post-subscriptions.md)
 
-[Get subscription](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/subscription_get.md)
+[Get subscription](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/subscription-get.md)
 
-[Delete subscription](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/subscription_delete.md)
+[Delete subscription](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/subscription-delete.md)
 
 ## user Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/user.md)
 
-[List users](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user_list.md)
+[List users](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user-list.md)
 
-[Get user](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user_get.md)
+[Get user](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user-get.md)
 
-[List messages](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user_list_messages.md)
+[List messages](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user-list-messages.md)
 
-[Create message](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user_post_messages.md)
+[Create message](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user-post-messages.md)
 
-[List mailFolders](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user_list_mailfolders.md)
+[List mailFolders](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user-list-mailfolders.md)
 
-[Create mailFolder](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user_post_mailfolders.md)
+[Create mailFolder](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user-post-mailfolders.md)
 
-[sendMail](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user_sendmail.md)
+[sendMail](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user-sendmail.md)
 
-[List events](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user_list_events.md)
+[List events](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user-list-events.md)
 
-[Create event](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user_post_events.md)
+[Create event](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user-post-events.md)
 
-[List contactFolders](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user_list_contactfolders.md)
+[List contactFolders](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user-list-contactfolders.md)
 
-[List calendars](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user_list_calendars.md)
+[List calendars](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user-list-calendars.md)
 
-[List calendarView](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user_list_calendarview.md)
+[List calendarView](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user-list-calendarview.md)
 
-[reminderView](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user_reminderview.md)
+[reminderView](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user-reminderview.md)
 
-[List contacts](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user_list_contacts.md)
+[List contacts](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user-list-contacts.md)
 
-[Create contact](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user_post_contacts.md)
+[Create contact](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user-post-contacts.md)
 
-[List memberOf](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user_list_memberof.md)
+[List memberOf](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user-list-memberof.md)
 
-[delta](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user_delta.md)
+[delta](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/user-delta.md)
 
 [calendar](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/calendar.md)
 
