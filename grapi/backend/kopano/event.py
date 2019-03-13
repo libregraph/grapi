@@ -96,7 +96,9 @@ def recurrence_set(item, arg):
         rec.count = arg['range']['numberOfOccurrences']
         # TODO don't use hidden vars
         rec.start = dateutil.parser.parse(arg['range']['startDate'])
-        if arg['range']['type'] != 'noEnd': # TODO resilient: set anyway
+        if arg['range']['type'] == 'noEnd':
+            rec.end = dateutil.parser.parse('31-12-4500')
+        else:
             rec.end = dateutil.parser.parse(arg['range']['endDate'])
 
         rec._save()
