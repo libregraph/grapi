@@ -4,7 +4,24 @@ from setuptools import setup, find_packages
 import subprocess
 
 
-version = '0.0.0-unreleased'
+install_requires = [
+    'bjoern>=2.2.2',
+    'bsddb3',
+    'falcon>=1.4.1',
+    'jsonschema>=2.6.0',
+    'kopano>=8.7.0',
+    'MAPI>=8.7.0',
+    'python-dateutil',
+    'python-ldap>=3.1.0',
+    'pytz',
+    'requests',
+    'setproctitle',
+    'ujson>=1.35',
+    'vobject'
+]
+
+
+version = '0.0.0+unreleased'
 here = os.path.abspath(os.path.dirname(__file__))
 if os.path.exists(os.path.join(here, '.version')):
     with open(os.path.join(here, '.version'), 'r') as version_file:
@@ -26,6 +43,8 @@ setup(
     author='Kopano',
     author_email='development@kopano.io',
     license='AGPL',
+
+    install_requires=install_requires,
 
     packages=find_packages(include=['grapi', 'grapi.*']),
     zip_safe=False,
