@@ -1,33 +1,45 @@
-General deviations from Microsoft Graph:
+# Kopano GRAPI API compatibility with Microsoft Graph
 
-1. Endpoints such as "/me/messages" or "/me/events" do not expose the entire store, but just the inbox or calendar, respectively.
-2. We do not support relative paths, such as "mailFolder/id/childFolder/id/childFolder/id/.."
-3. Certain esoteric OData fields such as @odata.context are not yet correctly exported.
-4. Many fields are not exported, such as user or contact fields, or cannot be changed at the moment.
+This document summarizes the Kopano GRAPI implementation differences and socpe
+in relation to Microsoft Graph.
 
-Query Parameters:
+## Summary
 
-[Graph documentation](https://developer.microsoft.com/en-us/graph/docs/concepts/query_parameters)
+- Endpoints such as "/me/messages" or "/me/events" do not expose the entire
+  store, but just the inbox or calendar, respectively.
+- We do not support relative paths, such as
+  "mailFolder/id/childFolder/id/childFolder/id/.."
+- Certain esoteric OData fields such as @odata.context are not yet correctly
+  exported.
+- Many fields are not exported, such as user or contact fields, or cannot be
+  changed at the moment.
 
-1. We do not support $filter or $format.
-2. Support for $expand and $count is preliminary.
+## Query Parameters
 
-Extensions:
+Genereally the [Graph documentation](https://developer.microsoft.com/en-us/graph/docs/concepts/query_parameters) applies considering the following changes:
 
-1. We support handling attachments in binary using $value, using for example: "GET /me/messages/id/attachment/id/$value".
-2. We support the query parameter $search for /users, where Graph currently does not.
+- We do not support `$filter` or `$format`.
+- Support for `$expand` and `$count` is preliminary.
 
-## attachment Resource
+## Extensions
+
+- We support handling attachments in binary using `$value`.
+  For example: `GET /me/messages/id/attachment/id/$value`
+- We support the query parameter `$search` for `/users`.
+
+## Resources
+
+### attachment Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/attachment.md)
 
 [Get attachment](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/attachment-get.md)
 
-(Extension: use attachment/id/$value to get attachment in binary.)
+(Extension: use `attachment/id/$value` to get attachment in binary.)
 
 [Delete attachment](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/attachment-delete.md)
 
-## calendar Resource
+### calendar Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/calendar.md)
 
@@ -39,7 +51,7 @@ Extensions:
 
 [Create event](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/calendar-post-events.md)
 
-## contact Resource
+### contact Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/contact.md)
 
@@ -49,7 +61,7 @@ Extensions:
 
 [delta](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/contact-delta.md)
 
-## contactFolder Resource
+### contactFolder Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/contactfolder.md)
 
@@ -61,7 +73,7 @@ Extensions:
 
 [delta](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/contactfolder-delta.md)
 
-## event Resource
+### event Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/event.md)
 
@@ -83,7 +95,7 @@ Extensions:
 
 [Add attachment](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/event-post-attachments.md)
 
-## group Resource
+### group Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/group.md)
 
@@ -91,7 +103,7 @@ Extensions:
 
 [List members](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/group-list-members.md)
 
-## mailFolder Resource
+### mailFolder Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/mailfolder.md)
 
@@ -113,7 +125,7 @@ Extensions:
 
 [delta](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/mailfolder-delta.md)
 
-## message Resource
+### message Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/message.md)
 
@@ -139,7 +151,7 @@ Extensions:
 
 [delta](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/message-delta.md)
 
-## profilePhoto Resource
+### profilePhoto Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/profilephoto.md)
 
@@ -147,7 +159,7 @@ Extensions:
 
 [Update profilePhoto](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/profilephoto-update.md)
 
-## subscription Resource
+### subscription Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/subscription.md)
 
@@ -157,7 +169,7 @@ Extensions:
 
 [Delete subscription](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/subscription-delete.md)
 
-## user Resource
+### user Resource
 
 [(Resource)](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/resources/user.md)
 
