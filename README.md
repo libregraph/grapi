@@ -1,38 +1,37 @@
-# GRAPI
+# Kopano GRAPI
 
-GRAPI provides a general REST web service for multiple groupware applications/stanadards. It aims to be largely compatible with Microsoft Graph. See `COMPAT.MD` for compatibility details.
+Kopano GRAPI provides a general REST web service for multiple groupware
+applications/standards. It aims to be largely compatible with Microsoft Graph.
+See `COMPAT.MD` for compatibility details.
 
-In a production environment, GRAPI is deployed together with Konnect, Kopano-apid and the provided grapi-mfr script.
+GRAPI is meant to be used directly by for Kopano API and requires Python 3.
 
-GRAPI requires python3.
+## Running GRAPI MFR
 
-## Running
+MFR stands for Master Fleet Runner and starts the WSGI services provided by
+GRAPI in a way that they can be consumed using unix sockets. To achieve best
+scalability, MFR starts multiple instances of its services so they can be
+utilized in parallel.
 
-    python3 grapi-mfr.py
+```
+./mfr.py
+```
 
-## Parameters
-
-The `--socket-path` parameter specifies where grapi-mfr should create its UNIX sockets (default `/var/run/grapi').
-
-The `--workers` parameter specifies how many worker processes to utilize (default 8).
-
-The `--insecure` parameter disables checking of SSL certificates for subscription webhooks.
-
-The `--enable-auth-basic` parameter enables basic authentication (by default on bearer authentication is enabled).
-
-The `--with-metrics` parameter adds an additional worker process to collect usage metrics (using Prometheus).
-
-The `--metrics-listen` parameter specifies where the metrics worker can be reached.
+MFR behaviour can be controlled using commandline parameters. Use
+`./mfr.py --help` to get the details.
 
 ## Development
 
-GRAPI consists of separate WSGI applications. The grapi-mfr scripts runs both together, in a scalable way.
+GRAPI consists of separate WSGI applications. Mfr runs them together, in a
+scalable way to be picked up by Kopano API. Recommended way to develop is to
+run GRAPI together with Kopano API.
 
-During development, it is sometimes easier to use the applications directly, and without needing access tokens (so using basic authentication).
+During development, it is sometimes easier to use the applications directly,
+and without needing access tokens (so using basic authentication). To do that
+use the `--enable-auth-basic` and start the WSGI applications directly for
+example using gunicorn:
 
-    gunicorn3 'grapi:RestAPI()'
-    gunicorn3 'grapi:NotifyAPI()'
-
-In fact, gunicorn is not even necessary, but comes with many useful options, such as automatic reloading. The following also works:
-
-    python3 -m grapi [REST_PORT=8000, NOTIFY_PORT=8001]
+```
+gunicorn3 'grapi.api.v1:RestAPI()'
+gunicorn3 'grapi:api.v1:NotifyAPI()'
+```
