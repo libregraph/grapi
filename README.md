@@ -35,3 +35,7 @@ example using gunicorn:
 gunicorn3 'grapi.api.v1:RestAPI()'
 gunicorn3 'grapi:api.v1:NotifyAPI()'
 ```
+
+## License
+
+See `LICENSE.txt` for licensing information of this project.
