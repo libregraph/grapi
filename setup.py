@@ -8,7 +8,7 @@ install_requires = [
     'bjoern>=2.2.2',
     'bsddb3',
     'falcon>=1.4.1',
-    'jsonschema>=2.6.0',
+    'jsonschema>=2.5.0',
     'kopano>=8.7.0',
     'MAPI>=8.7.0',
     'python-dateutil',
