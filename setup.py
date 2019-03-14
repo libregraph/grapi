@@ -25,13 +25,13 @@ version = '0.0.0+unreleased'
 here = os.path.abspath(os.path.dirname(__file__))
 if os.path.exists(os.path.join(here, '.version')):
     with open(os.path.join(here, '.version'), 'r') as version_file:
-        version = version_file.read()
+        version = version_file.read().strip()
 elif os.path.exists(os.path.join(here, '.git')):
     cmd = 'git describe --tags --always --dirty --match=v*'
     v = subprocess.check_output(cmd.split(' '), cwd=here).decode('utf-8').replace('-', '+', 1)
     if v.startswith('v'):
         v = v[1:]
-    version = v
+    version = v.strip()
 
 setup(
     name='grapi',
