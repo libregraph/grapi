@@ -6,7 +6,7 @@ import os
 import vobject
 import caldav
 
-HOST = 'https://webapp.kopano.com:8443'
+HOST = os.getenv('CALDAV_SERVER')
 USER = os.getenv('GRAPI_USER')
 PASSWORD = os.getenv('GRAPI_PASSWORD')
 
