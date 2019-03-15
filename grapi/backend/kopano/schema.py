@@ -16,7 +16,10 @@ _event_schema = {
     "type": "object",
     "properties": {
         "subject": {"type": "string"},
-        "body": {"type": "string"},
+        "body": {
+            "content": "string",
+            "contentType": "string"
+        },
         "start": _dateTimeTimeZone,
         "end": _dateTimeTimeZone,
         "isAllDay": {"type": "boolean"},
