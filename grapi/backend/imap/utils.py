@@ -6,7 +6,7 @@ import email.header
 import imaplib
 import os
 
-HOST = 'email.kopano.com'
+HOST = os.getenv('IMAP_SERVER')
 USER = os.getenv('GRAPI_USER')
 PASSWORD = os.getenv('GRAPI_PASSWORD')
 
