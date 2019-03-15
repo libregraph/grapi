@@ -6,7 +6,7 @@ import os
 import ldap
 from ldap.controls import SimplePagedResultsControl
 
-from .resource import Resource
+from grapi.backend.ldap import Resource
 from .utils import _get_ldap_attr_value
 
 PAGESIZE = 1000

@@ -2,8 +2,7 @@
 
 import json
 
-from .resource import Resource
-from . import utils
+from . import utils, Resource
 
 class MessageResource(Resource):
     fields = {

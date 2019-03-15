@@ -4,7 +4,7 @@ from urllib.parse import parse_qs
 
 import falcon
 
-# NOTE(longsleep): Duplicated from kopano backend. Move to general location.
+
 def _parse_qs(req):
     args = parse_qs(req.query_string)
     for arg, values in args.items():
@@ -19,10 +19,12 @@ def _parse_qs(req):
 
     return args
 
+
 class HTTPBadRequest(falcon.HTTPBadRequest):
     def __init__(self, msg):
         msg = html.escape(msg)
         super().__init__(None, msg)
+
 
 class Resource(object):
     def __init__(self, options):

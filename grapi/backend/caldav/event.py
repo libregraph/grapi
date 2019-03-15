@@ -3,9 +3,7 @@ import base64
 import codecs
 import json
 
-from .resource import Resource
-
-from . import utils
+from . import utils, Resource
 
 class EventResource(Resource):
     fields = {

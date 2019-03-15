@@ -1,4 +1,4 @@
-from .resource import Resource
+from grapi.api.v1.resource import Resource
 
 from .user import UserResource
 from .message import MessageResource
