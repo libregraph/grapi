@@ -83,11 +83,14 @@ class RestAPI(falcon.API):
             backend = self.import_backend(name)
             name_backend[name] = backend
 
+        # TODO(jelle): make backends define their types by introducting a constant in grapi.api
+        # And specifying it in backends.
         backend_types = {
             'ldap': ['directory'],
             'kopano': ['directory', 'mail', 'calendar'],
             'imap': ['mail'],
             'caldav': ['calendar'],
+            'mock': ['mail', 'directory'],
         }
 
         default_backend = {}

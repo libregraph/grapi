@@ -53,10 +53,10 @@ make start-devrunner ARGS='--backends ldap'
 ## Backends
 
 The Kopano backend is currently the most tested and supported backend for mail,
-calendar and directory information. Other backends are LDAP, CalDAV and
-IMAP should be treated as experimental and can be run simultaneous where
-for example mail is provided by the IMAP backend and calendar by the CalDAV
-backend.
+calendar and directory information. Other available backends are for example
+LDAP, CalDAV and IMAP, these should be treated as experimental at this moment.
+Multiple backend can be run simultaneous where for example mail is provided by
+the IMAP backend and calendar by the CalDAV backend.
 
 ### LDAP backend
 
