@@ -36,6 +36,53 @@ gunicorn3 'grapi.api.v1:RestAPI()'
 gunicorn3 'grapi:api.v1:NotifyAPI()'
 ```
 
+## Backends
+
+The Kopano backend is currently the most tested and supported backend for mail,
+calendar and directory information. Other backends are LDAP, CalDAV and
+IMAP should be treated as experimental and can be run simultaneous where
+for example mail is provided by the IMAP backend and calendar by the CalDAV
+backend.
+
+### LDAP backend
+
+The ldap backend requires two environment variables to be set:
+
+* LDAP_URI - the ldap uri
+* LDAP_BASEDN - the base dn
+
+If the LDAP server needs authentication for listing users the following
+environment variables should be set:
+
+* LDAP_BINDDN
+* LDAP_BINDPW
+
+#### Dependencies
+
+* python-ldap
+
+### Caldav backend
+
+The caldav backend requires three environment variables to be set:
+
+* CALDAV_SERVER - the caldav server url
+* GRAPI_USER - the caldav user
+* GRAPI_PASSWORD - the caldav password
+
+#### Dependencies
+
+* python-vobject
+* python-caldav
+
+### IMAP Backend
+
+The IMAP backend only supports IMAP over SSL/TLS and requires three environment
+variables to be set:
+
+* IMAP_SERVER - the IMAP server url
+* GRAPI_USER - the IMAP user
+* GRAPI_PASSWORD - the IMAP password
+
 ## License
 
 See `LICENSE.txt` for licensing information of this project.
