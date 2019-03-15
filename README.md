@@ -36,6 +36,20 @@ gunicorn3 'grapi.api.v1:RestAPI()'
 gunicorn3 'grapi:api.v1:NotifyAPI()'
 ```
 
+Another option is to start the devrunner by invoking make. This will run it
+using the Kopano backend and listening by default on port 8000, with the notify
+port on 8001.
+
+```
+make start-devrunner
+```
+
+Arguments, such as running a specific backend, can be passed as following:
+
+```
+make start-devrunner ARGS='--backends ldap'
+```
+
 ## Backends
 
 The Kopano backend is currently the most tested and supported backend for mail,
