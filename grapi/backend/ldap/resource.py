@@ -1,15 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-try:
-    import urlparse
-except ImportError:
-    import urllib.parse as urlparse
+from urllib.parse import parse_qs
 
 import falcon
 
 # NOTE(longsleep): Duplicated from kopano backend. Move to general location.
 def _parse_qs(req):
-    args = urlparse.parse_qs(req.query_string)
+    args = parse_qs(req.query_string)
     for arg, values in args.items():
         if len(values) > 1:
             raise HTTPBadRequest("Query option '%s' was specified more than once, but it must be specified at most once." % arg)
