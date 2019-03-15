@@ -54,9 +54,17 @@ class UserResource(Resource):
         if not self.uri or  not self.baseDN:
             raise RuntimeError("missing LDAP_URI or LDAP_BASEDN in environment")
 
-        self.l = ldap.ldapobject.ReconnectLDAPObject(self.uri, retry_max=self.retryMax, retry_delay=self.retryDelay)
+        try:
+            self.l = ldap.ldapobject.ReconnectLDAPObject(self.uri, retry_max=self.retryMax, retry_delay=self.retryDelay)
+        except ldap.LDAPError as e:
+            print("unable to connect to LDAP server", e)
+
+
         if self.bindDN is not None and self.bindPW is not None:
-            self.l.simple_bind_s(self.bindDN, self.bindPW)
+            try:
+                self.l.simple_bind_s(self.bindDN, self.bindPW)
+            except ldap.INVALID_CREDENTIALS as e:
+                print("invalid LDAP credentials", e)
 
     def on_get(self, req, resp, userid=None, method=None):
         l = self.l
