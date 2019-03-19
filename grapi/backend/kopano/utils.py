@@ -14,7 +14,7 @@ else: # pragma: no cover
 import falcon
 
 from MAPI.Util import kc_session_save, kc_session_restore, GetDefaultStore
-from MAPI.Struct import MAPIErrorNotFound
+from MAPI.Struct import MAPIErrorNotFound, MAPIErrorNoAccess
 import kopano
 
 USERID_SESSION = {}
@@ -124,21 +124,28 @@ def _username(userid): # pragma: no cover
 
 def _server_store(req, userid, options):
     try:
-        server = _server(req, options)
+        try:
+            server = _server(req, options)
+        except MAPIErrorNotFound: # no store
+            raise falcon.HTTPForbidden('Unauthorized', None)
 
         if userid and userid != 'delta':
-            if userid.startswith('AAAAA'):
-                try:
-                    user = server.user(userid=userid)
-                except kopano.NotFoundError:
-                    user = server.user(name=userid)
-                    userid = user.userid
-            else:
-                try:
-                    user = server.user(name=userid)
-                    userid = user.userid
-                except kopano.NotFoundError:
-                    user = server.user(userid=userid)
+            try:
+                if userid.startswith('AAAAA'):
+                    try:
+                        user = server.user(userid=userid)
+                    except kopano.NotFoundError:
+                        user = server.user(name=userid)
+                        userid = user.userid
+                else:
+                    try:
+                        user = server.user(name=userid)
+                        userid = user.userid
+                    except kopano.NotFoundError:
+                        user = server.user(userid=userid)
+            except (kopano.NotFoundError, kopano.ArgumentError, MAPIErrorNotFound):
+                raise falcon.HTTPNotFound(description='No such user: %s' % userid)
+
             store = user.store
         else:
             store = kopano.Store(server=server,
@@ -146,10 +153,8 @@ def _server_store(req, userid, options):
 
         return server, store, userid
 
-    except (kopano.LogonError, MAPIErrorNotFound): # TODO MAPIErrorNotFound
+    except (kopano.LogonError, MAPIErrorNoAccess):
         raise falcon.HTTPForbidden('Unauthorized', None)
-    except Exception:
-        raise falcon.HTTPNotFound(description=None)
 
 def _folder(store, folderid):
     name = folderid.lower()
