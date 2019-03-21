@@ -9,15 +9,11 @@ install_requires = [
     'bsddb3',
     'falcon>=1.4.1',
     'jsonschema>=2.5.0',
-    'kopano>=8.7.0',
-    'MAPI>=8.7.0',
     'python-dateutil',
-    'python-ldap>=3.1.0',
     'pytz',
     'requests',
     'setproctitle',
-    'ujson>=1.35',
-    'vobject'
+    'ujson>=1.35'
 ]
 
 
