@@ -24,7 +24,7 @@ pipeline {
 				// Filter out already installed dependencies
 				sh 'grep -Ev "kopano|MAPI"  requirements.txt > jenkins_requirements.txt'
 				sh 'pip install -r jenkins_requirements.txt'
-				sh 'pip install pylint'
+				sh 'pip install pylint pytest'
 			}
 		}
 		stage('Lint') {
@@ -32,6 +32,12 @@ pipeline {
 				echo 'Linting..'
 				sh 'make lint > pylint.log || exit 0'
 				recordIssues tool: pyLint(pattern: 'pylint.log'), qualityGates: [[threshold: 40, type: 'TOTAL', unstable: true]]
+			}
+		}
+		stage('Test') {
+			steps {
+				echo 'Testing..'
+				sh 'make test PYTEST=pytest'
 			}
 		}
 	}

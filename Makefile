@@ -2,6 +2,7 @@
 
 PYTHON ?= python3
 PYLINT ?= pylint
+PYTEST ?= py.test-3
 
 # Variables
 
@@ -16,6 +17,10 @@ all:
 .PHONY: lint
 lint:
 	$(PYLINT) ./grapi
+
+.PHONY: test
+test:
+	PYTHONPATH=${PYTHONPATH} ${PYTEST}
 
 # Dev helpers
 
