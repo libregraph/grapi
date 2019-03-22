@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import base64
+import binascii
 
 import dateutil.parser
 import falcon
@@ -179,7 +180,13 @@ class EventResource(ItemResource):
     def on_get(self, req, resp, userid=None, folderid=None, eventid=None, method=None):
         server, store, userid = _server_store(req, userid, self.options)
         folder = _folder(store, folderid or 'calendar')
-        event = folder.event(eventid)
+
+        try:
+            event = folder.event(eventid)
+        except binascii.Error:
+            raise HTTPBadRequest('Id is malformed')
+        except kopano.errors.NotFoundError:
+            raise HTTPBadRequest('Item not found')
 
         if method == 'attachments':
             attachments = list(event.attachments(embedded=True))
