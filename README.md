@@ -4,7 +4,7 @@ Kopano GRAPI provides a general REST web service for multiple groupware
 applications/standards. It aims to be largely compatible with Microsoft Graph.
 See `COMPAT.MD` for compatibility details.
 
-GRAPI is meant to be used directly by for Kopano API and requires Python 3.
+GRAPI is meant to be used directly by Kopano API (kapi) and requires Python 3.
 
 ## Running GRAPI MFR
 
@@ -52,11 +52,18 @@ make start-devrunner ARGS='--backends ldap'
 
 ## Backends
 
+### Kopano Groupware Storage server backend
+
 The Kopano backend is currently the most tested and supported backend for mail,
 calendar and directory information. Other available backends are for example
 LDAP, CalDAV and IMAP, these should be treated as experimental at this moment.
 Multiple backend can be run simultaneous where for example mail is provided by
 the IMAP backend and calendar by the CalDAV backend.
+
+#### Dependencies
+
+* kopano Python module
+* MAPI Python module
 
 ### LDAP backend
 
@@ -73,7 +80,7 @@ environment variables should be set:
 
 #### Dependencies
 
-* python-ldap
+* python-ldap Python module
 
 ### Caldav backend
 
@@ -85,8 +92,8 @@ The caldav backend requires three environment variables to be set:
 
 #### Dependencies
 
-* python-vobject
-* python-caldav
+* vobject Python module
+* caldav Python module
 
 ### IMAP Backend
 
