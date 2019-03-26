@@ -3,7 +3,7 @@ import glob
 import logging
 from logging.handlers import QueueListener
 import multiprocessing
-import optparse
+import argparse
 import os
 import os.path
 import signal
@@ -83,36 +83,33 @@ def create_pidfile(path):
         _file.write(pid)
 
 def opt_args():
-    parser = optparse.OptionParser()
-
-    parser.add_option("", "--socket-path", dest="socket_path",
-                      help="parent directory for unix sockets", metavar="PATH")
-    parser.add_option("", "--pid-file", dest='pid_file', default=PID_FILE,
-                      help="pid file location", metavar="PATH")
-    parser.add_option("-w", "--workers", dest="workers", type='int',
+    parser = argparse.ArgumentParser(prog=PROCESS_NAME, description='Kopano Grapi Master Fleet Runner')
+    parser.add_argument("--socket-path", dest="socket_path",
+                      help="parent directory for unix sockets (default: {})".format(SOCKET_PATH),
+                      default=SOCKET_PATH)
+    parser.add_argument("--pid-file", dest='pid_file', default=PID_FILE,
+                      help="pid file location (default: {})".format(PID_FILE), metavar="PATH")
+    parser.add_argument("-w", "--workers", dest="workers", type=int, default=WORKERS,
                       help="number of workers (unix sockets)", metavar="N")
-    parser.add_option("", "--insecure", dest='insecure', action='store_true', default=False,
+    parser.add_argument("--insecure", dest='insecure', action='store_true', default=False,
                       help="allow insecure connections")
-    parser.add_option("", "--enable-auth-basic", dest='auth_basic', action='store_true', default=False,
+    parser.add_argument("--enable-auth-basic", dest='auth_basic', action='store_true', default=False,
                       help="enable basic authentication")
-    parser.add_option("", "--enable-auth-passthrough", dest='auth_passthrough', action='store_true', default=False,
+    parser.add_argument("--enable-auth-passthrough", dest='auth_passthrough', action='store_true', default=False,
                       help="enable passthrough authentication (use with caution)")
-    parser.add_option("", "--disable-auth-bearer", dest='auth_bearer', action='store_false', default=True,
+    parser.add_argument("--disable-auth-bearer", dest='auth_bearer', action='store_false', default=True,
                       help="disable bearer authentication")
-    parser.add_option("", "--with-metrics", dest='with_metrics', action='store_true', default=False,
+    parser.add_argument("--with-metrics", dest='with_metrics', action='store_true', default=False,
                       help="enable metrics process")
-    parser.add_option("", "--metrics-listen", dest='metrics_listen', metavar='ADDRESS:PORT',
+    parser.add_argument("--metrics-listen", dest='metrics_listen, default', metavar='ADDRESS:PORT',
                       default=METRICS_LISTEN, help="metrics process address")
-    parser.add_option("", "--process-name", dest='process_name', default=PROCESS_NAME,
-                      help="set process name", metavar="NAME")
-    parser.add_option("", "--backends", dest='backends', default='kopano',
+    parser.add_argument("--process-name", dest='process_name',
+                      default=PROCESS_NAME, help="set process name", metavar="NAME")
+    parser.add_argument("--backends", dest='backends', default='kopano',
                       help="backends to enable (comma-separated)", metavar="LIST")
 
-    options, args = parser.parse_args()
-    if args:
-        parser.print_usage()
-        sys.exit(-1)
-    return options, args
+
+    return parser.parse_args()
 
 def error_handler(ex, req, resp, params):
     if not isinstance(ex, (falcon.HTTPError, falcon.HTTPStatus)):
@@ -210,39 +207,36 @@ def logger_init():
 def main():
     global RUNNING
 
-    options, args = opt_args()
+    args = opt_args()
 
     if SETPROCTITLE:
-        setproctitle.setproctitle(options.process_name + ' master')
+        setproctitle.setproctitle(args.process_name + ' master')
 
-    socket_path = options.socket_path or SOCKET_PATH
-    nworkers = options.workers if options.workers is not None else WORKERS
+    create_pidfile(args.pid_file)
 
-    create_pidfile(options.pid_file)
-
-    for f in glob.glob(os.path.join(socket_path, 'rest*.sock')):
+    for f in glob.glob(os.path.join(args.socket_path, 'rest*.sock')):
         os.unlink(f)
-    for f in glob.glob(os.path.join(socket_path, 'notify*.sock')):
+    for f in glob.glob(os.path.join(args.socket_path, 'notify*.sock')):
         os.unlink(f)
 
     q_listener, q = logger_init()
     logging.info('starting kopano-mfr')
 
     workers = []
-    for n in range(nworkers):
-        process = multiprocessing.Process(target=run_app, args=(socket_path, n, options))
+    for n in range(args.workers):
+        process = multiprocessing.Process(target=run_app, args=(args.socket_path, n, args))
         workers.append(process)
 
-    notify_process = multiprocessing.Process(target=run_notify, args=(socket_path, options))
+    notify_process = multiprocessing.Process(target=run_notify, args=(args.socket_path, args))
     workers.append(notify_process)
 
-    if options.with_metrics:
+    if args.with_metrics:
         if PROMETHEUS:
             if not os.environ.get('prometheus_multiproc_dir'):
                 logging.error('please export "prometheus_multiproc_dir"')
                 sys.exit(-1)
 
-            metrics_process = multiprocessing.Process(target=run_metrics, args=(socket_path, options))
+            metrics_process = multiprocessing.Process(target=run_metrics, args=(args.socket_path, args))
             workers.append(metrics_process)
         else:
             logging.error('please install prometheus client python bindings')
@@ -271,17 +265,17 @@ def main():
     q_listener.stop()
 
     sockets = []
-    for n in range(nworkers):
+    for n in range(args.workers):
         sockets.append('rest%d.sock' % n)
     sockets.append('notify.sock')
     for socket in sockets:
         try:
-            unix_socket = os.path.join(socket_path, socket)
+            unix_socket = os.path.join(args.socket_path, socket)
             os.unlink(unix_socket)
         except OSError:
             pass
 
-    if options.with_metrics:
+    if args.with_metrics:
         for worker in workers:
             multiprocess.mark_process_dead(worker.pid)
 
