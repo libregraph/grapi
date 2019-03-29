@@ -177,16 +177,19 @@ class EventResource(ItemResource):
 
     # TODO delta functionality seems to include expanding recurrences!? check with MSGE
 
-    def on_get(self, req, resp, userid=None, folderid=None, eventid=None, method=None):
-        server, store, userid = _server_store(req, userid, self.options)
-        folder = _folder(store, folderid or 'calendar')
 
+    def get_event(self, folder, eventid):
         try:
-            event = folder.event(eventid)
+            return folder.event(eventid)
         except binascii.Error:
             raise HTTPBadRequest('Id is malformed')
         except kopano.errors.NotFoundError:
             raise HTTPBadRequest('Item not found')
+
+    def on_get(self, req, resp, userid=None, folderid=None, eventid=None, method=None):
+        server, store, userid = _server_store(req, userid, self.options)
+        folder = _folder(store, folderid or 'calendar')
+        event = self.get_event(folder, eventid)
 
         if method == 'attachments':
             attachments = list(event.attachments(embedded=True))
@@ -207,7 +210,7 @@ class EventResource(ItemResource):
     def on_post(self, req, resp, userid=None, folderid=None, eventid=None, method=None):
         server, store, userid = _server_store(req, userid, self.options)
         folder = _folder(store, folderid or 'calendar')
-        item = folder.event(eventid)
+        item = self.get_event(folder, eventid)
         fields = json.loads(req.stream.read().decode('utf-8'))
 
         if method == 'accept':
@@ -234,7 +237,8 @@ class EventResource(ItemResource):
     def on_patch(self, req, resp, userid=None, folderid=None, eventid=None, method=None):
         server, store, userid = _server_store(req, userid, self.options)
         folder = _folder(store, folderid or 'calendar')
-        item = folder.event(eventid)
+
+        item = self.get_event(folder, eventid)
 
         fields = json.loads(req.stream.read().decode('utf-8'))
 
@@ -247,7 +251,7 @@ class EventResource(ItemResource):
     def on_delete(self, req, resp, userid=None, folderid=None, eventid=None):
         server, store, userid = _server_store(req, userid, self.options)
         folder = _folder(store, folderid or 'calendar')
-        event = folder.event(eventid)
+        event = self.get_event(folder, eventid)
         folder.delete(event)
 
         self.respond_204(resp)
