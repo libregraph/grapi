@@ -10,7 +10,6 @@ class UserResource(Resource):
         Resource.__init__(self, options)
 
     def on_get(self, req, resp, userid=None, folderid=None, itemid=None, method=None):
-        print('yay')
         if method == 'messages':
 
             data = {
