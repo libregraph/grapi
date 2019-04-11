@@ -113,7 +113,8 @@ def opt_args():
 
 def error_handler(ex, req, resp, params):
     if not isinstance(ex, (falcon.HTTPError, falcon.HTTPStatus)):
-        logging.exception(ex)
+        logging.exception('unhandled exception while processing request', exc_info=ex)
+        raise falcon.HTTPError(falcon.HTTP_500)
     raise
 
 # falcon metrics middleware
