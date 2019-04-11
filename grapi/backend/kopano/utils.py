@@ -14,7 +14,7 @@ else: # pragma: no cover
 import falcon
 
 from MAPI.Util import kc_session_save, kc_session_restore, GetDefaultStore
-from MAPI.Struct import MAPIErrorNotFound, MAPIErrorNoAccess
+from MAPI.Struct import MAPIErrorNotFound, MAPIErrorNoAccess, MAPIErrorInvalidParameter
 import kopano
 
 USERID_SESSION = {}
@@ -134,15 +134,20 @@ def _server_store(req, userid, options):
                 if userid.startswith('AAAAA'):
                     try:
                         user = server.user(userid=userid)
-                    except kopano.NotFoundError:
+                    except (kopano.NotFoundError, MAPIErrorInvalidParameter):
                         user = server.user(name=userid)
                         userid = user.userid
                 else:
                     try:
                         user = server.user(name=userid)
                         userid = user.userid
-                    except kopano.NotFoundError:
-                        user = server.user(userid=userid)
+                    except kopano.NotFoundError as ex:
+                        # FIXME(longsleep): This just blindly retries lookup even
+                        # if it does not make sense.
+                        try:
+                            user = server.user(userid=userid)
+                        except MAPIErrorInvalidParameter:
+                            raise ex
             except (kopano.NotFoundError, kopano.ArgumentError, MAPIErrorNotFound):
                 raise falcon.HTTPNotFound(description='No such user: %s' % userid)
 
