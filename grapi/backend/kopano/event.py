@@ -123,6 +123,14 @@ def attendees_set(item, arg):
         addr = '%s <%s>' % (email.get('name', email['address']), email['address'])
         item.create_attendee(a['type'], addr)
 
+def responsestatus_json(item):
+    # Compatibility for 8.7.x
+    response_status = item.response_status if hasattr(item, 'response_status') else 'None'
+    return {
+        'response': response_status,
+        'time': '0001-01-01T00:00:00Z',
+    }
+
 def event_type(item):
     if item.recurring:
         if isinstance(item, kopano.Occurrence):
@@ -160,6 +168,7 @@ class EventResource(ItemResource):
         'iCalUId': lambda item: kopano.hex(kopano.bdec(item.icaluid)) if item.icaluid else None, # graph uses hex!?
         'organizer': lambda item: get_email(item.from_),
         'isOrganizer': lambda item: item.from_.email == item.sender.email,
+        'responseStatus': lambda item: responsestatus_json(item),
     })
 
     set_fields = {
