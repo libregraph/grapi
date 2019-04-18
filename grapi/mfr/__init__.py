@@ -2,6 +2,7 @@
 import glob
 import logging
 from logging.handlers import QueueListener
+from functools import partial
 import multiprocessing
 import argparse
 import os
@@ -16,7 +17,7 @@ import falcon
 
 try:
     from prometheus_client import multiprocess
-    from prometheus_client import generate_latest, CollectorRegistry, CONTENT_TYPE_LATEST, Summary
+    from prometheus_client import generate_latest, CollectorRegistry, CONTENT_TYPE_LATEST, Summary, Counter
     PROMETHEUS = True
 except ImportError:
     PROMETHEUS = False
@@ -47,6 +48,7 @@ METRICS_LISTEN = 'localhost:6060'
 # metrics
 if PROMETHEUS:
     REQUEST_TIME = Summary('kopano_mfr_request_processing_seconds', 'Time spent processing request', ['method', 'endpoint'])
+    EXCEPTION_COUNT = Counter('kopano_mfr_total_unhandled_exceptions', 'Total number of unhandled exceptions')
 
 RUNNING = True
 
@@ -111,8 +113,11 @@ def opt_args():
 
     return parser.parse_args()
 
-def error_handler(ex, req, resp, params):
+def error_handler(ex, req, resp, params, with_metrics):
     if not isinstance(ex, (falcon.HTTPError, falcon.HTTPStatus)):
+        if with_metrics:
+            if PROMETHEUS:
+                EXCEPTION_COUNT.inc()
         logging.exception('unhandled exception while processing request', exc_info=ex)
         raise falcon.HTTPError(falcon.HTTP_500)
     raise
@@ -159,7 +164,8 @@ def run_app(socket_path, n, options):
         middleware=None
     backends = options.backends.split(',')
     app = grapi.RestAPI(options=options, middleware=middleware, backends=backends)
-    app.add_error_handler(Exception, error_handler)
+    handler = partial(error_handler, with_metrics=options.with_metrics)
+    app.add_error_handler(Exception, handler)
     unix_socket = 'unix:' + os.path.join(socket_path, 'rest%d.sock' % n)
     logging.info('starting rest worker: %s', unix_socket)
     bjoern.run(app, unix_socket)
@@ -174,7 +180,8 @@ def run_notify(socket_path, options):
         middleware=None
     backends = options.backends.split(',')
     app = grapi.NotifyAPI(options=options, middleware=middleware, backends=backends)
-    app.add_error_handler(Exception, error_handler)
+    handler = partial(error_handler, with_metrics=options.with_metrics)
+    app.add_error_handler(Exception, handler)
     unix_socket = 'unix:' + os.path.join(socket_path, 'notify.sock')
     logging.info('starting notify worker: %s', unix_socket)
     bjoern.run(app, unix_socket)
