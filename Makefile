@@ -4,6 +4,8 @@ PYTHON ?= python3
 PYLINT ?= pylint
 PYTEST ?= py.test-3
 
+CHGLOG ?= git-chglog
+
 # Variables
 
 PYTHONPATH ?= .
@@ -21,6 +23,10 @@ lint:
 .PHONY: test
 test:
 	PYTHONPATH=${PYTHONPATH} ${PYTEST}
+
+.PHONE: changelog
+changelog: ; $(info updating changelog ...)
+	$(CHGLOG) --output CHANGELOG.md v0.1.0..
 
 # Dev helpers
 
