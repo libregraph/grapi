@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from urllib.parse import parse_qs
+import html
 
 import falcon
 

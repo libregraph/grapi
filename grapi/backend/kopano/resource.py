@@ -16,7 +16,7 @@ import pytz
 import dateutil
 from jsonschema import ValidationError
 
-from .utils import HTTPBadRequest
+from grapi.api.v1.resource import HTTPBadRequest
 
 UTC = dateutil.tz.tzutc()
 

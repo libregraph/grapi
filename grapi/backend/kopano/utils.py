@@ -2,7 +2,6 @@
 import codecs
 from contextlib import closing
 import fcntl
-import html
 import sys
 import time
 
@@ -16,6 +15,8 @@ import falcon
 from MAPI.Util import kc_session_save, kc_session_restore, GetDefaultStore
 from MAPI.Struct import MAPIErrorNotFound, MAPIErrorNoAccess, MAPIErrorInvalidParameter
 import kopano
+
+from grapi.api.v1.resource import HTTPBadRequest
 
 USERID_SESSION = {}
 
@@ -181,11 +182,6 @@ def _folder(store, folderid):
         return store.sentmail
     else:
         return store.folder(entryid=folderid)
-
-class HTTPBadRequest(falcon.HTTPBadRequest):
-    def __init__(self, msg):
-        msg = html.escape(msg)
-        super().__init__(None, msg)
 
 def _item(parent, entryid):
     try:
