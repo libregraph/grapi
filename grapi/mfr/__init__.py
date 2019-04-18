@@ -101,7 +101,7 @@ def opt_args():
                       help="disable bearer authentication")
     parser.add_argument("--with-metrics", dest='with_metrics', action='store_true', default=False,
                       help="enable metrics process")
-    parser.add_argument("--metrics-listen", dest='metrics_listen, default', metavar='ADDRESS:PORT',
+    parser.add_argument("--metrics-listen", dest='metrics_listen', metavar='ADDRESS:PORT',
                       default=METRICS_LISTEN, help="metrics process address")
     parser.add_argument("--process-name", dest='process_name',
                       default=PROCESS_NAME, help="set process name", metavar="NAME")
