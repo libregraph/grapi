@@ -104,6 +104,13 @@ variables to be set:
 * GRAPI_USER - the IMAP user
 * GRAPI_PASSWORD - the IMAP password
 
+## Metrics
+
+Grapi can expose prometheus metrics if `prometheus_client` is installed and
+metrics are enabled using the appropriate flag `--with-metrics` is set. The env
+variable `prometheus_multiproc_dir` must be set to a directory that the client
+library can use for metrics.
+
 ## License
 
 See `LICENSE.txt` for licensing information of this project.
