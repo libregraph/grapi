@@ -68,6 +68,8 @@ def db_put(key, value):
 def _server(req, options):
     global LAST_PURGE_TIME
     auth = _auth(req, options)
+    if not auth:
+        raise falcon.HTTPForbidden('Unauthorized', None)
 
     if auth['method'] == 'bearer':
         token = auth['token']
