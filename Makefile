@@ -3,10 +3,13 @@
 PYTHON ?= python3
 FLAKE8 ?= flake8
 PYTEST ?= py.test-3
+<<<<<<< HEAD
 PYTEST_OPTIONS+=-s
 PYTEST_COVERAGE_OPTIONS+=--cov-report=term-missing
 
 CHGLOG ?= git-chglog
+PYTEST_OPTIONS += -s
+PYTEST_COVERAGE_OPTIONS += --cov-report=term-missing
 
 # Variables
 
