@@ -3,6 +3,7 @@
 PYTHON ?= python3
 PYLINT ?= pylint
 PYTEST ?= py.test-3
+PYTEST_OPTIONS+=-s
 
 CHGLOG ?= git-chglog
 
@@ -22,11 +23,11 @@ lint:
 
 .PHONY: test
 test:
-	PYTHONPATH=${PYTHONPATH} ${PYTEST} test/unit
+	PYTHONPATH=${PYTHONPATH} ${PYTEST} ${PYTEST_OPTIONS} test/unit
 
 .PHONY: test-integration
 test-integration:
-	PYTHONPATH=${PYTHONPATH} ${PYTEST} test/integration
+	PYTHONPATH=${PYTHONPATH} ${PYTEST} ${PYTEST_OPTIONS} test/integration
 
 .PHONE: changelog
 changelog: ; $(info updating changelog ...)
