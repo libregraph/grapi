@@ -22,7 +22,11 @@ lint:
 
 .PHONY: test
 test:
-	PYTHONPATH=${PYTHONPATH} ${PYTEST}
+	PYTHONPATH=${PYTHONPATH} ${PYTEST} test/unit
+
+.PHONY: test-integration
+test-integration:
+	PYTHONPATH=${PYTHONPATH} ${PYTEST} test/integration
 
 .PHONE: changelog
 changelog: ; $(info updating changelog ...)
