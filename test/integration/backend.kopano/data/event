@@ -1,0 +1,53 @@
+{
+    "recurrence": null,
+    "importance": "normal",
+    "sensitivity": "Normal",
+    "categories": [],
+    "isReminderOn": true,
+    "iCalUId": null,
+    "reminderMinutesBeforeStart": 30,
+    "location": {
+        "displayName": "",
+        "address": {}
+    },
+    "showAs": "Busy",
+    "seriesMasterId": null,
+    "end": {
+        "timeZone": "UTC",
+        "dateTime": "2018-06-06T11:30:00"
+    },
+    "type": "singleInstance",
+    "hasAttachments": false,
+    "organiser": {
+        "emailAddress": {
+            "name": "bob",
+            "address": "bob@domain.com"
+        }
+    },
+    "bodyPreview": "",
+    "body": {
+        "content": "",
+        "contentType": "text"
+    },
+    "isAllDay": false,
+    "subject": "losse afspraak",
+    "isOrganizer": true,
+    "responseRequested": false,
+    "start": {
+        "timeZone": "UTC",
+        "dateTime": "2018-06-06T09:00:00"
+    },
+    "attendees": [
+        {
+            "type": "required",
+            "status": {
+                "response": "none",
+                "time": "0001-01-01T00:00:00Z"
+            },
+            "emailAddress": {
+                "name": "Alice",
+                "address": "alice@domain.com"
+            }
+        }
+    ]
+}

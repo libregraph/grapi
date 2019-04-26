@@ -1,0 +1,55 @@
+{
+  "createdDateTime":"2018-04-10T12:54:30Z",
+  "hasAttachments":false,
+  "isDeliveryReceiptRequested":false,
+  "parentFolderId":"AAAAABzT74z5-EA7m_nwEvewbDsBAAAAAwAAACDsjHbx2URsvxYKWOoLD-QAAAAA",
+  "lastModifiedDateTime":"2018-04-10T12:54:30Z",
+  "bodyPreview":"allo monsieur!\r\n",
+  "importance":"normal",
+  "body":{
+	"contentType":"html",
+	"content":"<!DOCTYPE HTML PUBLIC \"-\/\/W3C\/\/DTD HTML 4.01 Transitional\/\/EN\" \"http:\/\/www.w3.org\/TR\/html4\/loose.dtd\"><html>\r\n<head>\r\n  <meta name=\"Generator\" content=\"Kopano WebApp v8.6.80\">\r\n  <meta http-equiv=\"Content-Type\" content=\"text\/html; charset=utf-8\">\r\n  <title>allo<\/title>\r\n<\/head>\r\n<body>\r\n<p style=\"padding: 0; margin: 0;\"><span style=\"font-size: 10pt;\"><em><span style=\"font-family: tahoma,arial,helvetica,sans-serif;\">allo monsieur!<br \/><\/span><\/em><\/span><\/p>\r\n<\/body>\r\n<\/html>"
+  },
+  "categories":[
+
+  ],
+  "@odata.etag":"W\/\"MFGpj2uGRJyiHQ9Wgbh2UgMBAAA=\"",
+  "replyTo":[
+
+  ],
+  "subject":"allo",
+  "receivedDateTime":"2018-04-10T12:54:30Z",
+  "isRead":false,
+  "from":{
+	"emailAddress":{
+	  "name":"John Doe",
+	  "address":"jdoe@domain.com"
+	}
+  },
+  "internetMessageId":"<kcis.799F70121EF94D3EBD34510CB15FC32B@akemi.zarafa.lan>",
+  "id":"AAAAABzT74z5-EA7m_nwEvewbDsBAAAABQAAACIaP6a1tkjovQlJ-Ke0ekwAAAAA",
+  "sentDateTime":"2018-04-10T12:54:30Z",
+  "isReadReceiptRequested":false,
+  "changeKey":"MFGpj2uGRJyiHQ9Wgbh2UgMBAAA=",
+  "conversationId":null,
+  "sender":{
+	"emailAddress":{
+	  "name":"elon",
+	  "address":"elon@domain.com"
+	}
+  },
+  "toRecipients":[
+	{
+	  "emailAddress":{
+		"name":"John Doe",
+		"address":"jdoe@domain.com"
+	  }
+	}
+  ],
+  "ccRecipients":[
+
+  ],
+  "bccRecipients":[
+
+  ]
+}

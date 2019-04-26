@@ -4,6 +4,7 @@ PYTHON ?= python3
 PYLINT ?= pylint
 PYTEST ?= py.test-3
 PYTEST_OPTIONS+=-s
+PYTEST_COVERAGE_OPTIONS+=--cov-report=term-missing
 
 CHGLOG ?= git-chglog
 
@@ -25,9 +26,16 @@ lint:
 test:
 	PYTHONPATH=${PYTHONPATH} ${PYTEST} ${PYTEST_OPTIONS} test/unit
 
-.PHONY: test-integration
-test-integration:
-	PYTHONPATH=${PYTHONPATH} ${PYTEST} ${PYTEST_OPTIONS} test/integration
+.PHONY: test-backend-kopano
+test-backend-kopano:
+	PYTHONPATH=${PYTHONPATH} ${PYTEST} ${PYTEST_OPTIONS} ${ARGS} test/integration/backend.kopano
+
+.PHONY: test-backend-kopano-cov
+test-backend-kopano-cov: ARGS = --cov=grapi.backend.kopano --cov-report=html:test/coverage/integration/backend.kopano
+test-backend-kopano-cov: test-backend-kopano
+
+open-backend-kopano-cov: test-integration-cov
+	${BROWSER} test/coverage/integration/backend.kopano
 
 .PHONE: changelog
 changelog: ; $(info updating changelog ...)

@@ -1,0 +1,40 @@
+{
+	"officeLocation": null,
+	"assistantName": null,
+	"emailAddresses": [
+		{
+			"address": "bert@kopano.com",
+			"name": "bert visser"
+		}
+	],
+	"generation": null,
+	"givenName": "bert",
+	"otherAddress": {},
+	"initials": null,
+	"surname": "visser",
+	"yomiSurname": null,
+	"yomiGivenName": null,
+	"fileAs": "visser, bert",
+	"birthday": "0001-01-01T00:00:00Z",
+	"department": null,
+	"nickName": null,
+	"personalNotes": "",
+	"jobTitle": null,
+	"middleName": null,
+	"homeAddress": {},
+	"children": [],
+	"title": null,
+	"spouseName": null,
+	"displayName": "bert visser",
+	"businessAddress": {},
+	"yomiCompanyName": null,
+	"imAddresses": [],
+	"homePhones": [],
+	"businessHomePage": null,
+	"businessPhones": [],
+	"categories": [],
+	"manager": null,
+	"mobilePhone": null,
+	"profession": null,
+	"companyName": "kopano"
+}

@@ -50,6 +50,13 @@ Arguments, such as running a specific backend, can be passed as following:
 make start-devrunner ARGS='--backends ldap'
 ```
 
+Unit tests can be run as following:
+```
+make test
+```
+
+Integration tests for various backends are described in the backends section.
+
 ## Backends
 
 ### Kopano Groupware Storage server backend
@@ -64,6 +71,21 @@ the IMAP backend and calendar by the CalDAV backend.
 
 * kopano Python module
 * MAPI Python module
+
+
+#### Tests
+
+The kopano backend has integration tests, which require a running kopano-server
+without users with the DB backend to be used for testing. Tests can be run as following:
+
+```
+make test-backend-kopano
+```
+
+Coverage can be generated and viewed as following:
+```
+make open-integration-cov
+```
 
 ### LDAP backend
 

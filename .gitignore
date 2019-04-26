@@ -2,3 +2,8 @@
 /dist
 *.egg-info/
 __pycache__
+
+# Exclude coverage
+.coverage
+test/coverage/
+
