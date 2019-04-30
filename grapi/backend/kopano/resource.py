@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import calendar
 import datetime
+import logging
 try:
     import ujson as json
 except ImportError: # pragma: no cover
@@ -174,15 +175,19 @@ class Resource(object):
         header += b'  "value": [\n'
         yield header
         first = True
-        for o in obj:
-            if isinstance(o, tuple):
-                o, resource = o
-                all_fields = resource.fields
-            if not first:
-                yield b',\n'
-            first = False
-            wa = self.json(req, o, fields, all_fields, multi=True)
-            yield b'\n'.join([b'    '+line for line in wa.splitlines()])
+        try:
+            for o in obj:
+                if isinstance(o, tuple):
+                    o, resource = o
+                    all_fields = resource.fields
+                if not first:
+                    yield b',\n'
+                first = False
+                wa = self.json(req, o, fields, all_fields, multi=True)
+                yield b'\n'.join([b'    '+line for line in wa.splitlines()])
+        except Exception as excp:
+            logging.exception("Exception occured when outputting JSON: '%s'", exc_info=excp)
+            pass
         yield b'\n  ]\n}'
 
     def respond(self, req, resp, obj, all_fields=None, deltalink=None):
