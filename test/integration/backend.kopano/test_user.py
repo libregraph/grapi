@@ -21,7 +21,7 @@ def test_get(client, user):
     assert result.status_code == 200
     assert result.headers['content-type'] == 'application/json'
 
-    assert result.json['displayName'] == user.name
+    assert result.json['displayName'] == user.fullname
     assert result.json['mail'] == user.email
     assert url in result.json['@odata.context']
 
@@ -30,7 +30,7 @@ def test_get(client, user):
     assert result.status_code == 200
     assert result.headers['content-type'] == 'application/json'
 
-    assert result.json['displayName'] == user.name
+    assert result.json['displayName'] == user.fullname
     assert result.json['mail'] == user.email
     assert url in result.json['@odata.context']
 
@@ -41,10 +41,10 @@ def test_list(client, user):
 
     assert result.status_code == 200
     assert result.headers['content-type'] == 'application/json'
-    assert len(result.json['value']) == 1
+    assert len(result.json['value']) == 10
 
     result_user = result.json['value'][0]
-    assert result_user['userPrincipalName'] == user.name
+    assert result_user['userPrincipalName'] is not None
 
 
 def test_create_message(client, user, json_message):
@@ -131,34 +131,20 @@ def test_create_event(client, user, json_event):
     assert_create_item(client, user, json_event, '/api/gc/v1/me/events')
 
 
-def test_delta(client, user, create_user):
+def test_delta(client, user):
     result = client.simulate_get('/api/gc/v1/users/delta', headers=user.auth_header)
     _, deltatoken = result.json['@odata.deltaLink'].split('delta?')
-    assert len(result.json['value']) == 1
+    assert len(result.json['value']) == 31
 
     result = client.simulate_get('/api/gc/v1/users/delta', headers=user.auth_header, query_string=deltatoken)
     _, deltatoken = result.json['@odata.deltaLink'].split('delta?')
     assert len(result.json['value']) == 0
-
-    # Create new user
-    user2 = create_user('user2')
-
-    result = client.simulate_get('/api/gc/v1/users/delta', headers=user.auth_header, query_string=deltatoken)
-    _, deltatoken = result.json['@odata.deltaLink'].split('delta?')
-    assert len(result.json['value']) == 1
-
-    # Test remove user
-    user2.server.delete(user2)
-
-    result = client.simulate_get('/api/gc/v1/users/delta', headers=user.auth_header, query_string=deltatoken)
-    assert len(result.json['value']) == 1
-    assert result.json['value'][0]['@removed']['reason'] == 'deleted'
 
 
 def test_photo(client, user):
     result = client.simulate_get('/api/gc/v1/me/photos', headers=user.auth_header)
     assert result.status_code == 200
-    assert len(result.json['value']) == 0
+    assert len(result.json['value']) == 1
 
 
 def test_memberof(client, user):

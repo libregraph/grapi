@@ -16,10 +16,11 @@ DATA_DIR = '{}/data'.format(os.path.dirname(os.path.realpath(__file__)))
 BACKEND = 'kopano'
 API = '/api/gc/v1'
 
-USERNAME1 = 'grapiuser'
-PASSWORD1 = 'grapipass'
+USERNAME1 = 'user1'
+PASSWORD1 = 'user1'
 EMAIL1 = 'grapi@kopano.io'
-
+KOPANO_SSLKEY_FILE = os.getenv('KOPANO_SSLKEY_FILE', '')
+KOPANO_SSLKEY_PASS = os.getenv('KOPANO_SSLKEY_PASS', '')
 
 def create_auth_header(username, password):
     b64 = base64.b64encode('{}:{}'.format(username, password).encode())
@@ -34,12 +35,23 @@ def client():
 
 @pytest.fixture()
 def user():
-    server = kopano.Server(parse_args=False)
-    user = server.create_user(USERNAME1, email=EMAIL1, password=PASSWORD1)
+    if KOPANO_SSLKEY_FILE:
+        admin_server = kopano.Server(parse_args=False, sslkey_file=KOPANO_SSLKEY_FILE, sslkey_pass=KOPANO_SSLKEY_PASS)
+        try:
+            admin_server.user(USERNAME1).create_store()
+        except kopano.errors.DuplicateError:
+            pass
+
+
+    server = kopano.Server(parse_args=False, auth_user=USERNAME1, auth_pass=PASSWORD1)
+    user = server.user(USERNAME1)
     user.auth_header = create_auth_header(USERNAME1, PASSWORD1)
     yield user
-    # Cleanup
-    server.delete(user)
+
+    if KOPANO_SSLKEY_FILE:
+        admin_server.user(USERNAME1).unhook()
+    else:
+        [f.empty() for f in user.folders()]
 
 
 @pytest.fixture

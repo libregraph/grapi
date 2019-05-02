@@ -123,7 +123,9 @@ the IMAP backend and calendar by the CalDAV backend.
 #### Tests
 
 The kopano backend has integration tests, which require a running kopano-server
-without users with the DB backend to be used for testing. Tests can be run as following:
+without users with the DB backend to be used for testing. Tests can be run as
+following and incluenced by KOPANO_SOCKET, KOPANO_SSLKEY_FILE and
+KOPANO_SSLKEY_PASS environment variables.
 
 ```
 make test-backend-kopano

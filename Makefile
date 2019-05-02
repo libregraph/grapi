@@ -3,18 +3,16 @@
 PYTHON ?= python3
 FLAKE8 ?= flake8
 PYTEST ?= py.test-3
-<<<<<<< HEAD
 PYTEST_OPTIONS+=-s
 PYTEST_COVERAGE_OPTIONS+=--cov-report=term-missing
 
 CHGLOG ?= git-chglog
-PYTEST_OPTIONS += -s
-PYTEST_COVERAGE_OPTIONS += --cov-report=term-missing
 
 # Variables
 
 PYTHONPATH ?= .
 ARGS ?=
+TESTDIR = test
 
 # Rules
 
@@ -43,6 +41,25 @@ open-backend-kopano-cov: test-integration-cov
 .PHONE: changelog
 changelog: ; $(info updating changelog ...)
 	$(CHGLOG) --output CHANGELOG.md $(ARGS) v0.1.0..
+
+# CI
+
+.PHONY: pydeps
+pydeps:
+	grep -Ev "kopano|MAPI"  requirements.txt > jenkins_requirements.txt
+	$(PYTHON) -m pip install --no-cache-dir -r jenkins_requirements.txt
+	$(PYTHON) -m pip install --no-cache-dir pytest pytest-cov pylint
+	@rm jenkins_requirements.txt
+
+
+.PHONY: test-backend-kopano-ci
+test-backend-kopano-ci: ARGS = --cov=grapi.backend.kopano --junit-xml=test/coverage/integration/backend.kopano/integration.xml --cov-report=html:test/coverage/integration/backend.kopano -p no:cacheprovider
+test-backend-kopano-ci: pydeps test-backend-kopano
+
+.PHONY: test-backend-kopano-ci-run
+test-backend-kopano-ci-run:
+	@$(MAKE) -C $(TESTDIR) test-backend-kopano-ci-run
+
 
 # Dev helpers
 
