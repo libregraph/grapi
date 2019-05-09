@@ -21,6 +21,7 @@ from .schema import event_schema
 
 from MAPI.Util import GetDefaultStore
 import kopano # TODO remove?
+from kopano.errors import ArgumentError
 
 class UserImporter:
     def __init__(self):
@@ -181,9 +182,12 @@ class UserResource(Resource):
         elif method == 'events':
             self.validate_json(event_schema, fields)
 
-            item = self.create_message(store.calendar, fields,
-                EventResource.set_fields)
-            item.send()
+            try:
+                item = self.create_message(store.calendar, fields,
+                    EventResource.set_fields)
+                item.send()
+            except ArgumentError as e:
+                raise HTTPBadRequest("Invalid argument error '{}'".format(e))
             self.respond(req, resp, item, EventResource.fields)
 
         elif method == 'mailFolders':
