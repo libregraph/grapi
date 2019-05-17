@@ -7,7 +7,7 @@ import subprocess
 install_requires = [
     'bjoern>=2.2.2',
     'bsddb3',
-    'falcon>=1.4.1',
+    'falcon==1.4.1',
     'jsonschema>=2.5.0',
     'python-dateutil',
     'pytz',
