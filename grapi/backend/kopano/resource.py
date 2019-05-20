@@ -90,9 +90,11 @@ def _naive_local(d): # TODO make pyko not assume naive localtime..
         return d
 
 def set_date(item, field, arg):
-    d = dateutil.parser.parse(arg['dateTime'])
-    seconds = calendar.timegm(d.timetuple())
-    d = datetime.datetime.fromtimestamp(seconds)
+    tz = dateutil.tz.gettz(arg.get('timeZone', 'UTC'))
+    d = dateutil.parser.parse(arg['dateTime'], ignoretz=True)
+
+    # Set timezone as provided and convert to naive UTC.
+    d = d.replace(tzinfo=tz).astimezone(UTC).replace(tzinfo=None)
     setattr(item, field, d)
 
 def _parse_qs(req):
