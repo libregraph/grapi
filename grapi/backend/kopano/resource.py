@@ -20,6 +20,7 @@ from jsonschema import ValidationError
 from grapi.api.v1.resource import HTTPBadRequest
 
 UTC = dateutil.tz.tzutc()
+LOCAL = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
 
 INDENT = True
 try:
@@ -67,6 +68,10 @@ def _tzdate(d, req):
 
     fmt = '%Y-%m-%dT%H:%M:%S'
 
+    if d.tzinfo == None:
+        # Naive timezone, means local time since that is what pyko uses internally.
+        d = d.replace(tzinfo=LOCAL)
+
     # apply timezone preference header
     pref_timezone = _header_sub_arg(req, 'Prefer', 'outlook.timezone')
     if pref_timezone:
@@ -77,6 +82,7 @@ def _tzdate(d, req):
         d = d.replace(tzinfo=UTC).astimezone(tzinfo).replace(tzinfo=None)
     else:
         pref_timezone = 'UTC'
+        d = d.astimezone(UTC).replace(tzinfo=None)
 
     return {
         'dateTime': d.strftime(fmt),
@@ -85,7 +91,7 @@ def _tzdate(d, req):
 
 def _naive_local(d): # TODO make pyko not assume naive localtime..
     if d.tzinfo is not None:
-        return d.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+        return d.astimezone(LOCAL).replace(tzinfo=None)
     else:
         return d
 
@@ -93,8 +99,8 @@ def set_date(item, field, arg):
     tz = dateutil.tz.gettz(arg.get('timeZone', 'UTC'))
     d = dateutil.parser.parse(arg['dateTime'], ignoretz=True)
 
-    # Set timezone as provided and convert to naive UTC.
-    d = d.replace(tzinfo=tz).astimezone(UTC).replace(tzinfo=None)
+    # Set timezone as provided and convert to naive LOCAL time since that is what pyko uses internally.
+    d = d.replace(tzinfo=tz).astimezone(LOCAL).replace(tzinfo=None)
     setattr(item, field, d)
 
 def _parse_qs(req):
