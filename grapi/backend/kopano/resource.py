@@ -67,10 +67,6 @@ def _tzdate(d, req):
 
     fmt = '%Y-%m-%dT%H:%M:%S'
 
-    # local to UTC
-    seconds = time.mktime(d.timetuple())
-    d = datetime.datetime.utcfromtimestamp(seconds)
-
     # apply timezone preference header
     pref_timezone = _header_sub_arg(req, 'Prefer', 'outlook.timezone')
     if pref_timezone:
