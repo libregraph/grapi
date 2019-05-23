@@ -149,8 +149,8 @@ class EventResource(ItemResource):
         'id': lambda item: item.eventid,
         'subject': lambda item: item.subject,
         'recurrence': recurrence_json,
-        'start': lambda req, item: _tzdate(item.start, req),
-        'end': lambda req, item: _tzdate(item.end, req),
+        'start': lambda req, item: _tzdate(item.start, item.tzinfo, req),
+        'end': lambda req, item: _tzdate(item.end, item.tzinfo, req),
         'location': lambda item: {'displayName': item.location, 'address': {}}, # TODO
         'importance': lambda item: item.urgency,
         'sensitivity': lambda item: sensitivity_map[item.sensitivity],

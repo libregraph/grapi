@@ -10,9 +10,9 @@ class ReminderResource(Resource):
         'eventId': lambda occ: occ.eventid,
         'changeKey': lambda occ: occ.item.changekey,
         'eventSubject': lambda occ: occ.subject,
-        'eventStartTime': lambda req, occ: _tzdate(occ.start, req),
-        'eventEndTime': lambda req, occ: _tzdate(occ.end, req),
+        'eventStartTime': lambda req, occ: _tzdate(occ.start, occ.tzinfo, req),
+        'eventEndTime': lambda req, occ: _tzdate(occ.end, occ.tzinfo, req),
         'eventLocation': lambda occ: occ.location,
-        'reminderFireTime': lambda req, occ: _tzdate(occ.start-datetime.timedelta(minutes=occ.reminder_minutes), req),
+        'reminderFireTime': lambda req, occ: _tzdate(occ.start-datetime.timedelta(minutes=occ.reminder_minutes), occ.tzinfo, req),
     }
 

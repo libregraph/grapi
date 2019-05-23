@@ -62,15 +62,17 @@ def _date(d, local=False, show_time=True):
     d = datetime.datetime.utcfromtimestamp(seconds)
     return d.strftime(fmt)
 
-def _tzdate(d, req):
+def _tzdate(d, tzinfo, req):
     if d is None:
         return None
 
     fmt = '%Y-%m-%dT%H:%M:%S'
 
-    if d.tzinfo == None:
-        # Naive timezone, means local time since that is what pyko uses internally.
-        d = d.replace(tzinfo=LOCAL)
+    if d.tzinfo is None:
+        if tzinfo is None:
+            # Naive timezone, means local time since that is what pyko uses internally.
+           tzinfo = LOCAL
+        d = d.replace(tzinfo=tzinfo)
 
     # apply timezone preference header
     pref_timezone = _header_sub_arg(req, 'Prefer', 'outlook.timezone')
@@ -79,7 +81,7 @@ def _tzdate(d, req):
             tzinfo = pytz.timezone(pref_timezone)
         except Exception as e:
             raise HTTPBadRequest("A valid TimeZone value must be specified. The following TimeZone value is not supported: '%s'." % pref_timezone)
-        d = d.replace(tzinfo=UTC).astimezone(tzinfo).replace(tzinfo=None)
+        d = d.astimezone(tzinfo).replace(tzinfo=None)
     else:
         pref_timezone = 'UTC'
         d = d.astimezone(UTC).replace(tzinfo=None)
