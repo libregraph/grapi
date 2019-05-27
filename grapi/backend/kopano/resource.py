@@ -69,6 +69,8 @@ def _tzdate(d, tzinfo, req):
     fmt = '%Y-%m-%dT%H:%M:%S'
 
     if d.tzinfo is None:
+        # TODO(longsleep): Find out when we actually should use tzinfo if it is not
+        # None. It seems that webapp only uses it for recurring meetings.
         if tzinfo is None:
             # Naive timezone, means local time since that is what pyko uses internally.
            tzinfo = LOCAL
