@@ -235,6 +235,30 @@ class SubscriptionResource:
         else:
             resp.body = json.dumps(data, ensure_ascii=False).encode('utf-8')
 
+    def on_patch(self, req, resp, subscriptionid):
+        user = _user(req, self.options)
+
+        try:
+            subscription, sink, userid = SUBSCRIPTIONS[subscriptionid]
+        except KeyError:
+            resp.status = falcon.HTTP_404
+            return
+
+        fields = json.loads(req.stream.read().decode('utf-8'))
+
+        for k, v in fields.items():
+            if v and k == 'expirationDateTime':
+                # NOTE(longsleep): Setting a dict key which is already there is threadsafe in current CPython implementations.
+                subscription['expirationDateTime'] = v
+
+        data = _export_subscription(subscription)
+
+        resp.content_type = "application/json"
+        if INDENT:
+            resp.body = json.dumps(data, indent=2, ensure_ascii=False).encode('utf-8')
+        else:
+            resp.body = json.dumps(data, ensure_ascii=False).encode('utf-8')
+
     def on_delete(self, req, resp, subscriptionid):
         user = _user(req, self.options)
         store = user.store
