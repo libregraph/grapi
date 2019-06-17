@@ -73,7 +73,7 @@ class ItemResource(Resource):
         if filter_ and filter_.startswith('receivedDateTime ge '):
             begin = dateutil.parser.parse(filter_[20:])
             seconds = calendar.timegm(begin.timetuple())
-            begin = datetime.datetime.fromtimestamp(seconds)
+            begin = datetime.datetime.utcfromtimestamp(seconds)
         importer = ItemImporter()
         newstate = folder.sync(importer, token, begin=begin)
         changes = [(o, self) for o in importer.updates] + \

@@ -69,12 +69,8 @@ def _tzdate(d, tzinfo, req):
     fmt = '%Y-%m-%dT%H:%M:%S'
 
     if d.tzinfo is None:
-        # TODO(longsleep): Find out when we actually should use tzinfo if it is not
-        # None. It seems that webapp only uses it for recurring meetings.
-        if tzinfo is None:
-            # Naive timezone, means local time since that is what pyko uses internally.
-           tzinfo = LOCAL
-        d = d.replace(tzinfo=tzinfo)
+        # NOTE(longsleep): pyko uses naive localtime..
+        d = d.replace(tzinfo=LOCAL)
 
     # apply timezone preference header
     pref_timezone = _header_sub_arg(req, 'Prefer', 'outlook.timezone')
