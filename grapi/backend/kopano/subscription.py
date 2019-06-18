@@ -79,13 +79,13 @@ def _user(req, options, reconnect=False):
 
     if auth['method'] == 'bearer':
         username = auth['user']
-        server = _server(auth['userid'], auth['token'], oidc=True)
+        server = _server(auth['userid'], auth['token'], oidc=True, reconnect=reconnect)
     elif auth['method'] == 'basic':
         username = codecs.decode(auth['user'], 'utf8')
-        server = _server(username, auth['password'])
+        server = _server(username, auth['password'], reconnect=reconnect)
     elif auth['method'] == 'passthrough': # pragma: no cover
         username = utils._username(auth['userid'])
-        server = _server(username, '')
+        server = _server(username, '', reconnect=reconnect)
     try:
         return server.user(username)
     except (MAPIErrorNetworkError, MAPIErrorEndOfSession): # server restart: try to reconnect TODO check kc_session_restore (incl. notifs!)
