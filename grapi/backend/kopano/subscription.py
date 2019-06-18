@@ -90,6 +90,7 @@ def _user(req, options, reconnect=False):
         return server.user(username)
     except (MAPIErrorNetworkError, MAPIErrorEndOfSession): # server restart: try to reconnect TODO check kc_session_restore (incl. notifs!)
         if not reconnect:
+            logging.exception('network or session error while getting user from server, reconnecting automatically')
             return _user(req, options, reconnect=True)
         else:
             raise
@@ -125,7 +126,7 @@ class Processor(Thread):
                 logging.debug('Subscription notification: %s', subscription['notificationUrl'])
                 requests.post(subscription['notificationUrl'], json=data, timeout=10, verify=verify)
             except Exception:
-                traceback.print_exc()
+                logging.exception('Subscription notification: %s failed', subscription['notificationUrl'])
 
 class Sink:
     def __init__(self, options, store, subscription):
