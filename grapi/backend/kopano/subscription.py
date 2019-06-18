@@ -30,7 +30,7 @@ except ImportError: # pragma: no cover
     PROMETHEUS = False
 
 from MAPI.Struct import (
-    MAPIErrorNetworkError, MAPIErrorEndOfSession
+    MAPIErrorNetworkError, MAPIErrorEndOfSession, MAPIErrorUnconfigured
 )
 
 import kopano
@@ -71,29 +71,40 @@ def _server(auth_user, auth_pass, oidc=False, reconnect=False):
     if reconnect:
         SERVER = kopano.Server(auth_user=auth_user, auth_pass=auth_pass,
             notifications=True, parse_args=False, oidc=oidc)
+        logging.info('server connection established, server:%s auth_user:%s', SERVER, SERVER.auth_user)
 
     return SERVER
 
-def _user(req, options, reconnect=False):
+def _user(req, options, reconnect=False, force_reconnect=False):
     auth = utils._auth(req, options)
 
     if auth['method'] == 'bearer':
         username = auth['user']
-        server = _server(auth['userid'], auth['token'], oidc=True, reconnect=reconnect)
+        server = _server(auth['userid'], auth['token'], oidc=True, reconnect=reconnect or force_reconnect)
     elif auth['method'] == 'basic':
         username = codecs.decode(auth['user'], 'utf8')
-        server = _server(username, auth['password'], reconnect=reconnect)
+        server = _server(username, auth['password'], reconnect=reconnect or force_reconnect)
     elif auth['method'] == 'passthrough': # pragma: no cover
         username = utils._username(auth['userid'])
-        server = _server(username, '', reconnect=reconnect)
+        server = _server(username, '', reconnect=reconnect or force_reconnect)
     try:
-        return server.user(username)
+        user = server.user(username)
     except (MAPIErrorNetworkError, MAPIErrorEndOfSession): # server restart: try to reconnect TODO check kc_session_restore (incl. notifs!)
         if not reconnect:
             logging.exception('network or session error while getting user from server, reconnecting automatically')
-            return _user(req, options, reconnect=True)
+            user = _user(req, options, reconnect=True)
         else:
             raise
+
+    return user
+
+def _user_and_store(req, options):
+    user = _user(req, options)
+    try:
+        return user, user.store
+    except MAPIErrorUnconfigured:
+        user = _user(req, options, force_reconnect=True)
+        return user, user.store
 
 class Processor(Thread):
     def __init__(self, options):
@@ -123,10 +134,10 @@ class Processor(Thread):
             try:
                 if self.options and self.options.with_metrics:
                     POST_COUNT.inc()
-                logging.debug('Subscription notification: %s', subscription['notificationUrl'])
+                logging.debug('subscription notification: %s', subscription['notificationUrl'])
                 requests.post(subscription['notificationUrl'], json=data, timeout=10, verify=verify)
             except Exception:
-                logging.exception('Subscription notification: %s failed', subscription['notificationUrl'])
+                logging.exception('subscription notification: %s failed', subscription['notificationUrl'])
 
 class Sink:
     def __init__(self, options, store, subscription):
@@ -171,23 +182,25 @@ class SubscriptionResource:
         self.options = options
 
     def on_post(self, req, resp):
-        user = _user(req, self.options)
-        store = user.store
+        user, store = _user_and_store(req, self.options)
         fields = json.loads(req.stream.read().decode('utf-8'))
 
         # validate webhook
         validationToken = str(uuid.uuid4())
         verify = not self.options or not self.options.insecure
         try: # TODO async
-            logging.debug('Subscription validation: %s', fields['notificationUrl'])
+            logging.debug('validating subscription notification url: %s', fields['notificationUrl'])
             r = requests.post(fields['notificationUrl']+'?validationToken='+validationToken, timeout=10, verify=verify)
             if r.text != validationToken:
+                logging.debug('subscription validation failed, validation token mismatch')
                 raise utils.HTTPBadRequest("Subscription validation request failed.")
         except Exception:
+            logging.exception('subscription validation request error')
             raise utils.HTTPBadRequest("Subscription validation request failed.")
 
         subscription_object = _subscription_object(store, fields['resource'])
         if not subscription_object:
+            logging.error('subscription object is invalid')
             raise utils.HTTPBadRequest("Subscription object invalid.")
         target, folder_types, data_type = subscription_object
 
@@ -205,6 +218,7 @@ class SubscriptionResource:
                          event_types=event_types, folder_types=folder_types)
 
         SUBSCRIPTIONS[id_] = (subscription, sink, user.userid)
+        logging.debug('subscription created, id:%s, target:%s, object_types:%s, event_types:%s, folder_types:%s', id_, target, object_types, event_types, folder_types)
 
         resp.content_type = "application/json"
         if INDENT:
@@ -252,6 +266,8 @@ class SubscriptionResource:
                 # NOTE(longsleep): Setting a dict key which is already there is threadsafe in current CPython implementations.
                 subscription['expirationDateTime'] = v
 
+        #logging.debug('subscription updated, id:%s', subscriptionid)
+
         data = _export_subscription(subscription)
 
         resp.content_type = "application/json"
@@ -261,13 +277,18 @@ class SubscriptionResource:
             resp.body = json.dumps(data, ensure_ascii=False).encode('utf-8')
 
     def on_delete(self, req, resp, subscriptionid):
-        user = _user(req, self.options)
-        store = user.store
+        user, store = _user_and_store(req, self.options)
 
-        subscription, sink, userid = SUBSCRIPTIONS[subscriptionid]
+        try:
+            subscription, sink, userid = SUBSCRIPTIONS[subscriptionid]
+        except KeyError:
+            resp.status = falcon.HTTP_404
+            return
 
         store.unsubscribe(sink)
         del SUBSCRIPTIONS[subscriptionid]
+
+        logging.debug('subscription deleted, id:%s', subscriptionid)
 
         if self.options and self.options.with_metrics:
             SUBSCR_ACTIVE.set(len(SUBSCRIPTIONS))
