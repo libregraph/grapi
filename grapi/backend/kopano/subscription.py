@@ -222,9 +222,9 @@ class SubscriptionResource:
 
         resp.content_type = "application/json"
         if INDENT:
-            resp.body = json.dumps(subscription, indent=2, ensure_ascii=False).encode('utf-8')
+            resp.body = json.dumps(_export_subscription(subscription), indent=2, ensure_ascii=False).encode('utf-8')
         else:
-            resp.body = json.dumps(subscription, ensure_ascii=False).encode('utf-8')
+            resp.body = json.dumps(_export_subscription(subscription), ensure_ascii=False).encode('utf-8')
         resp.status = falcon.HTTP_201
 
         if self.options and self.options.with_metrics:
