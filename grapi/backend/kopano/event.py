@@ -162,7 +162,7 @@ class EventResource(ItemResource):
         'bodyPreview': lambda item: item.body_preview,
         'isAllDay': lambda item: item.all_day,
         'showAs': lambda item: show_as_map[item.show_as],
-        'seriesMasterId': lambda item: item.item.eventid if isinstance(item, kopano.Occurrence) else None,
+        'seriesMasterId': lambda item: item.item.eventid if item.recurring and isinstance(item, kopano.Occurrence) else None,
         'type': lambda item: event_type(item),
         'responseRequested': lambda item: item.response_requested,
         'iCalUId': lambda item: kopano.hex(kopano.bdec(item.icaluid)) if item.icaluid else None, # graph uses hex!?
