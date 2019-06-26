@@ -30,7 +30,7 @@ except ImportError: # pragma: no cover
     PROMETHEUS = False
 
 from MAPI.Struct import (
-    MAPIErrorNetworkError, MAPIErrorEndOfSession, MAPIErrorUnconfigured
+    MAPIErrorNetworkError, MAPIErrorEndOfSession, MAPIErrorUnconfigured, MAPIErrorNoSupport
 )
 
 import kopano
@@ -68,12 +68,21 @@ def _server(auth_user, auth_pass, oidc=False, reconnect=False):
     except NameError:
         reconnect=True
 
-    if reconnect:
+    if reconnect or SERVER is None:
         SERVER = kopano.Server(auth_user=auth_user, auth_pass=auth_pass,
             notifications=True, parse_args=False, oidc=oidc)
+        # Forget all subscriptions when using a new server connection.
+        # TODO(longsleep): Clean up resources held by old subscriptions.
+        global SUBSCRIPTIONS
+        SUBSCRIPTIONS = {}
         logging.info('server connection established, server:%s auth_user:%s', SERVER, SERVER.auth_user)
 
     return SERVER
+
+def _disconnect():
+    global SERVER
+
+    SERVER = None
 
 def _user(req, options, reconnect=False, force_reconnect=False):
     auth = utils._auth(req, options)
@@ -214,8 +223,14 @@ class SubscriptionResource:
         object_types = ['item'] # TODO folders not supported by graph atm?
         event_types = [x.strip() for x in subscription['changeType'].split(',')]
 
-        target.subscribe(sink, object_types=object_types,
-                         event_types=event_types, folder_types=folder_types)
+        try:
+            target.subscribe(sink, object_types=object_types,
+                             event_types=event_types, folder_types=folder_types)
+        except MAPIErrorNoSupport:
+            # Mhm connection is borked. Clean up and start from new.
+            _disconnect()
+            logging.exception('subscription not possible right now, resetting connection')
+            raise falcon.HTTPInternalServerError('subscription not possible, please retry')
 
         SUBSCRIPTIONS[id_] = (subscription, sink, user.userid)
         logging.debug('subscription created, id:%s, target:%s, object_types:%s, event_types:%s, folder_types:%s', id_, target, object_types, event_types, folder_types)
