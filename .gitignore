@@ -7,3 +7,6 @@ __pycache__
 .coverage
 test/coverage/
 
+# vim
+*.swp
+
