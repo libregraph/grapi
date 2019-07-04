@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import codecs
+import datetime
+import dateutil.parser
 try:
     import ujson as json
 except ImportError: # pragma: no cover
@@ -8,11 +10,16 @@ import logging
 import traceback
 import uuid
 try:
+    import prctl
+    def set_thread_name(name): prctl.set_name(name)
+except ImportError: # pragma: no cover
+    def set_thread_name(name): pass
+try:
     from queue import Queue
 except ImportError: # pragma: no cover
     from Queue import Queue
 import requests
-from threading import Thread
+from threading import Thread, Event
 
 INDENT = True
 try:
@@ -72,9 +79,7 @@ def _server(auth_user, auth_pass, oidc=False, reconnect=False):
         SERVER = kopano.Server(auth_user=auth_user, auth_pass=auth_pass,
             notifications=True, parse_args=False, oidc=oidc)
         # Forget all subscriptions when using a new server connection.
-        # TODO(longsleep): Clean up resources held by old subscriptions.
-        global SUBSCRIPTIONS
-        SUBSCRIPTIONS = {}
+        _reset()
         logging.info('server connection established, server:%s auth_user:%s', SERVER, SERVER.auth_user)
 
     return SERVER
@@ -83,6 +88,14 @@ def _disconnect():
     global SERVER
 
     SERVER = None
+
+def _reset():
+    global SUBSCRIPTIONS
+    old = SUBSCRIPTIONS
+    SUBSCRIPTIONS = {}
+
+    for (subscription, sink, userid) in old.values():
+        sink.store.unsubscribe(sink)
 
 def _user(req, options, reconnect=False, force_reconnect=False):
     auth = utils._auth(req, options)
@@ -117,7 +130,8 @@ def _user_and_store(req, options):
 
 class Processor(Thread):
     def __init__(self, options):
-        Thread.__init__(self)
+        Thread.__init__(self, name='processor')
+        set_thread_name(self.name)
         self.options = options
         self.daemon = True
 
@@ -148,20 +162,39 @@ class Processor(Thread):
             except Exception:
                 logging.exception('subscription notification: %s failed', subscription['notificationUrl'])
 
+class Watcher(Thread):
+    def __init__(self, options):
+        Thread.__init__(self, name='watcher')
+        set_thread_name(self.name)
+        self.options = options
+        self.daemon = True
+        self.exit = Event()
+
+    def run(self):
+        while not self.exit.wait(timeout=60):
+            subscriptions = SUBSCRIPTIONS
+            expired = {}
+            now = datetime.datetime.now(tz=datetime.timezone.utc)
+            for subscriptionid, (subscription, sink, userid) in subscriptions.items():
+                expirationDateTime = dateutil.parser.parse(subscription['expirationDateTime'])
+                if expirationDateTime <= now:
+                    logging.debug('subscription expired, id:%s', subscriptionid)
+                    expired[subscriptionid] = sink
+                    sink.expired = True
+            for id, sink in expired.items():
+                if sink.expired:
+                    logging.debug('subscription cleaned up, id:%s', subscriptionid)
+                    del subscriptions[subscriptionid]
+                    sink.store.unsubscribe(sink)
+
 class Sink:
     def __init__(self, options, store, subscription):
         self.options = options
         self.store = store
         self.subscription = subscription
+        self.expired = False
 
     def update(self, notification):
-        global QUEUE
-        try:
-            QUEUE
-        except NameError:
-            QUEUE = Queue()
-            Processor(self.options).start()
-
         QUEUE.put((self.store, notification, self.subscription))
 
 def _subscription_object(store, resource):
@@ -189,6 +222,15 @@ def _export_subscription(subscription):
 class SubscriptionResource:
     def __init__(self, options):
         self.options = options
+
+        global QUEUE
+        try:
+            QUEUE
+        except NameError:
+            QUEUE = Queue()
+            Processor(self.options).start()
+            Watcher(self.options).start()
+
 
     def on_post(self, req, resp):
         user, store = _user_and_store(req, self.options)
@@ -281,7 +323,9 @@ class SubscriptionResource:
                 # NOTE(longsleep): Setting a dict key which is already there is threadsafe in current CPython implementations.
                 subscription['expirationDateTime'] = v
 
-        #logging.debug('subscription updated, id:%s', subscriptionid)
+        if sink.expired:
+            sink.expired = False
+            logging.debug('subscription updated before it expired, id:%s', subscriptionid)
 
         data = _export_subscription(subscription)
 
@@ -300,8 +344,8 @@ class SubscriptionResource:
             resp.status = falcon.HTTP_404
             return
 
-        store.unsubscribe(sink)
         del SUBSCRIPTIONS[subscriptionid]
+        store.unsubscribe(sink)
 
         logging.debug('subscription deleted, id:%s', subscriptionid)
 

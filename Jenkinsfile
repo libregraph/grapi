@@ -19,7 +19,7 @@ pipeline {
 				sh 'apt-get update && apt-get install -y apt-transport-https libev-dev libldap2-dev libsasl2-dev'
 				sh 'echo "deb [trusted=yes] ${REPO_URL} ./" > /etc/apt/sources.list.d/kopano.list'
 				sh 'apt-get update'
-				sh 'apt-get install -y python3-kopano'
+				sh 'apt-get install -y python3-kopano libpcap-dev libcap-dev'
 
 				// Filter out already installed dependencies
 				sh 'grep -Ev "kopano|MAPI"  requirements.txt > jenkins_requirements.txt'
