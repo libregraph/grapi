@@ -80,7 +80,7 @@ def _server(auth_user, auth_pass, oidc=False, reconnect=False):
             notifications=True, parse_args=False, oidc=oidc)
         # Forget all subscriptions when using a new server connection.
         _reset()
-        logging.info('server connection established, server:%s auth_user:%s', SERVER, SERVER.auth_user)
+        logging.info('server connection established, server:%s, auth_user:%s', SERVER, SERVER.auth_user)
 
     return SERVER
 
@@ -157,10 +157,10 @@ class Processor(Thread):
             try:
                 if self.options and self.options.with_metrics:
                     POST_COUNT.inc()
-                logging.debug('subscription notification: %s', subscription['notificationUrl'])
+                logging.debug('subscription notification, id:%s, url:%s', subscription['id'], subscription['notificationUrl'])
                 requests.post(subscription['notificationUrl'], json=data, timeout=10, verify=verify)
             except Exception:
-                logging.exception('subscription notification: %s failed', subscription['notificationUrl'])
+                logging.exception('subscription notification failed, id:%s, url:%s', subscription['id'], subscription['notificationUrl'])
 
 class Watcher(Thread):
     def __init__(self, options):
@@ -183,9 +183,15 @@ class Watcher(Thread):
                     sink.expired = True
             for id, sink in expired.items():
                 if sink.expired:
-                    logging.debug('subscription cleaned up, id:%s', subscriptionid)
-                    del subscriptions[subscriptionid]
-                    sink.store.unsubscribe(sink)
+                    try:
+                        try:
+                            del subscriptions[subscriptionid]
+                        except KeyError:
+                            continue
+                        sink.store.unsubscribe(sink)
+                        logging.debug('subscription cleaned up, id:%s', subscriptionid)
+                    except Exception:
+                        logging.exception('faild to clean up subscription, id:%s', subscriptionid)
 
 class Sink:
     def __init__(self, options, store, subscription):
@@ -236,27 +242,28 @@ class SubscriptionResource:
         user, store = _user_and_store(req, self.options)
         fields = json.loads(req.stream.read().decode('utf-8'))
 
+        id_ = str(uuid.uuid4())
+
         # validate webhook
         validationToken = str(uuid.uuid4())
         verify = not self.options or not self.options.insecure
         try: # TODO async
-            logging.debug('validating subscription notification url: %s', fields['notificationUrl'])
+            logging.debug('validating subscription notification url, id:%s, url:%s', id_, fields['notificationUrl'])
             r = requests.post(fields['notificationUrl']+'?validationToken='+validationToken, timeout=10, verify=verify)
             if r.text != validationToken:
-                logging.debug('subscription validation failed, validation token mismatch')
+                logging.debug('subscription validation failed, validation token mismatch, id:%s, url:%s', id_, fields['notificationUrl'])
                 raise utils.HTTPBadRequest("Subscription validation request failed.")
         except Exception:
-            logging.exception('subscription validation request error')
+            logging.exception('subscription validation request error, id:%s, url:%s', id_, fields['notificationUrl'])
             raise utils.HTTPBadRequest("Subscription validation request failed.")
 
         subscription_object = _subscription_object(store, fields['resource'])
         if not subscription_object:
-            logging.error('subscription object is invalid')
+            logging.error('subscription object is invalid, id:%s, resource:%s', id_, fields['resource'])
             raise utils.HTTPBadRequest("Subscription object invalid.")
         target, folder_types, data_type = subscription_object
 
         # create subscription
-        id_ = str(uuid.uuid4())
         subscription = fields
         subscription['id'] = id_
         subscription['_datatype'] = data_type
@@ -270,6 +277,7 @@ class SubscriptionResource:
                              event_types=event_types, folder_types=folder_types)
         except MAPIErrorNoSupport:
             # Mhm connection is borked. Clean up and start from new.
+            # TODO(longsleep): Add internal retry, do not throw exception to client.
             _disconnect()
             logging.exception('subscription not possible right now, resetting connection')
             raise falcon.HTTPInternalServerError('subscription not possible, please retry')
