@@ -307,7 +307,11 @@ class SubscriptionResource:
         user = _user(req, self.options)
 
         if subscriptionid:
-            subscription, sink, userid = SUBSCRIPTIONS[subscriptionid]
+            try:
+                subscription, sink, userid = SUBSCRIPTIONS[subscriptionid]
+            except KeyError:
+                resp.status = falcon.HTTP_404
+                return
             data = _export_subscription(subscription)
         else:
             userid = user.userid
@@ -354,12 +358,11 @@ class SubscriptionResource:
         user, store = _user_and_store(req, self.options)
 
         try:
-            subscription, sink, userid = SUBSCRIPTIONS[subscriptionid]
+            subscription, sink, userid = SUBSCRIPTIONS.pop(subscriptionid)
         except KeyError:
             resp.status = falcon.HTTP_404
             return
 
-        del SUBSCRIPTIONS[subscriptionid]
         store.unsubscribe(sink)
 
         logging.debug('subscription deleted, id:%s', subscriptionid)
