@@ -62,6 +62,7 @@ PATTERN_EVENTS = (routing.compile_uri_template('/me/calendars/{folderid}/events'
 
 if PROMETHEUS:
     SUBSCR_COUNT = Counter('kopano_mfr_total_subscriptions', 'Total number of subscriptions')
+    SUBSCR_EXPIRED = Counter('kopano_mfr_total_expired_subscriptions', 'Total number of subscriptions which expired')
     SUBSCR_ACTIVE = Gauge('kopano_mfr_active_subscriptions', 'Number of active subscriptions', multiprocess_mode='livesum')
     POST_COUNT = Counter('kopano_mfr_total_webhook_posts', 'Total number of webhook posts')
 
@@ -158,7 +159,9 @@ class Processor(Thread):
                 if self.options and self.options.with_metrics:
                     POST_COUNT.inc()
                 logging.debug('subscription notification, id:%s, url:%s', subscription['id'], subscription['notificationUrl'])
-                requests.post(subscription['notificationUrl'], json=data, timeout=10, verify=verify)
+                # TODO(longsleep): This must be asynchronous or a queue per notificationUrl.
+                response = requests.post(subscription['notificationUrl'], json=data, timeout=10, verify=verify)
+                # TODO(longsleep): Retry respons errors.
             except Exception:
                 logging.exception('subscription notification failed, id:%s, url:%s', subscription['id'], subscription['notificationUrl'])
 
@@ -181,7 +184,7 @@ class Watcher(Thread):
                     logging.debug('subscription expired, id:%s', subscriptionid)
                     expired[subscriptionid] = sink
                     sink.expired = True
-            for id, sink in expired.items():
+            for subscriptionid, sink in expired.items():
                 if sink.expired:
                     try:
                         try:
@@ -190,8 +193,12 @@ class Watcher(Thread):
                             continue
                         sink.store.unsubscribe(sink)
                         logging.debug('subscription cleaned up, id:%s', subscriptionid)
+                        if self.options and self.options.with_metrics:
+                            SUBSCR_EXPIRED.inc()
                     except Exception:
                         logging.exception('faild to clean up subscription, id:%s', subscriptionid)
+            if self.options and self.options.with_metrics:
+                SUBSCR_ACTIVE.set(len(SUBSCRIPTIONS))
 
 class Sink:
     def __init__(self, options, store, subscription):
