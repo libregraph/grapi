@@ -169,6 +169,8 @@ class EventResource(ItemResource):
         'organizer': lambda item: get_email(item.from_),
         'isOrganizer': lambda item: item.from_.email == item.sender.email,
         'responseStatus': lambda item: responsestatus_json(item),
+        # 8.7.x does not have onlinemeetingurl attribute, so we must check if its there for compatibility
+        'onlineMeetingUrl': lambda item: item.onlinemeetingurl if hasattr(item, 'onlinemeetingurl') else ''
     })
 
     set_fields = {
@@ -182,6 +184,8 @@ class EventResource(ItemResource):
         'isAllDay': lambda item, arg: setattr(item, 'all_day', arg),
         'isReminderOn': lambda item, arg: setattr(item, 'reminder', arg),
         'reminderMinutesBeforeStart': lambda item, arg: setattr(item, 'reminder_minutes', arg),
+        # 8.7.x does not have onlinemeetingurl attribute, so we must check if its there for compatibility
+        'onlineMeetingUrl': lambda item, arg: setattr(item, 'onlinemeetingurl', arg) if hasattr(item, 'onlinemeetingurl') else None,
     }
 
     # TODO delta functionality seems to include expanding recurrences!? check with MSGE
