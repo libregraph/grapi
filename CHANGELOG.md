@@ -4,8 +4,9 @@
 
 
 
-## v0.9.1 (2019-07-05)
+## v9.2.0 (2019-07-19)
 
+- kopano: add onlineMeetingUrl field support
 - Improve error handling
 - Properly count active subscriptions and expirations
 - Improve exception handling and logging in threads
