@@ -40,5 +40,10 @@ pipeline {
 				sh 'make test PYTEST=pytest'
 			}
 		}
+		post {
+			always {
+				cleanWs()
+            }
+		}
 	}
 }
