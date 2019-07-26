@@ -46,7 +46,7 @@ ENV LC_ALL en_US.UTF-8
 ENV TINI_VERSION v0.18.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini.asc /tini.asc
-RUN gpg --keyserver hkp://ipv4.pool.sks-keyservers.net:80 --recv-keys 595E85A6B1B4779EA4DAAEC70B588DFF0527A9B7 \
+RUN gpg --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 595E85A6B1B4779EA4DAAEC70B588DFF0527A9B7 \
 	&& gpg --verify /tini.asc && chmod +x /tini
 ENTRYPOINT ["/tini", "-g", "--", "docker-entrypoint.sh"]
 
@@ -54,7 +54,7 @@ ENTRYPOINT ["/tini", "-g", "--", "docker-entrypoint.sh"]
 ENV GOSU_VERSION 1.11
 ADD https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-amd64 /gosu
 ADD https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-amd64.asc /gosu.asc
-RUN gpg --keyserver hkp://ipv4.pool.sks-keyservers.net:80 --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 \
+RUN gpg --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 \
 	&& gpg --verify /gosu.asc && chmod +x /gosu
 RUN /gosu nobody true
 
@@ -73,14 +73,14 @@ deb [trusted=yes] file:/srv/download ./' > /etc/apt/sources.list.d/kopano.list \
 
 # Install Grapi.
 RUN apt-get install -y \
-	kopano-grapi --no-install-recommends \
+	kopano-grapi \
 	&& dpkg -s kopano-grapi | grep Version | awk '{split($0,a,": "); print a[2]}' > /srv/.grapi-version
 
 # Cleanup stuff we do no need.
 RUN rm -rf \
 	/srv/download \
 	apt-get clean && \
-	apt-get -y remove --purge curl gnupg dpkg-dev && \
+	apt-get -y remove --purge gnupg dpkg-dev && \
 	apt-get -y autoremove --purge && \
 	rm -rf /var/lib/apt/lists/*
 
