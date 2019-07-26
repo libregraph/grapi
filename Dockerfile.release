@@ -1,0 +1,127 @@
+#
+# Copyright 2019 Kopano and its licensors
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License, version 3 or
+# later, as published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+FROM ubuntu:bionic
+LABEL maintainer="development@kopano.io"
+
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN apt-get update && apt-get install --no-install-recommends -y \
+	curl \
+	gnupg \
+	net-tools \
+	ca-certificates \
+	locales \
+	dpkg-dev
+
+ENV EXE=kopano-grapi
+ENV KOPANO_GRAPI_USER=nobody
+ENV KOPANO_GRAPI_GROUP=nogroup
+ENV KOPANO_GRAPI_SOCKET_PATH=/var/run/kopano-grapi
+ENV KOPANO_GRAPI_PID_FILE=/tmp/grapi.pid
+ENV KOPANO_GRAPI_KOPANO_SERVER_URI=file:///var/run/kopano/server.sock
+ENV KOPANO_GRAPI_NUM_WORKERS=""
+ENV ARGS=""
+
+SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
+
+# Locale.
+RUN locale-gen --no-purge en_US.UTF-8
+ENV LC_ALL en_US.UTF-8
+
+# Tini for sane Docker.
+ENV TINI_VERSION v0.18.0
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini.asc /tini.asc
+RUN gpg --keyserver hkp://ipv4.pool.sks-keyservers.net:80 --recv-keys 595E85A6B1B4779EA4DAAEC70B588DFF0527A9B7 \
+	&& gpg --verify /tini.asc && chmod +x /tini
+ENTRYPOINT ["/tini", "-g", "--", "docker-entrypoint.sh"]
+
+# Gosu for sane su.
+ENV GOSU_VERSION 1.11
+ADD https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-amd64 /gosu
+ADD https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-amd64.asc /gosu.asc
+RUN gpg --keyserver hkp://ipv4.pool.sks-keyservers.net:80 --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 \
+	&& gpg --verify /gosu.asc && chmod +x /gosu
+RUN /gosu nobody true
+
+# Kopano base dependencies.
+ENV KOPANO_VERSION=8.7.82.59
+ENV KOPANO_CHANNEL=community
+RUN mkdir -p /srv/download && \
+	cd /srv/download && \
+	curl -sSL https://download.kopano.io/${KOPANO_CHANNEL}/core:/core-${KOPANO_VERSION}-Ubuntu_18.04-amd64.tar.gz | \
+	tar -C /srv/download --strip 1 -vxzf - \
+	&& dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz \
+	&& echo '\
+deb [trusted=yes] file:/srv/download ./' > /etc/apt/sources.list.d/kopano.list \
+	&& echo "${KOPANO_VERSION} (${KOPANO_CHANNEL})" > /srv/.mapi-version \
+	&& apt-get update
+
+# Install Grapi.
+RUN apt-get install -y \
+	kopano-grapi --no-install-recommends \
+	&& dpkg -s kopano-grapi | grep Version | awk '{split($0,a,": "); print a[2]}' > /srv/.grapi-version
+
+# Cleanup stuff we do no need.
+RUN rm -rf \
+	/srv/download \
+	apt-get clean && \
+	apt-get -y remove --purge curl gnupg dpkg-dev && \
+	apt-get -y autoremove --purge && \
+	rm -rf /var/lib/apt/lists/*
+
+# Remove documentation.
+RUN rm -rf \
+	/usr/share/doc/* \
+	/usr/share/man/* \
+	/usr/share/groff/* \
+	/usr/share/info/*
+
+# Add Docker specific runtime setup functions.
+RUN mkdir /etc/defaults && echo -e '\
+setup_env() { \n\
+	export socket_path=${KOPANO_GRAPI_SOCKET_PATH} \n\
+	export pid_file=${KOPANO_GRAPI_PID_FILE} \n\
+	export server_socket=${KOPANO_GRAPI_KOPANO_SERVER_URI} \n\
+	if [ -z "${KOPANO_GRAPI_NUM_WORKERS}" ]; then \n\
+		export num_workers=$(cat /proc/cpuinfo | grep processor | wc -l) \n\
+	else \n\
+		export num_workers=${KOPANO_GRAPI_NUM_WORKERS} \n\
+	fi \n\
+	if [ ! -d "${socket_path}" ]; then \n\
+		mkdir -p "${socket_path}" && chown ${KOPANO_GRAPI_USER}:${KOPANO_GRAPI_GROUP} "${socket_path}" \n\
+	fi \n\
+	mkdir -p $(dirname "$pid_file") \n\
+}\n\
+setup_env\n\
+' > /etc/defaults/docker-env
+
+WORKDIR /srv/
+COPY \
+	scripts/docker-entrypoint.sh \
+	scripts/healthcheck.sh \
+	/usr/local/bin/
+RUN chmod 755 /usr/local/bin/*.sh
+
+CMD [ \
+	"kopano-grapi", \
+	"--help" \
+	]
+
+# Health check support is cool too.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s \
+	CMD healthcheck.sh || exit 1
