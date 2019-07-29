@@ -6,12 +6,11 @@ See `COMPAT.MD` for compatibility details.
 
 GRAPI is meant to be used directly by Kopano API (kapi) and requires Python 3.
 
-## Running GRAPI MFR
+## Running GRAPI
 
-MFR stands for Master Fleet Runner and starts the WSGI services provided by
-GRAPI in a way that they can be consumed using unix sockets. To achieve best
-scalability, MFR starts multiple instances of its services so they can be
-utilized in parallel.
+GRAPI uses a master runnier to start its services in a way that they can be
+accessed in parallel using unix sockets. So to start GRAPI, one uses the MFR
+script (Master Fleet Runner).
 
 ```
 ./mfr.py
@@ -20,16 +19,43 @@ utilized in parallel.
 MFR behaviour can be controlled using commandline parameters. Use
 `./mfr.py --help` to get the details.
 
+## Run with Docker
+
+Kopano GRAPI supports Docker to easily be run inside a container. Aside from
+the obvious container reason, running with Docker also supports to run newer
+GRAPI versions independent of the global Kopano installation.
+
+### Run GRAPI from Docker image
+
+```
+docker run --rm=true --name=grapi \
+	--read-only \
+	--tmpfs /tmp \
+	--tmpfs /run \
+	--env KOPANO_GRAPI_USER=$(id -u kopano) \
+	--env KOPANO_GRAPI_GROUP=$(id -g kopano) \
+	--volume /run/kopano-grapi-docker:/run/kopano-grapi \
+	--volume /run/kopano:/run/kopano \
+	grapi \
+	serve
+```
+
+Running GRAPI with Docker exposes the normal command line parameters of GRAPI.
+
+To ensure access, the KOPANO_GRAPI_USER and KOPANO_GRAPI_GROUP environment vars
+can be set to properly access Kopano Storage Server socket and create GRAPI
+sockets so that they can be accessed by Kapid (provided as volumes).
+
 ## Development
 
-GRAPI consists of separate WSGI applications. Mfr runs them together, in a
+GRAPI consists of separate WSGI applications which are run together by MFR in a
 scalable way to be picked up by Kopano API. Recommended way to develop is to
 run GRAPI together with Kopano API.
 
-During development, it is sometimes easier to use the applications directly,
-and without needing access tokens (so using basic authentication). To do that
-use the `--enable-auth-basic` and start the WSGI applications directly for
-example using gunicorn:
+### Custom (direct) development startup
+
+During development, it is sometimes easier to use the individual Grapi services
+directly. Start the WSGI applications directly for example using gunicorn:
 
 ```
 gunicorn3 'grapi.api.v1:RestAPI()'
@@ -50,7 +76,10 @@ Arguments, such as running a specific backend, can be passed as following:
 make start-devrunner ARGS='--backends ldap'
 ```
 
-Unit tests can be run as following:
+## Run unit tests
+
+The unit tests can be run like this:
+
 ```
 make test
 ```
@@ -71,7 +100,6 @@ the IMAP backend and calendar by the CalDAV backend.
 
 * kopano Python module
 * MAPI Python module
-
 
 #### Tests
 

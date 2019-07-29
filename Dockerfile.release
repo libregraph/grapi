@@ -30,9 +30,9 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 ENV EXE=kopano-grapi
 ENV KOPANO_GRAPI_USER=nobody
 ENV KOPANO_GRAPI_GROUP=nogroup
-ENV KOPANO_GRAPI_SOCKET_PATH=/var/run/kopano-grapi
+ENV KOPANO_GRAPI_SOCKET_PATH=/run/kopano-grapi
 ENV KOPANO_GRAPI_PID_FILE=/tmp/grapi.pid
-ENV KOPANO_GRAPI_KOPANO_SERVER_URI=file:///var/run/kopano/server.sock
+ENV KOPANO_GRAPI_KOPANO_SERVER_URI=file:///run/kopano/server.sock
 ENV KOPANO_GRAPI_NUM_WORKERS=""
 ENV ARGS=""
 
@@ -46,16 +46,30 @@ ENV LC_ALL en_US.UTF-8
 ENV TINI_VERSION v0.18.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini.asc /tini.asc
-RUN gpg --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 595E85A6B1B4779EA4DAAEC70B588DFF0527A9B7 \
-	&& gpg --verify /tini.asc && chmod +x /tini
+RUN set -ex && \
+	for key in \
+		595E85A6B1B4779EA4DAAEC70B588DFF0527A9B7 ; \
+	do \
+		gpg --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys "$key" || \
+		gpg --keyserver hkp://ipv4.pool.sks-keyservers.net --recv-keys "$key" || \
+		gpg --keyserver hkp://pgp.mit.edu:80 --recv-keys "$key" ; \
+	done
+RUN  gpg --verify /tini.asc && chmod +x /tini
 ENTRYPOINT ["/tini", "-g", "--", "docker-entrypoint.sh"]
 
 # Gosu for sane su.
 ENV GOSU_VERSION 1.11
 ADD https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-amd64 /gosu
 ADD https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-amd64.asc /gosu.asc
-RUN gpg --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 \
-	&& gpg --verify /gosu.asc && chmod +x /gosu
+RUN set -ex && \
+	for key in \
+		B42F6819007F00F88E364FD4036A9C25BF357DD4 ; \
+    do \
+		gpg --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys "$key" || \
+		gpg --keyserver hkp://ipv4.pool.sks-keyservers.net --recv-keys "$key" || \
+		gpg --keyserver hkp://pgp.mit.edu:80 --recv-keys "$key" ; \
+	done
+RUN gpg --verify /gosu.asc && chmod +x /gosu
 RUN /gosu nobody true
 
 # Kopano base dependencies.
