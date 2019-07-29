@@ -72,10 +72,14 @@ RUN set -ex && \
 RUN gpg --verify /gosu.asc && chmod +x /gosu
 RUN /gosu nobody true
 
+ARG BUILD_DATE=unknown
+ARG KOPANO_VERSION=8.7.82.59
+ARG KOPANO_CHANNEL=community
+
 # Kopano base dependencies.
-ENV KOPANO_VERSION=8.7.82.59
-ENV KOPANO_CHANNEL=community
-RUN mkdir -p /srv/download && \
+ENV KOPANO_VERSION=${KOPANO_VERSION}
+ENV KOPANO_CHANNEL=${KOPANO_CHANNEL}
+RUN sh -ex && BUILD_DATE=${BUILD_DATE} mkdir -p /srv/download && \
 	cd /srv/download && \
 	curl -sSL https://download.kopano.io/${KOPANO_CHANNEL}/core:/core-${KOPANO_VERSION}-Ubuntu_18.04-amd64.tar.gz | \
 	tar -C /srv/download --strip 1 -vxzf - \
