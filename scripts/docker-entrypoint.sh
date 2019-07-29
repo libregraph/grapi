@@ -26,8 +26,13 @@ else
 	# Check for some basic commands, this is used to allow easy calling without
 	# having to prepend the binary all the time.
 	case "${1}" in
-		help|serve)
+		help)
 			set -- ${EXE} "$@"
+			;;
+
+		serve)
+			shift
+			set -- ${EXE} serve --metrics-listen=0.0.0.0:6060 "$@"
 			;;
 
 		version)

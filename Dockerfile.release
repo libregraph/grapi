@@ -92,6 +92,7 @@ deb [trusted=yes] file:/srv/download ./' > /etc/apt/sources.list.d/kopano.list \
 # Install Grapi.
 RUN apt-get install -y \
 	kopano-grapi \
+	python3-prometheus-client \
 	&& dpkg -s kopano-grapi | grep Version | awk '{split($0,a,": "); print a[2]}' > /srv/.grapi-version
 
 # Cleanup stuff we do no need.
@@ -124,9 +125,14 @@ setup_env() { \n\
 		mkdir -p "${socket_path}" && chown ${KOPANO_GRAPI_USER}:${KOPANO_GRAPI_GROUP} "${socket_path}" \n\
 	fi \n\
 	mkdir -p $(dirname "$pid_file") \n\
+	export prometheus_multiproc_dir=/tmp/prometheus && \n\
+		mkdir /tmp/prometheus && \n\
+		chown ${KOPANO_GRAPI_USER}:${KOPANO_GRAPI_GROUP} /tmp/prometheus \n\
 }\n\
 setup_env\n\
 ' > /etc/defaults/docker-env
+
+EXPOSE 6060/tcp
 
 WORKDIR /srv/
 COPY \
