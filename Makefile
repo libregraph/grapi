@@ -39,7 +39,7 @@ open-backend-kopano-cov: test-integration-cov
 
 .PHONE: changelog
 changelog: ; $(info updating changelog ...)
-	$(CHGLOG) --output CHANGELOG.md v0.1.0..
+	$(CHGLOG) --output CHANGELOG.md $(ARGS) v0.1.0..
 
 # Dev helpers
 
