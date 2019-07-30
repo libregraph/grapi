@@ -17,7 +17,7 @@ import falcon
 
 try:
     from prometheus_client import multiprocess
-    from prometheus_client import generate_latest, CollectorRegistry, CONTENT_TYPE_LATEST, Summary, Counter
+    from prometheus_client import generate_latest, CollectorRegistry, CONTENT_TYPE_LATEST, Summary, Counter, Gauge
     PROMETHEUS = True
 except ImportError:
     PROMETHEUS = False
@@ -49,6 +49,8 @@ METRICS_LISTEN = 'localhost:6060'
 if PROMETHEUS:
     REQUEST_TIME = Summary('kopano_mfr_request_processing_seconds', 'Time spent processing request', ['method', 'endpoint'])
     EXCEPTION_COUNT = Counter('kopano_mfr_total_unhandled_exceptions', 'Total number of unhandled exceptions')
+    MEMORY_GAUGE = Gauge('kopano_mfr_virtual_memory_bytes', 'Virtual memory size in bytes', ['worker'])
+    CPUTIME_GAUGE = Gauge('kopano_mfr_cpu_seconds_total', 'Total user and system CPU time spent in seconds', ['worker'])
 
 RUNNING = True
 
@@ -140,8 +142,25 @@ class FalconMetrics(object):
                 label = label.replace(req.context['deltaid'], 'delta')
             REQUEST_TIME.labels(req.method, label).observe(t)
 
+def collect_worker_metrics(workers):
+    ticks = 100.0
+    try:
+        ticks = os.sysconf('SC_CLK_TCK')
+    except (ValueError, TypeError, AttributeError):
+        pass
+
+    for worker in workers:
+        name, pid = worker
+        with open('/proc/{}/stat'.format(pid), 'rb') as stat:
+            parts = stat.read().split()
+            MEMORY_GAUGE.labels(name).set(float(parts[23]))
+            utime = float(parts[13]) / ticks
+            stime = float(parts[14]) / ticks
+            CPUTIME_GAUGE.labels(name).set(utime + stime)
+
 # Expose metrics.
-def metrics_app(environ, start_response):
+def metrics_app(workers, environ, start_response):
+    collect_worker_metrics(workers)
     registry = CollectorRegistry()
     multiprocess.MultiProcessCollector(registry)
     data = generate_latest(registry)
@@ -186,14 +205,14 @@ def run_notify(socket_path, options):
     logging.info('starting notify worker: %s', unix_socket)
     bjoern.run(app, unix_socket)
 
-def run_metrics(socket_path, options):
+def run_metrics(socket_path, options, workers):
     signal.signal(signal.SIGINT, lambda *args: 0)
     if SETPROCTITLE:
         setproctitle.setproctitle('%s metrics' % options.process_name)
     address = options.metrics_listen
     logging.info('starting metrics worker: %s', address)
     address = address.split(':')
-    bjoern.run(metrics_app, address[0], int(address[1]))
+    bjoern.run(partial(metrics_app, workers), address[0], int(address[1]))
 
 def logger_init():
     q = multiprocessing.Queue()
@@ -232,11 +251,15 @@ def main():
 
     workers = []
     for n in range(args.workers):
-        process = multiprocessing.Process(target=run_app, args=(args.socket_path, n, args))
+        process = multiprocessing.Process(target=run_app, name='rest{}'.format(n), args=(args.socket_path, n, args))
         workers.append(process)
 
-    notify_process = multiprocessing.Process(target=run_notify, args=(args.socket_path, args))
+    notify_process = multiprocessing.Process(target=run_notify, name='notify', args=(args.socket_path, args))
     workers.append(notify_process)
+
+    for worker in workers:
+        worker.daemon = True
+        worker.start()
 
     if args.with_metrics:
         if PROMETHEUS:
@@ -244,15 +267,17 @@ def main():
                 logging.error('please export "prometheus_multiproc_dir"')
                 sys.exit(-1)
 
-            metrics_process = multiprocessing.Process(target=run_metrics, args=(args.socket_path, args))
+            # Spawn the metrics process later, so we can pass along worker name and pids.
+            monitor_workers = [(worker.name, worker.pid) for worker in workers]
+            # Include master process.
+            monitor_workers.append(('master', os.getpid()))
+            metrics_process = multiprocessing.Process(target=run_metrics, args=(args.socket_path, args, monitor_workers))
+            metrics_process.daemon = True
+            metrics_process.start()
             workers.append(metrics_process)
         else:
             logging.error('please install prometheus client python bindings')
             sys.exit(-1)
-
-    for worker in workers:
-        worker.daemon = True
-        worker.start()
 
     signal.signal(signal.SIGCHLD, sigchld)
     signal.signal(signal.SIGTERM, sigterm)
