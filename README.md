@@ -25,6 +25,25 @@ Kopano GRAPI supports Docker to easily be run inside a container. Aside from
 the obvious container reason, running with Docker also supports to run newer
 GRAPI versions independent of the global Kopano installation.
 
+### Run GRAPI with Docker Swarm
+
+Setup the Docker container in swarm mode like this:
+
+```
+docker service create \
+    --read-only \
+    --mount type=tmpfs,destination=/tmp \
+    --mount type=tmpfs,destination=/run \
+	--env KOPANO_GRAPI_USER=$(id -u kapi) \
+	--env KOPANO_GRAPI_GROUP=$(id -g kopano) \
+    --mount type=bind,source=/etc/ssl/certs,target=/etc/ssl/certs,readonly \
+    --mount type=bind,source=/run/kopano-grapi-docker,target=/run/kopano-grapi \
+    --env KOPANO_GRAPI_KOPANO_SERVER_URI=https://email.kopano.com:237/kopano \
+    --name=grapi \
+    kopano/grapi \
+    serve
+```
+
 ### Run GRAPI from Docker image
 
 ```
@@ -32,11 +51,11 @@ docker run --rm=true --name=grapi \
 	--read-only \
 	--tmpfs /tmp \
 	--tmpfs /run \
-	--env KOPANO_GRAPI_USER=$(id -u kopano) \
+	--env KOPANO_GRAPI_USER=$(id -u kapi) \
 	--env KOPANO_GRAPI_GROUP=$(id -g kopano) \
 	--volume /run/kopano-grapi-docker:/run/kopano-grapi \
 	--volume /run/kopano:/run/kopano \
-	grapi \
+	kopano/grapi \
 	serve
 ```
 
