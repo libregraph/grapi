@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import codecs
+from collections import namedtuple
 import datetime
 import dateutil.parser
 import logging
 import uuid
 from queue import Queue
-from threading import Thread, Event
+from threading import Thread, Event, Lock
 
 try:
     import ujson as json
@@ -47,11 +48,23 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 # TODO don't block on sending updates
 # TODO async subscription validation
 # TODO restarting app/server?
-# TODO subscription expiration?
-# TODO avoid globals (threading)
 # TODO list subscription scalability
+# TODO use mulitprocessing
 
-SUBSCRIPTIONS = {}
+# threadLock is a global lock which can be used to protect the global
+# states in this file.
+threadLock = Lock()
+
+# RECORDS hold the named tuple Record values for users which have active
+# subscriptions.
+RECORDS = {}
+# RECORD_COUNT is incremented whenever a active subscription gets replaced
+# and the incremented value is appended to the key of the record in RECRODS
+# to allow it to be cleaned up later.
+RECORD_COUNT = 0
+# Record is a named tuple binding subscription and conection information
+# per user. Named tuple is used for easy painless access to its members.
+Record = namedtuple('Record', ['server', 'user', 'store', 'subscriptions'])
 
 PATTERN_MESSAGES = (routing.compile_uri_template('/me/mailFolders/{folderid}/messages')[1], 'Message')
 PATTERN_CONTACTS = (routing.compile_uri_template('/me/contactFolders/{folderid}/contacts')[1], 'Contact')
@@ -62,69 +75,65 @@ if PROMETHEUS:
     SUBSCR_EXPIRED = Counter('kopano_mfr_total_expired_subscriptions', 'Total number of subscriptions which expired')
     SUBSCR_ACTIVE = Gauge('kopano_mfr_active_subscriptions', 'Number of active subscriptions', multiprocess_mode='livesum')
     POST_COUNT = Counter('kopano_mfr_total_webhook_posts', 'Total number of webhook posts')
+    DANGLING_COUNT = Counter('kopano_mfr_total_broken_subscription_conns', 'Total number of broken subscription connections')
 
 def _server(auth_user, auth_pass, oidc=False, reconnect=False):
-    # return global connection, using credentials from first user to
-    # authenticate, and use it for all notifications
-    global SERVER
+    server = kopano.Server(auth_user=auth_user, auth_pass=auth_pass,
+        notifications=True, parse_args=False, oidc=oidc)
+    logging.info('server connection established, server:%s, auth_user:%s', server, server.auth_user)
 
-    try: # TODO thread lock?
-        SERVER
-    except NameError:
-        reconnect=True
+    return server
 
-    if reconnect or SERVER is None:
-        SERVER = kopano.Server(auth_user=auth_user, auth_pass=auth_pass,
-            notifications=True, parse_args=False, oidc=oidc)
-        # Forget all subscriptions when using a new server connection.
-        _reset()
-        logging.info('server connection established, server:%s, auth_user:%s', SERVER, SERVER.auth_user)
+def _record(req, options):
+    global RECORD_COUNT
+    global RECORDS
 
-    return SERVER
-
-def _disconnect():
-    global SERVER
-
-    SERVER = None
-
-def _reset():
-    global SUBSCRIPTIONS
-    old = SUBSCRIPTIONS
-    SUBSCRIPTIONS = {}
-
-    for (subscription, sink, userid) in old.values():
-        sink.store.unsubscribe(sink)
-
-def _user(req, options, reconnect=False, force_reconnect=False):
     auth = utils._auth(req, options)
 
+    username = None
+    auth_username = None
+    auth_password = None
+    oidc = False
     if auth['method'] == 'bearer':
         username = auth['user']
-        server = _server(auth['userid'], auth['token'], oidc=True, reconnect=reconnect or force_reconnect)
+        auth_username = auth['userid']
+        auth_password = auth['token']
+        oidc = True
     elif auth['method'] == 'basic':
-        username = codecs.decode(auth['user'], 'utf8')
-        server = _server(username, auth['password'], reconnect=reconnect or force_reconnect)
+        auth_username = codecs.decode(auth['user'], 'utf8')
+        auth_password = auth['password']
     elif auth['method'] == 'passthrough': # pragma: no cover
-        username = utils._username(auth['userid'])
-        server = _server(username, '', reconnect=reconnect or force_reconnect)
-    try:
-        user = server.user(username)
-    except (MAPIErrorNetworkError, MAPIErrorEndOfSession): # server restart: try to reconnect TODO check kc_session_restore (incl. notifs!)
-        if not reconnect:
-            logging.exception('network or session error while getting user from server, reconnecting automatically')
-            user = _user(req, options, reconnect=True)
-        else:
-            raise
+        auth_username = utils._username(auth['userid'])
+        auth_password = ''
 
-    return user
+    if username is None:
+        username = auth_username
 
-def _user_and_store(req, options):
-    user = _user(req, options)
-    try:
-        return user, user.store
-    except MAPIErrorUnconfigured:
-        user = _user(req, options, force_reconnect=True)
-        return user, user.store
+    with threadLock:
+        record = RECORDS.get(auth_username)
+    if record is not None:
+        try:
+            user = record.server.user(username)
+            return record
+        except (MAPIErrorNetworkError, MAPIErrorEndOfSession): # server restart: try to reconnect TODO check kc_session_restore (incl. notifs!)
+            logging.exception('network or session error while getting user from server, reconnect automatically')
+            with threadLock:
+                oldRecord = RECORDS.pop(auth_username)
+                RECORD_COUNT += 1
+                RECORDS['{}_dangle_{}'.format(auth_username, RECORD_COUNT)] = oldRecord
+            if options and options.with_metrics:
+                DANGLING_COUNT.inc()
+
+    server = _server(auth_username, auth_password, oidc=oidc)
+    user = server.user(username)
+    store = user.store
+
+    record = Record(server=server, user=user, store=store, subscriptions={})
+    with threadLock:
+        RECORDS.update({auth_username: record})
+
+        return RECORDS.get(auth_username)
+
 
 class Processor(Thread):
     def __init__(self, options):
@@ -172,30 +181,42 @@ class Watcher(Thread):
 
     def run(self):
         while not self.exit.wait(timeout=60):
-            subscriptions = SUBSCRIPTIONS
-            expired = {}
-            now = datetime.datetime.now(tz=datetime.timezone.utc)
-            for subscriptionid, (subscription, sink, userid) in subscriptions.items():
-                expirationDateTime = dateutil.parser.parse(subscription['expirationDateTime'])
-                if expirationDateTime <= now:
-                    logging.debug('subscription expired, id:%s', subscriptionid)
-                    expired[subscriptionid] = sink
-                    sink.expired = True
-            for subscriptionid, sink in expired.items():
-                if sink.expired:
-                    try:
+            records = RECORDS
+            purge = []
+            for auth_username, record in records.items():
+                subscriptions = record.subscriptions
+                expired = {}
+                now = datetime.datetime.now(tz=datetime.timezone.utc)
+                for subscriptionid, (subscription, sink, userid) in subscriptions.items():
+                    expirationDateTime = dateutil.parser.parse(subscription['expirationDateTime'])
+                    if expirationDateTime <= now:
+                        logging.debug('subscription expired, id:%s', subscriptionid)
+                        expired[subscriptionid] = sink
+                        sink.expired = True
+                for subscriptionid, sink in expired.items():
+                    if sink.expired:
                         try:
-                            del subscriptions[subscriptionid]
-                        except KeyError:
-                            continue
-                        sink.store.unsubscribe(sink)
-                        logging.debug('subscription cleaned up, id:%s', subscriptionid)
-                        if self.options and self.options.with_metrics:
-                            SUBSCR_EXPIRED.inc()
-                    except Exception:
-                        logging.exception('faild to clean up subscription, id:%s', subscriptionid)
-            if self.options and self.options.with_metrics:
-                SUBSCR_ACTIVE.set(len(SUBSCRIPTIONS))
+                            try:
+                                del subscriptions[subscriptionid]
+                            except KeyError:
+                                continue
+                            sink.store.unsubscribe(sink)
+                            logging.debug('subscription cleaned up, id:%s', subscriptionid)
+                            if self.options and self.options.with_metrics:
+                                SUBSCR_EXPIRED.inc()
+                                SUBSCR_ACTIVE.dec(1)
+                        except Exception:
+                            logging.exception('faild to clean up subscription, id:%s', subscriptionid)
+                if len(subscriptions) == 0:
+                    logging.debug('cleaning up user without any subscriptions, auth_user:%s', auth_username)
+                    purge.append((auth_username, record))
+
+            with threadLock:
+                for (auth_username, record) in purge:
+                    currentRecord = records[auth_username]
+                    if currentRecord is record:
+                        del records[auth_username]
+
 
 class Sink:
     def __init__(self, options, store, subscription):
@@ -243,7 +264,10 @@ class SubscriptionResource:
 
 
     def on_post(self, req, resp):
-        user, store = _user_and_store(req, self.options)
+        record = _record(req, self.options)
+        server = record.server
+        user = record.user
+        store = record.store
         fields = json.loads(req.stream.read().decode('utf-8'))
 
         id_ = str(uuid.uuid4())
@@ -252,7 +276,7 @@ class SubscriptionResource:
         validationToken = str(uuid.uuid4())
         verify = not self.options or not self.options.insecure
         try: # TODO async
-            logging.debug('validating subscription notification url, id:%s, url:%s', id_, fields['notificationUrl'])
+            logging.debug('validating subscription notification url, auth_user:%s, id:%s, url:%s', server.auth_user, id_, fields['notificationUrl'])
             r = requests.post(fields['notificationUrl']+'?validationToken='+validationToken, timeout=10, verify=verify)
             if r.text != validationToken:
                 logging.debug('subscription validation failed, validation token mismatch, id:%s, url:%s', id_, fields['notificationUrl'])
@@ -280,14 +304,14 @@ class SubscriptionResource:
             target.subscribe(sink, object_types=object_types,
                              event_types=event_types, folder_types=folder_types)
         except MAPIErrorNoSupport:
-            # Mhm connection is borked. Clean up and start from new.
+            # Mhm connection is borked.
+            # TODO(longsleep): Clean up and start from new.
             # TODO(longsleep): Add internal retry, do not throw exception to client.
-            _disconnect()
             logging.exception('subscription not possible right now, resetting connection')
             raise falcon.HTTPInternalServerError('subscription not possible, please retry')
 
-        SUBSCRIPTIONS[id_] = (subscription, sink, user.userid)
-        logging.debug('subscription created, id:%s, target:%s, object_types:%s, event_types:%s, folder_types:%s', id_, target, object_types, event_types, folder_types)
+        record.subscriptions[id_] = (subscription, sink, user.userid)
+        logging.debug('subscription created, auth_user:%s, id:%s, target:%s, object_types:%s, event_types:%s, folder_types:%s', server.auth_user, id_, target, object_types, event_types, folder_types)
 
         resp.content_type = "application/json"
         if INDENT:
@@ -298,14 +322,14 @@ class SubscriptionResource:
 
         if self.options and self.options.with_metrics:
             SUBSCR_COUNT.inc()
-            SUBSCR_ACTIVE.set(len(SUBSCRIPTIONS))
+            SUBSCR_ACTIVE.inc()
 
     def on_get(self, req, resp, subscriptionid=None):
-        user = _user(req, self.options)
+        record = _record(req, self.options)
 
         if subscriptionid:
             try:
-                subscription, sink, userid = SUBSCRIPTIONS[subscriptionid]
+                subscription, sink, userid = record.subscriptions[subscriptionid]
             except KeyError:
                 resp.status = falcon.HTTP_404
                 return
@@ -324,10 +348,10 @@ class SubscriptionResource:
             resp.body = json.dumps(data, ensure_ascii=False).encode('utf-8')
 
     def on_patch(self, req, resp, subscriptionid):
-        user = _user(req, self.options)
+        record = _record(req, self.options)
 
         try:
-            subscription, sink, userid = SUBSCRIPTIONS[subscriptionid]
+            subscription, sink, userid = record.subscriptions[subscriptionid]
         except KeyError:
             resp.status = falcon.HTTP_404
             return
@@ -352,10 +376,11 @@ class SubscriptionResource:
             resp.body = json.dumps(data, ensure_ascii=False).encode('utf-8')
 
     def on_delete(self, req, resp, subscriptionid):
-        user, store = _user_and_store(req, self.options)
+        record = _record(req, self.options)
+        store = record.store
 
         try:
-            subscription, sink, userid = SUBSCRIPTIONS.pop(subscriptionid)
+            subscription, sink, userid = record.subscriptions.pop(subscriptionid)
         except KeyError:
             resp.status = falcon.HTTP_404
             return
@@ -365,7 +390,7 @@ class SubscriptionResource:
         logging.debug('subscription deleted, id:%s', subscriptionid)
 
         if self.options and self.options.with_metrics:
-            SUBSCR_ACTIVE.set(len(SUBSCRIPTIONS))
+            SUBSCR_ACTIVE.dec(1)
 
         resp.set_header('Content-Length', '0') # https://github.com/jonashaag/bjoern/issues/139
         resp.status = falcon.HTTP_204
