@@ -14,10 +14,7 @@ try:
     def set_thread_name(name): prctl.set_name(name)
 except ImportError: # pragma: no cover
     def set_thread_name(name): pass
-try:
-    from queue import Queue
-except ImportError: # pragma: no cover
-    from Queue import Queue
+from queue import Queue
 import requests
 from threading import Thread, Event
 
