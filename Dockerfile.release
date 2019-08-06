@@ -73,7 +73,7 @@ RUN gpg --verify /gosu.asc && chmod +x /gosu
 RUN /gosu nobody true
 
 ARG BUILD_DATE=unknown
-ARG KOPANO_VERSION=8.7.82.59
+ARG KOPANO_VERSION=8.7.82.61
 ARG KOPANO_CHANNEL=community
 
 # Kopano base dependencies.

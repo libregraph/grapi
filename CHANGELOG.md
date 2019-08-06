@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+
+
+## v9.2.1 (2019-08-06)
+
+- Add tox ini for pep8 settings
+- Update code style for pep8
+- Avoid global user connection in kopano subscriptions
+- re-order imports stdlib first then third party
+- remove unused import traceback
+- Remove try/except for Python 2 support
+- Add prometheus memory statistics per process
+- Add Docker swarm instructions/example
+- Add metrics support to Dockerfile
+- Add Dockerfile build args
 - Add Docker instructions to README
 - Install optional dependencies too
 - Add simple health check using curl
