@@ -2,20 +2,21 @@
 import codecs
 import datetime
 import dateutil.parser
+import logging
+import uuid
+from queue import Queue
+from threading import Thread, Event
+
 try:
     import ujson as json
 except ImportError: # pragma: no cover
     import json
-import logging
-import uuid
 try:
     import prctl
     def set_thread_name(name): prctl.set_name(name)
 except ImportError: # pragma: no cover
     def set_thread_name(name): pass
-from queue import Queue
 import requests
-from threading import Thread, Event
 
 INDENT = True
 try:
