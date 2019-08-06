@@ -1,55 +1,56 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import codecs
-from collections import namedtuple
+import falcon
+import kopano
 import datetime
 import dateutil.parser
+import requests
 import logging
 import uuid
+
 from queue import Queue
 from threading import Thread, Event, Lock
+from collections import namedtuple
+
+from . import utils
 
 try:
     import ujson as json
-except ImportError: # pragma: no cover
+except ImportError:  # pragma: no cover
     import json
 try:
     import prctl
+
     def set_thread_name(name): prctl.set_name(name)
-except ImportError: # pragma: no cover
+except ImportError:  # pragma: no cover
     def set_thread_name(name): pass
-import requests
-
-INDENT = True
-try:
-    json.dumps({}, indent=True) # ujson 1.33 doesn't support 'indent'
-except TypeError: # pragma: no cover
-    INDENT = False
-
-import falcon
-from falcon import routing
 
 try:
     from prometheus_client import Counter, Gauge
     PROMETHEUS = True
-except ImportError: # pragma: no cover
+except ImportError:  # pragma: no cover
     PROMETHEUS = False
 
 from MAPI.Struct import (
-    MAPIErrorNetworkError, MAPIErrorEndOfSession, MAPIErrorUnconfigured, MAPIErrorNoSupport
+    MAPIErrorNetworkError, MAPIErrorEndOfSession, MAPIErrorNoSupport
 )
 
-import kopano
-kopano.set_bin_encoding('base64')
-
-from . import utils
-
-logging.getLogger("requests").setLevel(logging.WARNING)
+INDENT = True
+try:
+    json.dumps({}, indent=True)  # ujson 1.33 doesn't support 'indent'
+except TypeError:  # pragma: no cover
+    INDENT = False
 
 # TODO don't block on sending updates
 # TODO async subscription validation
 # TODO restarting app/server?
 # TODO list subscription scalability
 # TODO use mulitprocessing
+
+# GRAPI uses Base64, tell kopano module about it.
+kopano.set_bin_encoding('base64')
+
+logging.getLogger("requests").setLevel(logging.WARNING)
 
 # threadLock is a global lock which can be used to protect the global
 # states in this file.
@@ -66,9 +67,9 @@ RECORD_COUNT = 0
 # per user. Named tuple is used for easy painless access to its members.
 Record = namedtuple('Record', ['server', 'user', 'store', 'subscriptions'])
 
-PATTERN_MESSAGES = (routing.compile_uri_template('/me/mailFolders/{folderid}/messages')[1], 'Message')
-PATTERN_CONTACTS = (routing.compile_uri_template('/me/contactFolders/{folderid}/contacts')[1], 'Contact')
-PATTERN_EVENTS = (routing.compile_uri_template('/me/calendars/{folderid}/events')[1], 'Event')
+PATTERN_MESSAGES = (falcon.routing.compile_uri_template('/me/mailFolders/{folderid}/messages')[1], 'Message')
+PATTERN_CONTACTS = (falcon.routing.compile_uri_template('/me/contactFolders/{folderid}/contacts')[1], 'Contact')
+PATTERN_EVENTS = (falcon.routing.compile_uri_template('/me/calendars/{folderid}/events')[1], 'Event')
 
 if PROMETHEUS:
     SUBSCR_COUNT = Counter('kopano_mfr_total_subscriptions', 'Total number of subscriptions')
@@ -77,14 +78,20 @@ if PROMETHEUS:
     POST_COUNT = Counter('kopano_mfr_total_webhook_posts', 'Total number of webhook posts')
     DANGLING_COUNT = Counter('kopano_mfr_total_broken_subscription_conns', 'Total number of broken subscription connections')
 
+
 def _server(auth_user, auth_pass, oidc=False, reconnect=False):
     server = kopano.Server(auth_user=auth_user, auth_pass=auth_pass,
-        notifications=True, parse_args=False, oidc=oidc)
+                           notifications=True, parse_args=False, oidc=oidc)
     logging.info('server connection established, server:%s, auth_user:%s', server, server.auth_user)
 
     return server
 
+
 def _record(req, options):
+    """
+    Return the record matching the provided request. If no record is found, a
+    new one is created.
+    """
     global RECORD_COUNT
     global RECORDS
 
@@ -102,7 +109,7 @@ def _record(req, options):
     elif auth['method'] == 'basic':
         auth_username = codecs.decode(auth['user'], 'utf8')
         auth_password = auth['password']
-    elif auth['method'] == 'passthrough': # pragma: no cover
+    elif auth['method'] == 'passthrough':  # pragma: no cover
         auth_username = utils._username(auth['userid'])
         auth_password = ''
 
@@ -115,7 +122,7 @@ def _record(req, options):
         try:
             user = record.server.user(username)
             return record
-        except (MAPIErrorNetworkError, MAPIErrorEndOfSession): # server restart: try to reconnect TODO check kc_session_restore (incl. notifs!)
+        except (MAPIErrorNetworkError, MAPIErrorEndOfSession):  # server restart: try to reconnect TODO check kc_session_restore (incl. notifs!)
             logging.exception('network or session error while getting user from server, reconnect automatically')
             with threadLock:
                 oldRecord = RECORDS.pop(auth_username)
@@ -170,6 +177,7 @@ class Processor(Thread):
                 # TODO(longsleep): Retry respons errors.
             except Exception:
                 logging.exception('subscription notification failed, id:%s, url:%s', subscription['id'], subscription['notificationUrl'])
+
 
 class Watcher(Thread):
     def __init__(self, options):
@@ -228,6 +236,7 @@ class Sink:
     def update(self, notification):
         QUEUE.put((self.store, notification, self.subscription))
 
+
 def _subscription_object(store, resource):
     # specific mail/contacts folder
     for (pattern, datatype) in (PATTERN_MESSAGES, PATTERN_CONTACTS, PATTERN_EVENTS):
@@ -247,8 +256,10 @@ def _subscription_object(store, resource):
     elif resource in ('me/events', 'me/calendar/events'):
         return store.calendar, None, 'Event'
 
+
 def _export_subscription(subscription):
-    return dict((a,b) for (a,b) in subscription.items() if not a.startswith('_'))
+    return dict((a, b) for (a, b) in subscription.items() if not a.startswith('_'))
+
 
 class SubscriptionResource:
     def __init__(self, options):
@@ -262,7 +273,6 @@ class SubscriptionResource:
             Processor(self.options).start()
             Watcher(self.options).start()
 
-
     def on_post(self, req, resp):
         record = _record(req, self.options)
         server = record.server
@@ -275,7 +285,7 @@ class SubscriptionResource:
         # validate webhook
         validationToken = str(uuid.uuid4())
         verify = not self.options or not self.options.insecure
-        try: # TODO async
+        try:  # TODO async
             logging.debug('validating subscription notification url, auth_user:%s, id:%s, url:%s', server.auth_user, id_, fields['notificationUrl'])
             r = requests.post(fields['notificationUrl']+'?validationToken='+validationToken, timeout=10, verify=verify)
             if r.text != validationToken:
@@ -297,7 +307,7 @@ class SubscriptionResource:
         subscription['_datatype'] = data_type
 
         sink = Sink(self.options, store, subscription)
-        object_types = ['item'] # TODO folders not supported by graph atm?
+        object_types = ['item']  # TODO folders not supported by graph atm?
         event_types = [x.strip() for x in subscription['changeType'].split(',')]
 
         try:
@@ -311,7 +321,10 @@ class SubscriptionResource:
             raise falcon.HTTPInternalServerError('subscription not possible, please retry')
 
         record.subscriptions[id_] = (subscription, sink, user.userid)
-        logging.debug('subscription created, auth_user:%s, id:%s, target:%s, object_types:%s, event_types:%s, folder_types:%s', server.auth_user, id_, target, object_types, event_types, folder_types)
+        logging.debug(
+            'subscription created, auth_user:%s, id:%s, target:%s, object_types:%s, event_types:%s, folder_types:%s',
+            server.auth_user, id_, target, object_types, event_types, folder_types
+        )
 
         resp.content_type = "application/json"
         if INDENT:
@@ -338,7 +351,7 @@ class SubscriptionResource:
             userid = user.userid
             data = {
                 '@odata.context': req.path,
-                'value': [_export_subscription(subscription) for (subscription, _, uid) in SUBSCRIPTIONS.values() if uid == userid], # TODO doesn't scale
+                'value': [_export_subscription(subscription) for (subscription, _, uid) in SUBSCRIPTIONS.values() if uid == userid],  # TODO doesn't scale
             }
 
         resp.content_type = "application/json"
@@ -392,5 +405,5 @@ class SubscriptionResource:
         if self.options and self.options.with_metrics:
             SUBSCR_ACTIVE.dec(1)
 
-        resp.set_header('Content-Length', '0') # https://github.com/jonashaag/bjoern/issues/139
+        resp.set_header('Content-Length', '0')  # https://github.com/jonashaag/bjoern/issues/139
         resp.status = falcon.HTTP_204
