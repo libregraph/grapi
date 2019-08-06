@@ -86,14 +86,15 @@ RUN sh -ex && BUILD_DATE=${BUILD_DATE} mkdir -p /srv/download && \
 	&& dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz \
 	&& echo '\
 deb [trusted=yes] file:/srv/download ./' > /etc/apt/sources.list.d/kopano.list \
-	&& echo "${KOPANO_VERSION} (${KOPANO_CHANNEL})" > /srv/.mapi-version \
+	&& echo "${KOPANO_VERSION} (${KOPANO_CHANNEL})" > /srv/.kopano-version \
 	&& apt-get update
 
 # Install Grapi.
 RUN apt-get install -y \
 	kopano-grapi \
 	python3-prometheus-client \
-	&& dpkg -s kopano-grapi | grep Version | awk '{split($0,a,": "); print a[2]}' > /srv/.grapi-version
+	&& dpkg -s kopano-grapi | grep Version | awk '{split($0,a,": "); print a[2]}' > /srv/.grapi-version \
+    && dpkg -s python3-mapi | grep Version | awk '{split($0,a,": "); print a[2]}' > /srv/.mapi-version
 
 # Cleanup stuff we do no need.
 RUN rm -rf \
