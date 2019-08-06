@@ -7,7 +7,6 @@ try:
 except ImportError: # pragma: no cover
     import json
 import logging
-import traceback
 import uuid
 try:
     import prctl
