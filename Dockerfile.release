@@ -75,6 +75,7 @@ RUN /gosu nobody true
 ARG BUILD_DATE=unknown
 ARG KOPANO_VERSION=8.7.82.61
 ARG KOPANO_CHANNEL=community
+ARG VCS_REF=unknown
 
 # Kopano base dependencies.
 ENV KOPANO_VERSION=${KOPANO_VERSION}
@@ -150,3 +151,12 @@ CMD [ \
 # Health check support is cool too.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s \
 	CMD healthcheck.sh || exit 1
+
+LABEL \
+    org.label-schema.name="Kopano Grapi container" \
+    org.label-schema.description="Container for running the Kopano Rest API" \
+    org.label-schema.url="https://kopano.io" \
+    org.label-schema.vcs-ref=$VCS_REF \
+    org.label-schema.vcs-url="https://stash.kopano.io/projects/KC/repos/grapi/browse" \
+    org.label-schema.version=$KOPANO_VERSION \
+    org.label-schema.schema-version="1.0"
