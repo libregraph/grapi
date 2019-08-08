@@ -3,28 +3,36 @@
 pipeline {
 	agent {
 		docker {
-			image 'python:3'
+			image 'ubuntu:bionic'
 			args '-u 0'
 		}
 	}
 	environment {
 		CI = 'true'
 		DEBIAN_FRONTEND = 'noninteractive'
-		REPO_URL = 'https://download.kopano.io/supported/core:/master/Debian_9.0/'
+		REPO_URL = 'https://download.kopano.io/supported/core:/master/Ubuntu_18.04/'
 	}
 	stages {
 		stage('Bootstrap') {
 			steps {
 				echo 'Bootstrapping'
-				sh 'apt-get update && apt-get install -y apt-transport-https libev-dev libldap2-dev libsasl2-dev'
+				sh 'apt-get update && apt-get install -y \
+					apt-transport-https \
+					ca-certificates \
+					libdb-dev \
+					libev-dev \
+					libldap2-dev \
+					libsasl2-dev \
+					python3-pip \
+					'
 				sh 'echo "deb [trusted=yes] ${REPO_URL} ./" > /etc/apt/sources.list.d/kopano.list'
 				sh 'apt-get update'
 				sh 'apt-get install -y python3-kopano libpcap-dev libcap-dev'
 
 				// Filter out already installed dependencies
 				sh 'grep -Ev "kopano|MAPI"  requirements.txt > jenkins_requirements.txt'
-				sh 'pip install -r jenkins_requirements.txt'
-				sh 'pip install pylint pytest'
+				sh 'pip3 install -r jenkins_requirements.txt'
+				sh 'pip3 install pylint pytest'
 			}
 		}
 		stage('Lint') {
