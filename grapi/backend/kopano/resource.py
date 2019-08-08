@@ -14,13 +14,13 @@ except ImportError:
     import urllib.parse as urlparse
 
 import pytz
-import dateutil
+import tzlocal
 from jsonschema import ValidationError
 
 from grapi.api.v1.resource import HTTPBadRequest
 
-UTC = dateutil.tz.tzutc()
-LOCAL = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
+UTC = pytz.utc
+LOCAL = tzlocal.get_localzone()
 
 INDENT = True
 try:
@@ -70,7 +70,7 @@ def _tzdate(d, tzinfo, req):
 
     if d.tzinfo is None:
         # NOTE(longsleep): pyko uses naive localtime..
-        d = d.replace(tzinfo=LOCAL)
+        d = LOCAL.localize(d)
 
     # apply timezone preference header
     pref_timezone = _header_sub_arg(req, 'Prefer', 'outlook.timezone')
@@ -96,11 +96,11 @@ def _naive_local(d): # TODO make pyko not assume naive localtime..
         return d
 
 def set_date(item, field, arg):
-    tz = dateutil.tz.gettz(arg.get('timeZone', 'UTC'))
+    tz = pytz.timezone(arg.get('timeZone', 'UTC'))
     d = dateutil.parser.parse(arg['dateTime'], ignoretz=True)
 
     # Set timezone as provided and convert to naive LOCAL time since that is what pyko uses internally.
-    d = d.replace(tzinfo=tz).astimezone(LOCAL).replace(tzinfo=None)
+    d = tz.localize(d).astimezone(LOCAL).replace(tzinfo=None)
     setattr(item, field, d)
 
 def _parse_qs(req):

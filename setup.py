@@ -13,6 +13,7 @@ install_requires = [
     'pytz',
     'requests',
     'setproctitle',
+    'tzlocal',
     'ujson>=1.35'
 ]
 
