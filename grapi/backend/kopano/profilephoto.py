@@ -39,7 +39,8 @@ class ProfilePhotoResource(Resource):
             photo = photo.scale(size)
 
         if method == '$value':
-            resp.content_type = photo.mimetype
+            mimetype = photo.mimetype
+            resp.content_type = mimetype and mimetype or 'application/octet-stream'
             resp.data = photo.data
 
         else:
