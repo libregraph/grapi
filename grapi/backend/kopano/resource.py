@@ -18,6 +18,7 @@ import tzlocal
 from jsonschema import ValidationError
 
 from grapi.api.v1.resource import HTTPBadRequest
+from grapi.api.v1.timezone import to_timezone
 
 UTC = pytz.utc
 LOCAL = tzlocal.get_localzone()
@@ -76,7 +77,7 @@ def _tzdate(d, tzinfo, req):
     pref_timezone = _header_sub_arg(req, 'Prefer', 'outlook.timezone')
     if pref_timezone:
         try:
-            tzinfo = pytz.timezone(pref_timezone)
+            tzinfo = to_timezone(pref_timezone)
         except Exception as e:
             raise HTTPBadRequest("A valid TimeZone value must be specified. The following TimeZone value is not supported: '%s'." % pref_timezone)
         d = d.astimezone(tzinfo).replace(tzinfo=None)
@@ -96,7 +97,7 @@ def _naive_local(d): # TODO make pyko not assume naive localtime..
         return d
 
 def set_date(item, field, arg):
-    tz = pytz.timezone(arg.get('timeZone', 'UTC'))
+    tz = to_timezone(arg.get('timeZone', 'UTC'))
     d = dateutil.parser.parse(arg['dateTime'], ignoretz=True)
 
     # Set timezone as provided and convert to naive LOCAL time since that is what pyko uses internally.
