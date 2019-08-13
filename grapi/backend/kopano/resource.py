@@ -176,7 +176,7 @@ class BaseResource(object):
                 if '$skip' in args:
                     del args['$skip']
                 path += '?'+'&'.join(a+'='+','.join(b) for (a,b) in args.items())
-            header += b'  "@odata.nextLink": "%s?$skip=%d",\n' % (path.encode('utf-8'), skip+top)
+            header += b'  "@odata.nextLink": "%s?$skip=%d",\n' % (json.dumps(path).encode('utf-8')[1:-1], skip+top)
         header += b'  "value": [\n'
         yield header
         first = True
