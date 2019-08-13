@@ -3,7 +3,7 @@ import falcon
 
 from .resource import json
 from .utils import (
-    _server_store, _folder, HTTPBadRequest
+    _server_store, _folder, HTTPBadRequest, experimental
 )
 from .folder import FolderResource
 
@@ -14,6 +14,7 @@ class DeletedContactFolderResource(FolderResource):
         '@removed': lambda folder: {'reason': 'deleted'} # TODO soft deletes
     }
 
+@experimental
 class ContactFolderResource(FolderResource):
     fields = FolderResource.fields.copy()
     fields.update({
@@ -24,46 +25,63 @@ class ContactFolderResource(FolderResource):
     deleted_resource = DeletedContactFolderResource
     container_classes = ('IPF.Contact',)
 
+    def handle_get_delta(self, req, resp, store, folderid):
+        req.context['deltaid'] = '{folderid}'
+        self.delta(req, resp, store)
+
+    def handle_get(self, req, resp, store, folderid):
+        folder = _folder(store, folderid)
+        self.respond(req, resp, folder, self.fields)
+
+    def handle_get_contacts(self, req, resp, store, folderid):
+        folder = _folder(store, folderid)
+        data = self.folder_gen(req, folder)
+        fields = ContactResource.fields
+        self.respond(req, resp, data, fields)
+
     def on_get(self, req, resp, userid=None, folderid=None, method=None):
-        server, store, userid = _server_store(req, userid, self.options)
+        handler = None
 
         if folderid == 'delta':
-            req.context['deltaid'] = '{folderid}'
-            self.delta(req, resp, store)
-            return
-
-        folder = _folder(store, folderid)
-
-        if not method:
-            self.respond(req, resp, folder, self.fields)
-
-        elif method == 'contacts':
-            data = self.folder_gen(req, folder)
-            fields = ContactResource.fields
-            self.respond(req, resp, data, fields)
-
-        elif method:
-            raise HTTPBadRequest("Unsupported segment '%s'" % method)
-
+            handler = self.handle_get_delta
         else:
-            raise HTTPBadRequest("Unsupported")
+            if not method:
+                handler = self.handle_get
+
+            elif method == 'contacts':
+                handler = self.handle_get_contafts
+
+            elif method:
+                raise HTTPBadRequest("Unsupported contactfolder segment '%s'" % method)
+
+            else:
+                raise HTTPBadRequest("Unsupported in contactfolder")
+
+        server, store, userid = _server_store(req, userid, self.options)
+        handler(req, resp, store=store, folderid=folderid)
+
+    def handle_post_contacts(self, req, resp, store, folderid):
+        folder = _folder(store, folderid)
+        fields = self.load_json(req)
+        item = self.create_message(folder, fields, ContactResource.set_fields)
+
+        self.respond(req, resp, item, ContactResource.fields)
+        resp.status = falcon.HTTP_201
 
     def on_post(self, req, resp, userid=None, folderid=None, method=None):
-        server, store, userid = _server_store(req, userid, self.options)
-        folder = _folder(store, folderid)
+        handler = None
 
         if method == 'contacts':
-            fields = json.loads(req.stream.read().decode('utf-8'))
-            item = self.create_message(folder, fields, ContactResource.set_fields)
-
-            self.respond(req, resp, item, ContactResource.fields)
-            resp.status = falcon.HTTP_201
+            handler = self.handle_post_contacts
 
         elif method:
-            raise HTTPBadRequest("Unsupported segment '%s'" % method)
+            raise HTTPBadRequest("Unsupported contactfolder segment '%s'" % method)
 
         else:
-            raise HTTPBadRequest("Unsupported")
+            raise HTTPBadRequest("Unsupported in contactfolder")
+
+        server, store, userid = _server_store(req, userid, self.options)
+        hander(req, resp, store=store, folderid=folderid)
 
 from .contact import (
     ContactResource

@@ -2,7 +2,7 @@
 import codecs
 
 from .utils import (
-    _server_store, _folder, db_put, db_get
+    _server_store, _folder, db_put, db_get, experimental
 )
 from .resource import (
     DEFAULT_TOP, Resource
@@ -31,14 +31,19 @@ class FolderResource(Resource):
         'id': lambda folder: folder.entryid,
     }
 
-    def on_delete(self, req, resp, userid=None, folderid=None):
-        server, store, userid = _server_store(req, userid, self.options)
-        folder = _folder(store, folderid)
-
+    @experimental
+    def handle_delete(self, req, resp, store, folder):
         store.delete(folder)
 
         self.respond_204(resp)
 
+    def on_delete(self, req, resp, userid=None, folderid=None):
+        server, store, userid = _server_store(req, userid, self.options)
+        folder = _folder(store, folderid)
+
+        self.handle_delete(req, resp, store=store, folder=folder)
+
+    @experimental
     def delta(self, req, resp, store): # TODO contactfolders, calendars.. use restriction?
         args = self.parse_qs(req)
         token = args['$deltatoken'][0] if '$deltatoken' in args else None

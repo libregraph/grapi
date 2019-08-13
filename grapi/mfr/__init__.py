@@ -111,7 +111,7 @@ def opt_args():
                       default=PROCESS_NAME, help="set process name", metavar="NAME")
     parser.add_argument("--backends", dest='backends', default='kopano',
                       help="backends to enable (comma-separated)", metavar="LIST")
-
+    parser.add_argument("--enable-experimental-endpoints", dest='with_experimental', action='store_true', default=False, help="enable API endpoints which are considered experimental")
 
     return parser.parse_args()
 

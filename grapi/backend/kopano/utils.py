@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+import binascii
 import codecs
 from contextlib import closing
 import fcntl
@@ -17,11 +18,14 @@ from MAPI.Struct import MAPIErrorNotFound, MAPIErrorNoAccess, MAPIErrorInvalidPa
 import kopano
 
 from grapi.api.v1.resource import HTTPBadRequest
+from grapi.api.v1.decorators import experimental
 
 USERID_SESSION = {}
 
 TOKEN_SESSION = {}
 LAST_PURGE_TIME = None
+
+_marker = []
 
 def _auth(req, options):
     auth_header = req.get_header('Authorization')
@@ -181,7 +185,12 @@ def _folder(store, folderid):
     elif name == 'sentitems':
         return store.sentmail
     else:
-        return store.folder(entryid=folderid)
+        try:
+            return store.folder(entryid=folderid)
+        except binascii.Error:
+            raise HTTPBadRequest('Folder is is malformed')
+        except kopano.errors.ArgumentError:
+            raise falcon.HTTPNotFound(description=None)
 
 def _item(parent, entryid):
     try:
@@ -190,3 +199,11 @@ def _item(parent, entryid):
         raise falcon.HTTPNotFound(description=None)
     except kopano.ArgumentError:
         raise HTTPBadRequest('Id is malformed')
+
+def _get_group_by_id(server, groupid, default=_marker):
+    for group in server.groups(): # TODO server.group(groupid/entryid=..)
+        if group.groupid == groupid:
+            return group
+    if default is _marker:
+        raise falcon.HTTPNotFound(description='No such group: %s' % groupid)
+    return default

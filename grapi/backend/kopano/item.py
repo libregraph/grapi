@@ -5,7 +5,7 @@ import datetime
 import dateutil
 
 from .utils import (
-    db_get, db_put
+    db_get, db_put, experimental
 )
 from .resource import (
     DEFAULT_TOP, Resource, _header_sub_arg, _date
@@ -65,6 +65,7 @@ class ItemResource(Resource):
         'categories': lambda item: item.categories,
     }
 
+    @experimental
     def delta(self, req, resp, folder):
         args = self.parse_qs(req)
         token = args['$deltatoken'][0] if '$deltatoken' in args else None

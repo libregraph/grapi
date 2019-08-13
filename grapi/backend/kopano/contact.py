@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from .utils import (
-    _server_store, _folder, _item, HTTPBadRequest
+    _server_store, _folder, _item, HTTPBadRequest, experimental
 )
 from .resource import (
     _date,
@@ -29,6 +29,7 @@ class DeletedContactResource(ItemResource):
         '@removed': lambda item: {'reason': 'deleted'} # TODO soft deletes
     }
 
+@experimental
 class ContactResource(ItemResource):
     fields = ItemResource.fields.copy()
     fields.update({
@@ -74,26 +75,45 @@ class ContactResource(ItemResource):
 
     deleted_resource = DeletedContactResource
 
-    def on_get(self, req, resp, userid=None, folderid=None, itemid=None, method=None):
-        server, store, userid = _server_store(req, userid, self.options)
+    def handle_get(self, req, resp, store, server, folderid, itemid):
         folder = _folder(store, folderid or 'contacts') # TODO all folders?
 
-        if method:
-            raise HTTPBadRequest("Unsupported segment '%s'" % method)
+        if itemid:
+            if itemid == 'delta':
+                self._handle_get_delta(req, resp, folder=folder)
+            else:
+                self._handle_get_with_itemid(req, resp, folder=folder, itemid=itemid)
+        else:
+            raise HTTPBadRequest("Missing contact itemid")
 
-        if itemid == 'delta':
-            req.context['deltaid'] = '{itemid}'
-            self.delta(req, resp, folder)
-            return
+    def _handle_get_delta(self, req, resp, folder):
+        req.context['deltaid'] = '{itemid}'
+        self.delta(req, resp, folder)
 
+    def _handle_get_with_itemid(self, req, resp, folder, itemid):
         data = _item(folder, itemid)
-
         self.respond(req, resp, data)
 
-    def on_delete(self, req, resp, userid=None, folderid=None, itemid=None):
+    def on_get(self, req, resp, userid=None, folderid=None, itemid=None, method=None):
+        handler = None
+
+        if not method:
+            handler = self.handle_get
+        else:
+            raise HTTPBadRequest("Unsupported contact segment '%s'" % method)
+
         server, store, userid = _server_store(req, userid, self.options)
+        handler(req, resp, store=store, server=server, folderid=folderid, itemid=itemid)
+
+    def handle_delete(self, req, resp, store, server, folderid, itemid):
         item = _item(store, itemid)
 
         store.delete(item)
 
         self.respond_204(resp)
+
+    def on_delete(self, req, resp, userid=None, folderid=None, itemid=None):
+        handler = self.handle_delete
+
+        server, store, userid = _server_store(req, userid, self.options)
+        handler(req, resp, store=store, server=server, folder=folderid, itemid=itemid)

@@ -5,58 +5,79 @@ from .resource import (
 )
 
 from .utils import (
-    _server_store, _folder, HTTPBadRequest
+    _server_store, _folder, HTTPBadRequest, experimental
 )
 
 from .folder import FolderResource
 
+@experimental
 class CalendarResource(FolderResource):
     fields = FolderResource.fields.copy()
     fields.update({
         'displayName': lambda folder: folder.name,
     })
 
-    def on_get(self, req, resp, userid=None, folderid=None, method=None):
-        server, store, userid = _server_store(req, userid, self.options)
+    def handle_get_calendarView(self, req, resp, folder):
+        start, end = _start_end(req)
+        def yielder(**kwargs):
+            for occ in folder.occurrences(start, end, **kwargs):
+                yield occ
+        data = self.generator(req, yielder)
+        fields = EventResource.fields
+        self.respond(req, resp, data, fields)
 
-        folder = _folder(store, folderid or 'calendar')
+    def handle_get_events(self, req, resp, folder):
+        data = self.generator(req, folder.items, folder.count)
+        fields = EventResource.fields
+        self.respond(req, resp, data, fields)
 
-        if method == 'calendarView':
-            start, end = _start_end(req)
-            def yielder(**kwargs):
-                for occ in folder.occurrences(start, end, **kwargs):
-                    yield occ
-            data = self.generator(req, yielder)
-            fields = EventResource.fields
-
-        elif method == 'events':
-            data = self.generator(req, folder.items, folder.count)
-            fields = EventResource.fields
-
-        elif method:
-            raise HTTPBadRequest("Unsupported segment '%s'" % method)
-
-        else:
-            data = folder
-            fields = None
+    def handle_get(self, req, resp, folder):
+        data = folder
+        fields = None
 
         self.respond(req, resp, data, fields)
 
-    def on_post(self, req, resp, userid=None, folderid=None, method=None):
-        server, store, userid = _server_store(req, userid, self.options)
-        folder = store.calendar # TODO
+    def on_get(self, req, resp, userid=None, folderid=None, method=None):
+        handler = None
 
-        if method == 'events':
-            fields = json.loads(req.stream.read().decode('utf-8'))
-            item = self.create_message(folder, fields, EventResource.set_fields)
-            item.send()
-            self.respond(req, resp, item, EventResource.fields)
+        if method == 'calendarView':
+            handler = self.handle_get_calendarView
+
+        elif method == 'events':
+            handler = self.handle_get_events
 
         elif method:
-            raise HTTPBadRequest("Unsupported segment '%s'" % method)
+            raise HTTPBadRequest("Unsupported calendar segment '%s'" % method)
 
         else:
-            raise HTTPBadRequest("Unsupported")
+            handler = self.handle_get
+
+        server, store, userid = _server_store(req, userid, self.options)
+        folder = _folder(store, folderid or 'calendar')
+        handler(req, resp, folder=folder)
+
+    def handle_post_events(self, req, resp, folder):
+        fields = self.load_json(req)
+
+        item = self.create_message(folder, fields, EventResource.set_fields)
+        item.send()
+        self.respond(req, resp, item, EventResource.fields)
+
+    def on_post(self, req, resp, userid=None, folderid=None, method=None):
+        handler = None
+
+        if method == 'events':
+            handler = self.handle_post_events
+
+        elif method:
+            raise HTTPBadRequest("Unsupported calendar segment '%s'" % method)
+
+        else:
+            raise HTTPBadRequest("Unsupported in calendar")
+
+        server, store, userid = _server_store(req, userid, self.options)
+        folder = store.calendar # TODO
+        handler(req, resp, folder=folder)
 
 from .event import (
     EventResource
