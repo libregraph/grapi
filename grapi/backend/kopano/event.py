@@ -84,7 +84,8 @@ def recurrence_set(item, arg):
         item.recurring = True
         rec = item.recurrence
 
-        item.timezone = arg['range']['recurrenceTimeZone']
+        if 'recurrenceTimezone' in arg['range']:
+            item.timezone = arg['range']['recurrenceTimeZone']
 
         rec.pattern = pattern_map_rev[arg['pattern']['type']]
         rec.interval = arg['pattern']['interval']
@@ -92,9 +93,13 @@ def recurrence_set(item, arg):
             rec.weekdays = arg['pattern']['daysOfWeek']
         if 'dayOfMonth' in arg['pattern']:
             rec.monthday = arg['pattern']['dayOfMonth']
+        if 'index' in arg['pattern']:
+            rec.index = arg['pattern']['index']
 
         rec.range_type = range_end_map_rev[arg['range']['type']]
-        rec.count = arg['range']['numberOfOccurrences']
+        if 'numberOfOccurrences' in arg['range']:
+            rec.count = arg['range']['numberOfOccurrences']
+
         # TODO don't use hidden vars
         rec.start = dateutil.parser.parse(arg['range']['startDate'])
         if arg['range']['type'] == 'noEnd':
