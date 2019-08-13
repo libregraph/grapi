@@ -19,6 +19,10 @@ class GroupResource(Resource):
         server, store, userid = _server_store(req, userid, self.options)
 
         if groupid:
+            if groupid == 'delta':
+                req.context['deltaid'] = '{groupid}'
+                self.delta(req, resp, server)
+                return
             for group in server.groups(): # TODO server.group(groupid/entryid=..)
                 if group.groupid == groupid:
                     data = group

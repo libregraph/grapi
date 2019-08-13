@@ -157,6 +157,9 @@ class UserResource(Resource):
         elif method:
             raise HTTPBadRequest("Unsupported segment '%s'" % method)
 
+        else:
+            raise HTTPBadRequest("Unsupported")
+
     # TODO redirect to other resources?
     def on_post(self, req, resp, userid=None, method=None):
         server, store, userid = _server_store(req, userid, self.options)
@@ -193,6 +196,12 @@ class UserResource(Resource):
         elif method == 'mailFolders':
             folder = store.create_folder(fields['displayName']) # TODO exception on conflict
             self.respond(req, resp, folder, MailFolderResource.fields)
+
+        elif method:
+            raise HTTPBadRequest("Unsupported segment '%s'" % method)
+
+        else:
+            raise HTTPBadRequest("Unsupported")
 
 from .group import (
     GroupResource

@@ -132,7 +132,7 @@ def _start_end(req):
     args = _parse_qs(req)
     return _parse_date(args, 'startDateTime'), _parse_date(args, 'endDateTime')
 
-class Resource(object):
+class BaseResource(object):
     def __init__(self, options):
         self.options = options
 
@@ -283,3 +283,41 @@ class Resource(object):
             schema.validate(fields)
         except ValidationError as e:
             raise HTTPBadRequest("JSON schema violation: %s " % e.message)
+
+    ## Stub functions, overridden by sub classes.
+
+    def _unsupported_method(self):
+        raise HTTPBadRequest("Unsupported")
+
+class Resource(BaseResource):
+
+    def delta(self, req, resp, server):
+        self._unsupported_method()
+
+    def on_get(self, *args, **kwargs):
+        self._unsupported_method()
+
+    def on_head(self, *args, **kwargs):
+        self._unsupported_method()
+
+    def on_post(self, *args, **kwargs):
+        self._unsupported_method()
+
+    def on_put(self, *args, **kwargs):
+        self._unsupported_method()
+
+    def on_delete(self, *args, **kwargs):
+        self._unsupported_method()
+
+    def on_connect(self, *args, **kwargs):
+        self._unsupported_method()
+
+    def on_options(self, *args, **kwargs):
+        self._unsupported_method()
+
+    def on_trace(self, *args, **kwargs):
+        self._unsupported_method()
+
+    def on_patch(self, *args, **kwargs):
+        self._unsupported_method()
+

@@ -52,6 +52,12 @@ class CalendarResource(FolderResource):
             item.send()
             self.respond(req, resp, item, EventResource.fields)
 
+        elif method:
+            raise HTTPBadRequest("Unsupported segment '%s'" % method)
+
+        else:
+            raise HTTPBadRequest("Unsupported")
+
 from .event import (
     EventResource
 )

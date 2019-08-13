@@ -45,6 +45,9 @@ class ContactFolderResource(FolderResource):
         elif method:
             raise HTTPBadRequest("Unsupported segment '%s'" % method)
 
+        else:
+            raise HTTPBadRequest("Unsupported")
+
     def on_post(self, req, resp, userid=None, folderid=None, method=None):
         server, store, userid = _server_store(req, userid, self.options)
         folder = _folder(store, folderid)
@@ -55,6 +58,12 @@ class ContactFolderResource(FolderResource):
 
             self.respond(req, resp, item, ContactResource.fields)
             resp.status = falcon.HTTP_201
+
+        elif method:
+            raise HTTPBadRequest("Unsupported segment '%s'" % method)
+
+        else:
+            raise HTTPBadRequest("Unsupported")
 
 from .contact import (
     ContactResource
