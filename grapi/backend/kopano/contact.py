@@ -46,7 +46,7 @@ class ContactResource(ItemResource):
         'generation': lambda item: item.generation or None,
         'children': lambda item: item.children,
         'spouseName': lambda item: item.spouse or None,
-        'birthday': lambda item: _date(item.birthday),
+        'birthday': lambda item: item.birthday and _date(item.birthday) or None,
         'initials': lambda item: item.initials or None,
         'yomiGivenName': lambda item: item.yomi_first_name or None,
         'yomiSurname': lambda item: item.yomi_last_name or None,
