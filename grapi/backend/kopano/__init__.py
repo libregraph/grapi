@@ -2,10 +2,6 @@
 
 import kopano
 
-kopano.set_bin_encoding('base64')
-kopano.set_missing_none()
-# TODO set_timezone_aware?
-
 from .user import UserResource
 from .group import GroupResource
 from .message import MessageResource
@@ -17,3 +13,7 @@ from .event import EventResource
 from .contact import ContactResource
 from .profilephoto import ProfilePhotoResource
 from .subscription import SubscriptionResource
+
+kopano.set_bin_encoding('base64')
+kopano.set_missing_none()
+# TODO set_timezone_aware?

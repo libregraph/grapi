@@ -7,6 +7,8 @@ from .utils import (
 from .resource import (
     Resource, _date
 )
+from . import message
+
 
 @experimental
 class AttachmentResource(Resource):
@@ -18,7 +20,7 @@ class AttachmentResource(Resource):
 
     # TODO to ItemAttachmentResource
     expansions = {
-        'microsoft.graph.itemAttachment/item': lambda attachment: (attachment.item, EmbeddedMessageResource),
+        'microsoft.graph.itemAttachment/item': lambda attachment: (attachment.item, message.EmbeddedMessageResource),
     }
 
     def handle_get(self, req, resp, store, server, userid, folderid, itemid, eventid, attachmentid, method):
@@ -27,16 +29,16 @@ class AttachmentResource(Resource):
         elif eventid:
             folder = store.calendar
         elif itemid:
-            folder = store.inbox # TODO messages from all folders?
+            folder = store.inbox  # TODO messages from all folders?
 
         if eventid:
-            item = folder.event(eventid) # TODO like _item
+            item = folder.event(eventid)  # TODO like _item
         elif itemid:
             item = _item(folder, itemid)
 
         data = item.attachment(attachmentid)
 
-        if method == '$value': # TODO graph doesn't do this?
+        if method == '$value':  # TODO graph doesn't do this?
             self._handle_get_value(req, resp, data=data)
         else:
             self._handle_get_fields(req, resp, data=data)
@@ -47,7 +49,7 @@ class AttachmentResource(Resource):
 
     def _handle_get_fields(self, req, resp, data):
         if data.embedded:
-            all_fields = ItemAttachmentResource.fields # TODO to sub resource
+            all_fields = ItemAttachmentResource.fields  # TODO to sub resource
         else:
             all_fields = FileAttachmentResource.fields
         self.respond(req, resp, data, all_fields=all_fields)
@@ -59,15 +61,15 @@ class AttachmentResource(Resource):
         handler(req, resp, store=store, server=server, userid=userid, folderid=folderid, itemid=itemid, eventid=eventid, attachmentid=attachmentid, method=method)
 
     def handle_delete(self, req, resp, store, server, userid, folderid, itemid, eventid, attachmentid, method):
-        if folderid: # TODO same code above
+        if folderid:  # TODO same code above
             folder = _folder(store, folderid)
         elif eventid:
             folder = store.calendar
         elif itemid:
-            folder = store.inbox # TODO messages from all folders?
+            folder = store.inbox  # TODO messages from all folders?
 
         if eventid:
-            item = folder.event(eventid) # TODO like _item
+            item = folder.event(eventid)  # TODO like _item
         elif itemid:
             item = _item(folder, itemid)
 
@@ -82,6 +84,7 @@ class AttachmentResource(Resource):
         server, store, userid = _server_store(req, userid, self.options)
         handler(req, resp, store=store, server=server, userid=userid, folderid=folderid, itemid=itemid, eventid=eventid, attachmentid=attachmentid, method=method)
 
+
 class FileAttachmentResource(AttachmentResource):
     fields = AttachmentResource.fields.copy()
     fields.update({
@@ -94,14 +97,19 @@ class FileAttachmentResource(AttachmentResource):
         'contentLocation': lambda attachment: attachment.content_location,
     })
 
+
 class ItemAttachmentResource(AttachmentResource):
     fields = AttachmentResource.fields.copy()
     fields.update({
         '@odata.type': lambda attachment: '#microsoft.graph.itemAttachment',
         'contentType': lambda attachment: 'message/rfc822',
-        'name': lambda attachment: attachment.item.subject, # TODO faster? attachment.something?
+        'name': lambda attachment: attachment.item.subject,  # TODO faster? attachment.something?
     })
 
-from .message import (
-    EmbeddedMessageResource
-)
+
+def get_attachments(item):
+    for attachment in item.attachments(embedded=True):
+        if attachment.embedded:
+            yield (attachment, ItemAttachmentResource)
+        else:
+            yield (attachment, FileAttachmentResource)

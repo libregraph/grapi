@@ -17,7 +17,8 @@ def get_body(req, item):
     if type_ == 'text':
         return {'contentType': 'text', 'content': item.text}
     else:
-        return {'contentType': 'html', 'content': codecs.decode(item.html_utf8, 'utf-8')} # TODO can we use bytes to avoid recoding?
+        return {'contentType': 'html', 'content': codecs.decode(item.html_utf8, 'utf-8')}  # TODO can we use bytes to avoid recoding?
+
 
 def set_body(item, arg):
     if arg['contentType'] == 'text':
@@ -25,21 +26,18 @@ def set_body(item, arg):
     elif arg['contentType'] == 'html':
         item.html = arg['content'].encode('utf8')
 
-def get_email(addr):
-    return {'emailAddress': {'name': addr.name, 'address': addr.email} }
 
-def get_email2(addr): # TODO merge
+def get_email(addr):
+    return {'emailAddress': {'name': addr.name, 'address': addr.email}}
+
+
+def get_email2(addr):  # TODO merge
     return {'name': addr.name, 'address': addr.email}
 
-def get_attachments(item):
-    for attachment in item.attachments(embedded=True):
-        if attachment.embedded:
-            yield (attachment, ItemAttachmentResource)
-        else:
-            yield (attachment, FileAttachmentResource)
 
 class DeletedItem(object):
     pass
+
 
 class ItemImporter:
     def __init__(self):
@@ -54,6 +52,7 @@ class ItemImporter:
         d = DeletedItem()
         d.entryid = db_get(item.sourcekey)
         self.deletes.append(d)
+
 
 class ItemResource(Resource):
     fields = {
@@ -83,7 +82,3 @@ class ItemResource(Resource):
         # TODO include filter in token?
         deltalink = b"%s?$deltatoken=%s" % (req.path.encode('utf-8'), codecs.encode(newstate, 'ascii'))
         self.respond(req, resp, data, self.fields, deltalink=deltalink)
-
-from .attachment import (
-    ItemAttachmentResource, FileAttachmentResource,
-)

@@ -5,6 +5,7 @@ from .resource import (
     Resource, _tzdate
 )
 
+
 class ReminderResource(Resource):
     fields = {
         'eventId': lambda occ: occ.eventid,
@@ -15,4 +16,3 @@ class ReminderResource(Resource):
         'eventLocation': lambda occ: occ.location,
         'reminderFireTime': lambda req, occ: _tzdate(occ.start-datetime.timedelta(minutes=occ.reminder_minutes), occ.tzinfo, req),
     }
-

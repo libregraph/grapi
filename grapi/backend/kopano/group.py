@@ -3,10 +3,11 @@
 from .utils import (
     _server_store, HTTPBadRequest, experimental, _get_group_by_id
 )
-
 from .resource import (
     DEFAULT_TOP, Resource
 )
+from . import user  # import as module since this is a circular import
+
 
 @experimental
 class GroupResource(Resource):
@@ -20,7 +21,7 @@ class GroupResource(Resource):
         group = _get_group_by_id(server, groupid)
 
         data = (group.users(), DEFAULT_TOP, 0, 0)
-        self.respond(req, resp, data, UserResource.fields)
+        self.respond(req, resp, data, user.UserResource.fields)
 
     def handle_get(self, req, resp, server, groupid):
         if groupid:
@@ -57,7 +58,3 @@ class GroupResource(Resource):
 
         server, store, userid = _server_store(req, userid, self.options)
         handler(req, resp, server=server, groupid=groupid)
-
-from .user import (
-    UserResource
-)

@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import falcon
+from MAPI.Util import GetDefaultStore
+import kopano
 
 from .utils import (
     _server_store, _folder, _item, experimental
 )
 from .resource import Resource
 
-from MAPI.Util import GetDefaultStore
-import kopano
 
 @experimental
 class ProfilePhotoResource(Resource):
@@ -27,8 +27,7 @@ class ProfilePhotoResource(Resource):
             folder = _folder(store, folderid or 'contacts')
             photo = _item(folder, itemid).photo
         else:
-            userid = kopano.Store(server=server,
-                mapiobj = GetDefaultStore(server.mapisession)).user.userid
+            userid = kopano.Store(server=server, mapiobj=GetDefaultStore(server.mapisession)).user.userid
             photo = server.user(userid=userid).photo
 
         if not photo:

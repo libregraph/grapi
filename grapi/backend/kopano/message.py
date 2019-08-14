@@ -1,18 +1,18 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import base64
-
 import falcon
 
 from .utils import (
     _server_store, _folder, _item, HTTPBadRequest, experimental
 )
 from .resource import (
-    DEFAULT_TOP, _date, json
+    DEFAULT_TOP, _date
 )
-
 from .item import (
-    ItemResource, get_body, set_body, get_email, get_attachments,
+    ItemResource, get_body, set_body, get_email
 )
+from . import attachment  # import as module since this is a circular import
+
 
 def set_torecipients(item, arg):
     addrs = []
@@ -21,12 +21,14 @@ def set_torecipients(item, arg):
         addrs.append('%s <%s>' % (a.get('name', a['address']), a['address']))
     item.to = ';'.join(addrs)
 
+
 class DeletedMessageResource(ItemResource):
     fields = {
-        '@odata.type': lambda item: '#microsoft.graph.message', # TODO
+        '@odata.type': lambda item: '#microsoft.graph.message',  # TODO
         'id': lambda item: item.entryid,
-        '@removed': lambda item: {'reason': 'deleted'} # TODO soft deletes
+        '@removed': lambda item: {'reason': 'deleted'}  # TODO soft deletes
     }
+
 
 @experimental
 class MessageResource(ItemResource):
@@ -66,11 +68,11 @@ class MessageResource(ItemResource):
     deleted_resource = DeletedMessageResource
 
     relations = {
-        'attachments': lambda message: (message.attachments, FileAttachmentResource), # TODO embedded
+        'attachments': lambda message: (message.attachments, attachment.FileAttachmentResource),  # TODO embedded
     }
 
     def handle_get(self, req, resp, store, folder, itemid):
-        if itemid == 'delta': # TODO move to MailFolder resource somehow?
+        if itemid == 'delta':  # TODO move to MailFolder resource somehow?
             self._handle_get_delta(req, resp, store=store, folder=folder)
         else:
             self._handle_get_with_itemid(req, resp, store=store, folder=folder, itemid=itemid)
@@ -85,7 +87,7 @@ class MessageResource(ItemResource):
 
     def handle_get_attachments(self, req, resp, store, folder, itemid):
         item = _item(folder, itemid)
-        attachments = list(get_attachments(item))
+        attachments = list(attachment.get_attachments(item))
         data = (attachments, DEFAULT_TOP, 0, len(attachments))
         self.respond(req, resp, data)
 
@@ -105,7 +107,7 @@ class MessageResource(ItemResource):
             raise HTTPBadRequest("Unsupported in message")
 
         server, store, userid = _server_store(req, userid, self.options)
-        folder = _folder(store, folderid or 'inbox') # TODO all folders?
+        folder = _folder(store, folderid or 'inbox')  # TODO all folders?
         handler(req, resp, store=store, folder=folder, itemid=itemid)
 
     def handle_post_createReply(self, req, resp, store, folder, item):
@@ -119,7 +121,7 @@ class MessageResource(ItemResource):
     def handle_post_attachments(self, req, resp, store, folder, item):
         fields = self.load_json(req)
         odataType = fields.get('@odata.type', None)
-        if odataType == '#microsoft.graph.fileAttachment': # TODO other types
+        if odataType == '#microsoft.graph.fileAttachment':  # TODO other types
             att = item.create_attachment(fields['name'], base64.urlsafe_b64decode(fields['contentBytes']))
             self.respond(req, resp, att, FileAttachmentResource.fields)
             resp.status = falcon.HTTP_201
@@ -127,18 +129,22 @@ class MessageResource(ItemResource):
             raise HTTPBadRequest("Unsupported attachment @odata.type: '%s'" % odataType)
 
     def handle_post_copy(self, req, resp, store, folder, item):
-        self._handle_post_copyOrMove(req, resp, store=store, folder=folder, item=item)
+        self._handle_post_copyOrMove(req, resp, store=store, item=item)
 
     def handle_post_move(self, req, resp, store, folder, item):
-        self._handle_post_copyOrMove(req, resp, store=store, folder=folder, item=item, move=True)
+        self._handle_post_copyOrMove(req, resp, store=store, item=item, move=True)
 
     def _handle_post_copyOrMove(self, req, resp, store, item, move=False):
         fields = self.load_json(req)
-        to_folder = store.folder(entryid=fields['destinationId'].encode('ascii')) # TODO ascii?
+        to_folder = store.folder(entryid=fields['destinationId'].encode('ascii'))  # TODO ascii?
         if not move:
             item = item.copy(to_folder)
         else:
             item = item.move(to_folder)
+
+    def handle_post_send(self, req, resp, store, folder, item):
+        item.send()
+        resp.status = falcon.HTTP_202
 
     def on_post(self, req, resp, userid=None, folderid=None, itemid=None, method=None):
         handler = None
@@ -159,8 +165,7 @@ class MessageResource(ItemResource):
             handler = self.handle_post_move
 
         elif method == 'send':
-            item.send()
-            resp.status = falcon.HTTP_202
+            handler = self.handle_post_send
 
         elif method:
             raise HTTPBadRequest("Unsupported message segment '%s'" % method)
@@ -169,7 +174,7 @@ class MessageResource(ItemResource):
             raise HTTPBadRequest("Unsupported in message")
 
         server, store, userid = _server_store(req, userid, self.options)
-        folder = _folder(store, folderid or 'inbox') # TODO all folders?
+        folder = _folder(store, folderid or 'inbox')  # TODO all folders?
         item = _item(folder, itemid)
         handler(req, resp, store=store, folder=folder, item=item)
 
@@ -193,7 +198,7 @@ class MessageResource(ItemResource):
             raise HTTPBadRequest("Unsupported message segment '%s'" % method)
 
         server, store, userid = _server_store(req, userid, self.options)
-        folder = _folder(store, folderid or 'inbox') # TODO all folders?
+        folder = _folder(store, folderid or 'inbox')  # TODO all folders?
         handler(req, resp, store=store, folder=folder, itemid=itemid)
 
     def handle_delete(self, req, resp, store, itemid):
@@ -215,15 +220,12 @@ class MessageResource(ItemResource):
         server, store, userid = _server_store(req, userid, self.options)
         handler(req, resp, store=store, itemid=itemid)
 
+
 class EmbeddedMessageResource(MessageResource):
     fields = MessageResource.fields.copy()
     fields.update({
         'id': lambda item: '',
     })
-    del fields['@odata.etag'] # TODO check MSG
+    del fields['@odata.etag']  # TODO check MSG
     del fields['parentFolderId']
     del fields['changeKey']
-
-from .attachment import (
-    FileAttachmentResource
-)

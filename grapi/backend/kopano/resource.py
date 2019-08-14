@@ -1,10 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-import calendar
 import datetime
 import logging
 try:
     import ujson as json
-except ImportError: # pragma: no cover
+except ImportError:  # pragma: no cover
     import json
 import time
 
@@ -20,21 +19,23 @@ from jsonschema import ValidationError
 from grapi.api.v1.resource import HTTPBadRequest
 from grapi.api.v1.timezone import to_timezone
 
+import dateutil.parser
+import falcon
+
 UTC = pytz.utc
 LOCAL = tzlocal.get_localzone()
 
 INDENT = True
 try:
-    json.dumps({}, indent=True) # ujson 1.33 doesn't support 'indent'
-except TypeError: # pragma: no cover
+    json.dumps({}, indent=True)  # ujson 1.33 doesn't support 'indent'
+except TypeError:  # pragma: no cover
     INDENT = False
 
-import dateutil.parser
-import falcon
 
 DEFAULT_TOP = 10
 
-def _header_args(req, name): # TODO use urlparse.parse_qs or similar..?
+
+def _header_args(req, name):  # TODO use urlparse.parse_qs or similar..?
     d = {}
     header = req.get_header(name)
     if header:
@@ -43,10 +44,12 @@ def _header_args(req, name): # TODO use urlparse.parse_qs or similar..?
             d[k] = v
     return d
 
+
 def _header_sub_arg(req, name, arg):
     args = _header_args(req, name)
     if arg in args:
         return args[arg].strip('"')
+
 
 def _date(d, local=False, show_time=True):
     if d is None:
@@ -62,6 +65,7 @@ def _date(d, local=False, show_time=True):
     seconds = time.mktime(d.timetuple())
     d = datetime.datetime.utcfromtimestamp(seconds)
     return d.strftime(fmt)
+
 
 def _tzdate(d, tzinfo, req):
     if d is None:
@@ -87,14 +91,16 @@ def _tzdate(d, tzinfo, req):
 
     return {
         'dateTime': d.strftime(fmt),
-        'timeZone': pref_timezone, # TODO error
+        'timeZone': pref_timezone,  # TODO error
     }
 
-def _naive_local(d): # TODO make pyko not assume naive localtime..
+
+def _naive_local(d):  # TODO make pyko not assume naive localtime..
     if d.tzinfo is not None:
         return d.astimezone(LOCAL).replace(tzinfo=None)
     else:
         return d
+
 
 def set_date(item, field, arg):
     tz = to_timezone(arg.get('timeZone', 'UTC'))
@@ -103,6 +109,7 @@ def set_date(item, field, arg):
     # Set timezone as provided and convert to naive LOCAL time since that is what pyko uses internally.
     d = tz.localize(d).astimezone(LOCAL).replace(tzinfo=None)
     setattr(item, field, d)
+
 
 def _parse_qs(req):
     args = urlparse.parse_qs(req.query_string)
@@ -118,6 +125,7 @@ def _parse_qs(req):
 
     return args
 
+
 def _parse_date(args, key):
     try:
         value = args[key][0]
@@ -128,11 +136,13 @@ def _parse_date(args, key):
     except ValueError:
         raise HTTPBadRequest("The value '%s' of parameter '%s' is invalid." % (value, key))
 
+
 def _start_end(req):
     args = _parse_qs(req)
     return _parse_date(args, 'startDateTime'), _parse_date(args, 'endDateTime')
 
-class BaseResource(object):
+
+class Resource(object):
     def __init__(self, options):
         self.options = options
 
@@ -175,7 +185,7 @@ class BaseResource(object):
                 args = _parse_qs(req)
                 if '$skip' in args:
                     del args['$skip']
-                path += '?'+'&'.join(a+'='+','.join(b) for (a,b) in args.items())
+                path += '?'+'&'.join(a+'='+','.join(b) for (a, b) in args.items())
             header += b'  "@odata.nextLink": "%s?$skip=%d",\n' % (json.dumps(path).encode('utf-8')[1:-1], skip+top)
         header += b'  "value": [\n'
         yield header
@@ -206,7 +216,7 @@ class BaseResource(object):
 
         pref_body_type = _header_sub_arg(req, 'Prefer', 'outlook.body-content-type')
         if pref_body_type in ('text', 'html'):
-            resp.set_header('Preference-Applied', 'outlook.body-content-type='+pref_body_type) # TODO graph doesn't do this actually?
+            resp.set_header('Preference-Applied', 'outlook.body-content-type='+pref_body_type)  # TODO graph doesn't do this actually?
         # TODO add outlook.timezone
 
         # multiple objects: stream
@@ -234,8 +244,8 @@ class BaseResource(object):
 
             resp.body = self.json(req, obj, fields, all_fields or self.fields, expand=expand)
 
-    def respond_204(self, resp): # TODO integrate with respond, status_code=..?
-        resp.set_header('Content-Length', '0') # https://github.com/jonashaag/bjoern/issues/139
+    def respond_204(self, resp):  # TODO integrate with respond, status_code=..?
+        resp.set_header('Content-Length', '0')  # https://github.com/jonashaag/bjoern/issues/139
         resp.status = falcon.HTTP_204
 
     def generator(self, req, generator, count=0):
@@ -259,9 +269,10 @@ class BaseResource(object):
         return item
 
     def folder_gen(self, req, folder):
-        args = _parse_qs(req) # TODO generalize
+        args = _parse_qs(req)  # TODO generalize
         if '$search' in args:
             query = args['$search'][0]
+
             def yielder(**kwargs):
                 for item in folder.items(query=query):
                     yield item
@@ -283,41 +294,3 @@ class BaseResource(object):
             schema.validate(fields)
         except ValidationError as e:
             raise HTTPBadRequest("JSON schema violation: %s " % e.message)
-
-    ## Stub functions, overridden by sub classes.
-
-    def _unsupported_method(self):
-        raise HTTPBadRequest("Unsupported")
-
-class Resource(BaseResource):
-
-    def delta(self, req, resp, server):
-        self._unsupported_method()
-
-    def on_get(self, *args, **kwargs):
-        self._unsupported_method()
-
-    def on_head(self, *args, **kwargs):
-        self._unsupported_method()
-
-    def on_post(self, *args, **kwargs):
-        self._unsupported_method()
-
-    def on_put(self, *args, **kwargs):
-        self._unsupported_method()
-
-    def on_delete(self, *args, **kwargs):
-        self._unsupported_method()
-
-    def on_connect(self, *args, **kwargs):
-        self._unsupported_method()
-
-    def on_options(self, *args, **kwargs):
-        self._unsupported_method()
-
-    def on_trace(self, *args, **kwargs):
-        self._unsupported_method()
-
-    def on_patch(self, *args, **kwargs):
-        self._unsupported_method()
-

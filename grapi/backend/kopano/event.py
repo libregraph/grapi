@@ -11,10 +11,13 @@ from .utils import (
     _server_store, _folder, HTTPBadRequest, experimental
 )
 from .resource import (
-    DEFAULT_TOP, json, _date, _tzdate, set_date, _start_end
+    DEFAULT_TOP, _date, _tzdate, set_date, _start_end
 )
 from .item import (
     ItemResource, get_email, get_body, set_body
+)
+from .attachment import (
+    AttachmentResource
 )
 
 pattern_map = {
@@ -25,14 +28,14 @@ pattern_map = {
     'yearly': 'absoluteYearly',
     'yearly_rel': 'relativeYearly',
 }
-pattern_map_rev = dict((b,a) for (a,b) in pattern_map.items())
+pattern_map_rev = dict((b, a) for (a, b) in pattern_map.items())
 
 range_end_map = {
     'end_date': 'endDate',
     'forever': 'noEnd',
     'count': 'numbered',
 }
-range_end_map_rev = dict((b,a) for (a,b) in range_end_map.items())
+range_end_map_rev = dict((b, a) for (a, b) in range_end_map.items())
 
 sensitivity_map = {
     'normal': 'Normal',
@@ -50,6 +53,7 @@ show_as_map = {
     'unknown': 'Unknown',
 }
 
+
 def recurrence_json(item):
     if isinstance(item, kopano.Item) and item.recurring:
         recurrence = item.recurrence
@@ -65,21 +69,22 @@ def recurrence_json(item):
             },
             'range': {
                 'type': range_end_map[recurrence.range_type],
-                'startDate': _date(recurrence.start, False, False), # TODO hidden
+                'startDate': _date(recurrence.start, False, False),  # TODO hidden
                 'endDate': _date(recurrence.end, False, False) if recurrence.range_type != 'no_end' else '0001-01-01',
                 'numberOfOccurrences': recurrence.count if recurrence.range_type == 'occurrence_count' else 0,
-                'recurrenceTimeZone': "", # TODO
+                'recurrenceTimeZone': "",  # TODO
             },
         }
         if recurrence.weekdays:
             j['pattern']['daysOfWeek'] = recurrence.weekdays
         return j
 
+
 def recurrence_set(item, arg):
     # TODO order of setting recurrence attrs shouldn't matter
 
     if arg is None:
-        item.recurring = False # TODO pyko checks.. cleanup?
+        item.recurring = False  # TODO pyko checks.. cleanup?
     else:
         item.recurring = True
         rec = item.recurrence
@@ -109,6 +114,7 @@ def recurrence_set(item, arg):
 
         rec._save()
 
+
 def attendees_json(item):
     result = []
     for attendee in item.attendees():
@@ -122,11 +128,13 @@ def attendees_json(item):
         result.append(data)
     return result
 
+
 def attendees_set(item, arg):
     for a in arg:
         email = a['emailAddress']
         addr = '%s <%s>' % (email.get('name', email['address']), email['address'])
         item.create_attendee(a['type'], addr)
+
 
 def responsestatus_json(item):
     # Compatibility for 8.7.x
@@ -135,6 +143,7 @@ def responsestatus_json(item):
         'response': response_status,
         'time': '0001-01-01T00:00:00Z',
     }
+
 
 def event_type(item):
     if item.recurring:
@@ -148,6 +157,8 @@ def event_type(item):
     else:
         return 'singleInstance'
 
+
+@experimental
 class EventResource(ItemResource):
     fields = ItemResource.fields.copy()
     fields.update({
@@ -156,7 +167,7 @@ class EventResource(ItemResource):
         'recurrence': recurrence_json,
         'start': lambda req, item: _tzdate(item.start, item.tzinfo, req),
         'end': lambda req, item: _tzdate(item.end, item.tzinfo, req),
-        'location': lambda item: {'displayName': item.location, 'address': {}}, # TODO
+        'location': lambda item: {'displayName': item.location, 'address': {}},  # TODO
         'importance': lambda item: item.urgency,
         'sensitivity': lambda item: sensitivity_map[item.sensitivity],
         'hasAttachments': lambda item: item.has_attachments,
@@ -170,7 +181,7 @@ class EventResource(ItemResource):
         'seriesMasterId': lambda item: item.item.eventid if item.recurring and isinstance(item, kopano.Occurrence) else None,
         'type': lambda item: event_type(item),
         'responseRequested': lambda item: item.response_requested,
-        'iCalUId': lambda item: kopano.hex(kopano.bdec(item.icaluid)) if item.icaluid else None, # graph uses hex!?
+        'iCalUId': lambda item: kopano.hex(kopano.bdec(item.icaluid)) if item.icaluid else None,  # graph uses hex!?
         'organizer': lambda item: get_email(item.from_),
         'isOrganizer': lambda item: item.from_.email == item.sender.email,
         'responseStatus': lambda item: responsestatus_json(item),
@@ -180,7 +191,7 @@ class EventResource(ItemResource):
 
     set_fields = {
         'subject': lambda item, arg: setattr(item, 'subject', arg),
-        'location': lambda item, arg: setattr(item, 'location', arg['displayName']), # TODO
+        'location': lambda item, arg: setattr(item, 'location', arg['displayName']),  # TODO
         'body': set_body,
         'start': lambda item, arg: set_date(item, 'start', arg),
         'end': lambda item, arg: set_date(item, 'end', arg),
@@ -237,15 +248,15 @@ class EventResource(ItemResource):
         handler(req, resp, event=event)
 
     def handle_post_accept(self, req, resp, fields, item):
-        item.accept(comment=fields.get('comment'), respond=(fields.get('sendResponse')=='true'))
+        item.accept(comment=fields.get('comment'), respond=(fields.get('sendResponse') == 'true'))
         resp.status = falcon.HTTP_202
 
     def handle_post_tentativelyAccept(self, req, resp, fields, item):
-        item.accept(comment=fields.get('comment'), tentative=True, respond=(fields.get('sendResponse')=='true'))
+        item.accept(comment=fields.get('comment'), tentative=True, respond=(fields.get('sendResponse') == 'true'))
         resp.status = falcon.HTTP_202
 
     def handle_post_decline(self, req, resp, fields, item):
-        item.decline(comment=fields.get('comment'), respond=(fields.get('sendResponse')=='true'))
+        item.decline(comment=fields.get('comment'), respond=(fields.get('sendResponse') == 'true'))
         resp.status = falcon.HTTP_202
 
     def handle_post_attachments(self, req, resp, fields, item):
@@ -308,7 +319,3 @@ class EventResource(ItemResource):
         item = self.get_event(folder, eventid)
 
         handler(req, resp, folder=folder, item=item)
-
-from .attachment import (
-    AttachmentResource
-)

@@ -1,18 +1,19 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from .resource import json
 from .utils import (
     _server_store, _folder, HTTPBadRequest, experimental
 )
 from .message import MessageResource
 from .folder import FolderResource
 
+
 class DeletedMailFolderResource(FolderResource):
     fields = {
-        '@odata.type': lambda folder: '#microsoft.graph.mailFolder', # TODO
+        '@odata.type': lambda folder: '#microsoft.graph.mailFolder',  # TODO
         'id': lambda folder: folder.entryid,
-        '@removed': lambda folder: {'reason': 'deleted'} # TODO soft deletes
+        '@removed': lambda folder: {'reason': 'deleted'}  # TODO soft deletes
     }
+
 
 @experimental
 class MailFolderResource(FolderResource):
@@ -27,7 +28,7 @@ class MailFolderResource(FolderResource):
 
     relations = {
         'childFolders': lambda folder: (folder.folders, MailFolderResource),
-        'messages': lambda folder: (folder.items, MessageResource) # TODO event msgs
+        'messages': lambda folder: (folder.items, MessageResource)  # TODO event msgs
     }
 
     deleted_resource = DeletedMailFolderResource
@@ -56,7 +57,7 @@ class MailFolderResource(FolderResource):
         req.context['deltaid'] = '{folderid}'
         self.delta(req, resp, store=store)
 
-    def _handle_get_with_folderid(req, resp, store, folderid):
+    def _handle_get_with_folderid(self, req, resp, store, folderid):
         data = _folder(store, folderid)
         self.respond(req, resp, data)
 
@@ -85,7 +86,7 @@ class MailFolderResource(FolderResource):
         self.respond(req, resp, item, MessageResource.fields)
 
     def handle_post_childFolders(self, req, resp, store, folderid):
-        child = folder.create_folder(fields['displayName']) # TODO exception on conflict
+        child = folder.create_folder(fields['displayName'])  # TODO exception on conflict
         self.respond(req, resp, child, MailFolderResource.fields)
 
     def handle_post_copy(self, req, resp, store, folderid):
@@ -96,7 +97,7 @@ class MailFolderResource(FolderResource):
 
     def _handle_post_copyOrMove(self, req, resp, store, folderid, move=False):
         fields = self.load_json(req)
-        to_folder = store.folder(entryid=fields['destinationId'].encode('ascii')) # TODO ascii?
+        to_folder = store.folder(entryid=fields['destinationId'].encode('ascii'))  # TODO ascii?
         if not move:
             folder.parent.copy(folder, to_folder)
         else:

@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import codecs
-
 import falcon
+
+import kopano  # TODO remove?
+from MAPI.Util import GetDefaultStore
 
 from .utils import (
     _server_store, HTTPBadRequest, experimental
@@ -16,12 +18,12 @@ from .event import EventResource
 from .mailfolder import MailFolderResource
 from .message import MessageResource
 from .reminder import ReminderResource
-
 from .schema import event_schema
+from . import group  # import as module since this is a circular import
+from .profilephoto import (
+    ProfilePhotoResource
+)
 
-from MAPI.Util import GetDefaultStore
-import kopano # TODO remove?
-from kopano.errors import ArgumentError
 
 class UserImporter:
     def __init__(self):
@@ -34,12 +36,14 @@ class UserImporter:
     def delete(self, user):
         self.deletes.append(user)
 
+
 class DeletedUserResource(Resource):
     fields = {
         'id': lambda user: user.userid,
-#        '@odata.type': lambda item: '#microsoft.graph.message', # TODO
-        '@removed': lambda item: {'reason': 'deleted'} # TODO soft deletes
+        #       '@odata.type': lambda item: '#microsoft.graph.message', # TODO
+        '@removed': lambda item: {'reason': 'deleted'}  # TODO soft deletes
     }
+
 
 class UserResource(Resource):
     fields = {
@@ -72,7 +76,7 @@ class UserResource(Resource):
             else:
                 self._handle_get_with_userid(req, resp, store=store, server=server, userid=userid)
         else:
-            self._handle_get_without_userid(self, req, resp, store=store, server=server)
+            self._handle_get_without_userid(req, resp, store=store, server=server)
 
     @experimental
     def _handle_get_delta(self, req, resp, store, server):
@@ -85,12 +89,12 @@ class UserResource(Resource):
 
     def _handle_get_without_userid(self, req, resp, store, server):
         args = self.parse_qs(req)
-        userid = kopano.Store(server=server,
-            mapiobj = GetDefaultStore(server.mapisession)).user.userid
+        userid = kopano.Store(server=server, mapiobj=GetDefaultStore(server.mapisession)).user.userid
         company = server.user(userid=userid).company
         query = None
         if '$search' in args:
             query = args['$search'][0]
+
         def yielder(**kwargs):
             yield from company.users(hidden=False, inactive=False, query=query, **kwargs)
         data = self.generator(req, yielder)
@@ -130,6 +134,7 @@ class UserResource(Resource):
     @experimental
     def handle_get_calendarView(self, req, resp, store, server, userid):
         start, end = _start_end(req)
+
         def yielder(**kwargs):
             for occ in store.calendar.occurrences(start, end, **kwargs):
                 yield occ
@@ -139,6 +144,7 @@ class UserResource(Resource):
     @experimental
     def handle_get_reminderView(self, req, resp, store, server, userid):
         start, end = _start_end(req)
+
         def yielder(**kwargs):
             for occ in store.calendar.occurrences(start, end):
                 if occ.reminder:
@@ -150,11 +156,12 @@ class UserResource(Resource):
     def handle_get_memberOf(self, req, resp, store, server, userid):
         user = server.user(userid=userid)
         data = (user.groups(), DEFAULT_TOP, 0, 0)
-        self.respond(req, resp, data, GroupResource.fields)
+        self.respond(req, resp, data, group.GroupResource.fields)
 
     @experimental
     def handle_get_photos(self, req, resp, store, server, userid):
         user = server.user(userid=userid)
+
         def yielder(**kwargs):
             photo = user.photo
             if photo:
@@ -175,7 +182,7 @@ class UserResource(Resource):
         elif method == 'contactFolders':
             handler = self.handle_get_contactFolders
 
-        elif method == 'messages': # TODO store-wide?
+        elif method == 'messages':  # TODO store-wide?
             handler = self.handle_get_messages
 
         elif method == 'contacts':
@@ -184,20 +191,20 @@ class UserResource(Resource):
         elif method == 'calendars':
             handler = self.handle_get_calendars
 
-        elif method == 'events': # TODO multiple calendars?
+        elif method == 'events':  # TODO multiple calendars?
             handler = self.handle_get_events
 
-        elif method == 'calendarView': # TODO multiple calendars? merge code with calendar.py
+        elif method == 'calendarView':  # TODO multiple calendars? merge code with calendar.py
             handler = self.handle_get_calendarView
 
-        elif method == 'reminderView': # TODO multiple calendars?
+        elif method == 'reminderView':  # TODO multiple calendars?
             # TODO use restriction in pyko: calendar.reminders(start, end)?
             handler = self.handle_get_reminderView
 
         elif method == 'memberOf':
             handler = self.handle_get_memberOf
 
-        elif method == 'photos': # TODO multiple photos?
+        elif method == 'photos':  # TODO multiple photos?
             handler = self.handle_get_photos
 
         elif method:
@@ -208,28 +215,24 @@ class UserResource(Resource):
 
         server, store, userid = _server_store(req, userid, self.options)
         if not userid and req.path.split('/')[-1] != 'users':
-            userid = kopano.Store(server=server,
-                mapiobj = GetDefaultStore(server.mapisession)).user.userid
+            userid = kopano.Store(server=server, mapiobj=GetDefaultStore(server.mapisession)).user.userid
         handler(req, resp, store=store, server=server, userid=userid)
 
     @experimental
     def handle_post_sendMail(self, req, resp, fields, store):
-        message = self.create_message(store.outbox, fields['message'],
-            MessageResource.set_fields)
+        message = self.create_message(store.outbox, fields['message'], MessageResource.set_fields)
         copy_to_sentmail = fields.get('SaveToSentItems', 'true') == 'true'
         message.send(copy_to_sentmail=copy_to_sentmail)
         resp.status = falcon.HTTP_202
 
     @experimental
     def handle_post_contacts(self, req, resp, fields, store):
-        item = self.create_message(store.contacts, fields,
-            ContactResource.set_fields)
+        item = self.create_message(store.contacts, fields, ContactResource.set_fields)
         self.respond(req, resp, item, ContactResource.fields)
 
     @experimental
     def handle_post_messages(self, req, resp, fields, store):
-        item = self.create_message(store.drafts, fields,
-            MessageResource.set_fields)
+        item = self.create_message(store.drafts, fields, MessageResource.set_fields)
         self.respond(req, resp, item, MessageResource.fields)
 
     @experimental
@@ -237,16 +240,15 @@ class UserResource(Resource):
         self.validate_json(event_schema, fields)
 
         try:
-            item = self.create_message(store.calendar, fields,
-                EventResource.set_fields)
+            item = self.create_message(store.calendar, fields, EventResource.set_fields)
             item.send()
-        except ArgumentError as e:
+        except kopano.errors.ArgumentError as e:
             raise HTTPBadRequest("Invalid argument error '{}'".format(e))
         self.respond(req, resp, item, EventResource.fields)
 
     @experimental
     def handle_post_mailFolders(self, req, resp, fields, store):
-        folder = store.create_folder(fields['displayName']) # TODO exception on conflict
+        folder = store.create_folder(fields['displayName'])  # TODO exception on conflict
         self.respond(req, resp, folder, MailFolderResource.fields)
 
     # TODO redirect to other resources?
@@ -277,10 +279,3 @@ class UserResource(Resource):
         server, store, userid = _server_store(req, userid, self.options)
         fields = self.load_json(req)
         handler(req, resp, fields=fields, store=store)
-
-from .group import (
-    GroupResource
-)
-from .profilephoto import (
-    ProfilePhotoResource
-)

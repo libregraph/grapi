@@ -1,18 +1,22 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import falcon
 
-from .resource import json
 from .utils import (
     _server_store, _folder, HTTPBadRequest, experimental
 )
 from .folder import FolderResource
+from .contact import (
+    ContactResource
+)
+
 
 class DeletedContactFolderResource(FolderResource):
     fields = {
-        '@odata.type': lambda folder: '#microsoft.graph.contactFolder', # TODO
+        '@odata.type': lambda folder: '#microsoft.graph.contactFolder',  # TODO
         'id': lambda folder: folder.entryid,
-        '@removed': lambda folder: {'reason': 'deleted'} # TODO soft deletes
+        '@removed': lambda folder: {'reason': 'deleted'}  # TODO soft deletes
     }
+
 
 @experimental
 class ContactFolderResource(FolderResource):
@@ -82,7 +86,3 @@ class ContactFolderResource(FolderResource):
 
         server, store, userid = _server_store(req, userid, self.options)
         hander(req, resp, store=store, folderid=folderid)
-
-from .contact import (
-    ContactResource
-)

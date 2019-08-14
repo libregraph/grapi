@@ -3,35 +3,34 @@ import binascii
 import codecs
 from contextlib import closing
 import fcntl
-import sys
 import time
 
-if sys.hexversion >= 0x03000000:
-    import bsddb3 as bsddb
-else: # pragma: no cover
-    import bsddb
-
 import falcon
+
+import bsddb3 as bsddb
 
 from MAPI.Util import kc_session_save, kc_session_restore, GetDefaultStore
 from MAPI.Struct import MAPIErrorNotFound, MAPIErrorNoAccess, MAPIErrorInvalidParameter
 import kopano
 
 from grapi.api.v1.resource import HTTPBadRequest
-from grapi.api.v1.decorators import experimental
+from grapi.api.v1.decorators import experimental as experimentalDecorator
 
 USERID_SESSION = {}
 
 TOKEN_SESSION = {}
 LAST_PURGE_TIME = None
 
-_marker = []
+_marker = object()
+
+experimental = experimentalDecorator
+
 
 def _auth(req, options):
     auth_header = req.get_header('Authorization')
 
-    if (auth_header and auth_header.startswith('Bearer ') and \
-        (not options or options.auth_bearer)):
+    if (auth_header and auth_header.startswith('Bearer ') and
+            (not options or options.auth_bearer)):
         token = codecs.encode(auth_header[7:], 'ascii')
         return {
             'method': 'bearer',
@@ -40,10 +39,10 @@ def _auth(req, options):
             'token': token,
         }
 
-    elif (auth_header and auth_header.startswith('Basic ') and \
-        (not options or options.auth_basic)):
+    elif (auth_header and auth_header.startswith('Basic ') and
+            (not options or options.auth_basic)):
         user, password = codecs.decode(codecs.encode(auth_header[6:], 'ascii'),
-                             'base64').split(b':')
+                                       'base64').split(b':')
         return {
             'method': 'basic',
             'user': user,
@@ -51,7 +50,7 @@ def _auth(req, options):
         }
 
     # TODO remove
-    elif not options or options.auth_passthrough: # pragma: no cover
+    elif not options or options.auth_passthrough:  # pragma: no cover
         userid = req.get_header('X-Kopano-UserEntryID')
         if userid:
             return {
@@ -60,15 +59,18 @@ def _auth(req, options):
                 'userid': userid,
             }
 
+
 def db_get(key):
     with closing(bsddb.hashopen('mapping_db', 'c')) as db:
         return codecs.decode(db.get(codecs.encode(key, 'ascii')), 'ascii')
+
 
 def db_put(key, value):
     with open('mapping_db.lock', 'w') as lockfile:
         fcntl.flock(lockfile.fileno(), fcntl.LOCK_EX)
         with closing(bsddb.hashopen('mapping_db', 'c')) as db:
             db[codecs.encode(key, 'ascii')] = codecs.encode(value, 'ascii')
+
 
 def _server(req, options):
     global LAST_PURGE_TIME
@@ -98,11 +100,10 @@ def _server(req, options):
         return server
 
     elif auth['method'] == 'basic':
-        return kopano.Server(auth_user=auth['user'], auth_pass=auth['password'],
-            parse_args=False)
+        return kopano.Server(auth_user=auth['user'], auth_pass=auth['password'], parse_args=False)
 
     # TODO remove
-    elif auth['method'] == 'passthrough': # pragma: no cover
+    elif auth['method'] == 'passthrough':  # pragma: no cover
         userid = auth['userid']
         sessiondata = USERID_SESSION.get(userid)
         if sessiondata:
@@ -116,8 +117,9 @@ def _server(req, options):
             USERID_SESSION[userid] = sessiondata
         return server
 
+
 # TODO remove
-def _username(userid): # pragma: no cover
+def _username(userid):  # pragma: no cover
     global SERVER
     reconnect = False
     try:
@@ -129,11 +131,12 @@ def _username(userid): # pragma: no cover
         SERVER = kopano.Server(parse_args=False, store_cache=False)
     return SERVER.user(userid=userid).name
 
+
 def _server_store(req, userid, options):
     try:
         try:
             server = _server(req, options)
-        except MAPIErrorNotFound: # no store
+        except MAPIErrorNotFound:  # no store
             raise falcon.HTTPForbidden('Unauthorized', None)
 
         if userid and userid != 'delta':
@@ -160,13 +163,13 @@ def _server_store(req, userid, options):
 
             store = user.store
         else:
-            store = kopano.Store(server=server,
-                                mapiobj=GetDefaultStore(server.mapisession))
+            store = kopano.Store(server=server, mapiobj=GetDefaultStore(server.mapisession))
 
         return server, store, userid
 
     except (kopano.LogonError, MAPIErrorNoAccess):
         raise falcon.HTTPForbidden('Unauthorized', None)
+
 
 def _folder(store, folderid):
     name = folderid.lower()
@@ -192,6 +195,7 @@ def _folder(store, folderid):
         except kopano.errors.ArgumentError:
             raise falcon.HTTPNotFound(description=None)
 
+
 def _item(parent, entryid):
     try:
         return parent.item(entryid)
@@ -200,8 +204,9 @@ def _item(parent, entryid):
     except kopano.ArgumentError:
         raise HTTPBadRequest('Id is malformed')
 
+
 def _get_group_by_id(server, groupid, default=_marker):
-    for group in server.groups(): # TODO server.group(groupid/entryid=..)
+    for group in server.groups():  # TODO server.group(groupid/entryid=..)
         if group.groupid == groupid:
             return group
     if default is _marker:

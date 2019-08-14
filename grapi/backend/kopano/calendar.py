@@ -1,14 +1,15 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from .resource import (
-    json, _start_end,
-)
-
 from .utils import (
     _server_store, _folder, HTTPBadRequest, experimental
 )
+from .folder import (
+    FolderResource
+)
+from .event import (
+    EventResource
+)
 
-from .folder import FolderResource
 
 @experimental
 class CalendarResource(FolderResource):
@@ -19,6 +20,7 @@ class CalendarResource(FolderResource):
 
     def handle_get_calendarView(self, req, resp, folder):
         start, end = _start_end(req)
+
         def yielder(**kwargs):
             for occ in folder.occurrences(start, end, **kwargs):
                 yield occ
@@ -76,9 +78,5 @@ class CalendarResource(FolderResource):
             raise HTTPBadRequest("Unsupported in calendar")
 
         server, store, userid = _server_store(req, userid, self.options)
-        folder = store.calendar # TODO
+        folder = store.calendar  # TODO
         handler(req, resp, folder=folder)
-
-from .event import (
-    EventResource
-)

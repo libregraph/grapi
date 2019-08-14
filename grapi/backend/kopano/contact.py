@@ -9,8 +9,11 @@ from .resource import (
 from .item import (
     ItemResource, get_email2
 )
-def set_email_addresses(item, arg): # TODO multiple via pyko
+
+
+def set_email_addresses(item, arg):  # TODO multiple via pyko
     item.address1 = '%s <%s>' % (arg[0]['name'], arg[0]['address'])
+
 
 def _phys_address(addr):
     data = {
@@ -20,14 +23,16 @@ def _phys_address(addr):
         'state': addr.state,
         'countryOrRegion': addr.country
     }
-    return {a:b for (a,b) in data.items() if b}
+    return {a: b for (a, b) in data.items() if b}
+
 
 class DeletedContactResource(ItemResource):
     fields = {
-        '@odata.type': lambda item: '#microsoft.graph.contact', # TODO
+        '@odata.type': lambda item: '#microsoft.graph.contact',  # TODO
         'id': lambda item: item.entryid,
-        '@removed': lambda item: {'reason': 'deleted'} # TODO soft deletes
+        '@removed': lambda item: {'reason': 'deleted'}  # TODO soft deletes
     }
+
 
 @experimental
 class ContactResource(ItemResource):
@@ -76,7 +81,7 @@ class ContactResource(ItemResource):
     deleted_resource = DeletedContactResource
 
     def handle_get(self, req, resp, store, server, folderid, itemid):
-        folder = _folder(store, folderid or 'contacts') # TODO all folders?
+        folder = _folder(store, folderid or 'contacts')  # TODO all folders?
 
         if itemid:
             if itemid == 'delta':
@@ -116,4 +121,4 @@ class ContactResource(ItemResource):
         handler = self.handle_delete
 
         server, store, userid = _server_store(req, userid, self.options)
-        handler(req, resp, store=store, server=server, folder=folderid, itemid=itemid)
+        handler(req, resp, store=store, server=server, folderid=folderid, itemid=itemid)
