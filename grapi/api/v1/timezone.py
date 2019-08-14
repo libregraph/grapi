@@ -142,6 +142,7 @@ _windows_to_iana = {
  'Yakutsk Standard Time': 'Asia/Yakutsk'
 }
 
+
 def to_timezone(tz):
     # Apply translations, to increate time zone name compatibility.
     tz = _windows_to_iana.get(tz, tz)
@@ -152,7 +153,6 @@ if __name__ == '__main__':
     import pprint
     from urllib.request import urlopen
     import xml.etree.ElementTree as ElementTree
-
 
     with urlopen('https://raw.githubusercontent.com/unicode-org/cldr/master/common/supplemental/windowsZones.xml') as conn:
         root = ElementTree.parse(conn).getroot()

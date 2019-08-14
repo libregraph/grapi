@@ -3,7 +3,8 @@ from .config import PREFIX
 
 import falcon
 
-class BackendResource(object): # TODO merge with rest.py
+
+class BackendResource(object):  # TODO merge with rest.py
     def __init__(self, resource):
         self.resource = resource
 
@@ -22,10 +23,9 @@ class BackendResource(object): # TODO merge with rest.py
     def on_delete(self, *args, **kwargs):
         return self.resource.on_delete(*args, **kwargs)
 
+
 class NotifyAPI(falcon.API):
     def __init__(self, options=None, middleware=None, backends=None):
-#        backends = ['ldap', 'imap', 'caldav']
-
         if backends is None:
             backends = ['kopano']
 
@@ -35,10 +35,10 @@ class NotifyAPI(falcon.API):
         super().__init__(media_type=None, middleware=middleware)
 
         for backend in backends:
-            if backend in supported_backends: # TODO multiple would require prefix selection
+            if backend in supported_backends:  # TODO multiple would require prefix selection
                 self.add_routes(backend, options)
 
-    def import_backend(self, name): # TODO share with rest.py
+    def import_backend(self, name):  # TODO share with rest.py
         return __import__('grapi.backend.'+name, globals=globals(), fromlist=[''])
 
     def add_routes(self, backend_name, options):

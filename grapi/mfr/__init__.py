@@ -54,16 +54,19 @@ if PROMETHEUS:
 
 RUNNING = True
 
+
 def sigchld(*args):
     global RUNNING
     if RUNNING:
         logging.info('child was terminated, initiate shutdown')
         RUNNING = False
 
+
 def sigterm(*args):
     global RUNNING
     logging.info('process received shutdown signal')
     RUNNING = False
+
 
 # TODO use kopano.Service, for config file, pidfile, logging, restarting etc.
 def create_pidfile(path):
@@ -86,34 +89,36 @@ def create_pidfile(path):
         pid = str(os.getpid())
         _file.write(pid)
 
+
 def opt_args():
     parser = argparse.ArgumentParser(prog=PROCESS_NAME, description='Kopano Grapi Master Fleet Runner')
     parser.add_argument("--socket-path", dest="socket_path",
-                      help="parent directory for unix sockets (default: {})".format(SOCKET_PATH),
-                      default=SOCKET_PATH)
+                        help="parent directory for unix sockets (default: {})".format(SOCKET_PATH),
+                        default=SOCKET_PATH)
     parser.add_argument("--pid-file", dest='pid_file', default=PID_FILE,
-                      help="pid file location (default: {})".format(PID_FILE), metavar="PATH")
+                        help="pid file location (default: {})".format(PID_FILE), metavar="PATH")
     parser.add_argument("-w", "--workers", dest="workers", type=int, default=WORKERS,
-                      help="number of workers (unix sockets)", metavar="N")
+                        help="number of workers (unix sockets)", metavar="N")
     parser.add_argument("--insecure", dest='insecure', action='store_true', default=False,
-                      help="allow insecure connections")
+                        help="allow insecure connections")
     parser.add_argument("--enable-auth-basic", dest='auth_basic', action='store_true', default=False,
-                      help="enable basic authentication")
+                        help="enable basic authentication")
     parser.add_argument("--enable-auth-passthrough", dest='auth_passthrough', action='store_true', default=False,
-                      help="enable passthrough authentication (use with caution)")
+                        help="enable passthrough authentication (use with caution)")
     parser.add_argument("--disable-auth-bearer", dest='auth_bearer', action='store_false', default=True,
-                      help="disable bearer authentication")
+                        help="disable bearer authentication")
     parser.add_argument("--with-metrics", dest='with_metrics', action='store_true', default=False,
-                      help="enable metrics process")
+                        help="enable metrics process")
     parser.add_argument("--metrics-listen", dest='metrics_listen', metavar='ADDRESS:PORT',
-                      default=METRICS_LISTEN, help="metrics process address")
+                        default=METRICS_LISTEN, help="metrics process address")
     parser.add_argument("--process-name", dest='process_name',
-                      default=PROCESS_NAME, help="set process name", metavar="NAME")
+                        default=PROCESS_NAME, help="set process name", metavar="NAME")
     parser.add_argument("--backends", dest='backends', default='kopano',
-                      help="backends to enable (comma-separated)", metavar="LIST")
+                        help="backends to enable (comma-separated)", metavar="LIST")
     parser.add_argument("--enable-experimental-endpoints", dest='with_experimental', action='store_true', default=False, help="enable API endpoints which are considered experimental")
 
     return parser.parse_args()
+
 
 def error_handler(ex, req, resp, params, with_metrics):
     if not isinstance(ex, (falcon.HTTPError, falcon.HTTPStatus)):
@@ -122,9 +127,10 @@ def error_handler(ex, req, resp, params, with_metrics):
                 EXCEPTION_COUNT.inc()
         logging.exception('unhandled exception while processing request', exc_info=ex)
         raise falcon.HTTPError(falcon.HTTP_500)
-    raise
+    raise ex
 
 # falcon metrics middleware
+
 
 class FalconMetrics(object):
     def process_request(self, req, resp):
@@ -142,6 +148,7 @@ class FalconMetrics(object):
                 label = label.replace(req.context['deltaid'], 'delta')
             REQUEST_TIME.labels(req.method, label).observe(t)
 
+
 def collect_worker_metrics(workers):
     ticks = 100.0
     try:
@@ -158,6 +165,7 @@ def collect_worker_metrics(workers):
             stime = float(parts[14]) / ticks
             CPUTIME_GAUGE.labels(name).set(utime + stime)
 
+
 # Expose metrics.
 def metrics_app(workers, environ, start_response):
     collect_worker_metrics(workers)
@@ -172,15 +180,16 @@ def metrics_app(workers, environ, start_response):
     start_response(status, response_headers)
     return iter([data])
 
+
 # TODO merge run_*
 def run_app(socket_path, n, options):
     signal.signal(signal.SIGINT, lambda *args: 0)
     if SETPROCTITLE:
         setproctitle.setproctitle('%s rest %d' % (options.process_name, n))
     if options.with_metrics:
-        middleware=[FalconMetrics()]
+        middleware = [FalconMetrics()]
     else:
-        middleware=None
+        middleware = None
     backends = options.backends.split(',')
     app = grapi.RestAPI(options=options, middleware=middleware, backends=backends)
     handler = partial(error_handler, with_metrics=options.with_metrics)
@@ -189,14 +198,15 @@ def run_app(socket_path, n, options):
     logging.info('starting rest worker: %s', unix_socket)
     bjoern.run(app, unix_socket)
 
+
 def run_notify(socket_path, options):
     signal.signal(signal.SIGINT, lambda *args: 0)
     if SETPROCTITLE:
         setproctitle.setproctitle('%s notify' % options.process_name)
     if options.with_metrics:
-        middleware=[FalconMetrics()]
+        middleware = [FalconMetrics()]
     else:
-        middleware=None
+        middleware = None
     backends = options.backends.split(',')
     app = grapi.NotifyAPI(options=options, middleware=middleware, backends=backends)
     handler = partial(error_handler, with_metrics=options.with_metrics)
@@ -204,6 +214,7 @@ def run_notify(socket_path, options):
     unix_socket = 'unix:' + os.path.join(socket_path, 'notify.sock')
     logging.info('starting notify worker: %s', unix_socket)
     bjoern.run(app, unix_socket)
+
 
 def run_metrics(socket_path, options, workers):
     signal.signal(signal.SIGINT, lambda *args: 0)
@@ -213,6 +224,7 @@ def run_metrics(socket_path, options, workers):
     logging.info('starting metrics worker: %s', address)
     address = address.split(':')
     bjoern.run(partial(metrics_app, workers), address[0], int(address[1]))
+
 
 def logger_init():
     q = multiprocessing.Queue()
@@ -230,6 +242,7 @@ def logger_init():
     logger.addHandler(handler)
 
     return ql, q
+
 
 def main():
     global RUNNING

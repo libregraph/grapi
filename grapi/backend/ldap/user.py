@@ -13,6 +13,7 @@ PAGESIZE = 1000
 ldap.set_option(ldap.OPT_REFERRALS, 0)
 ldap.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
 
+
 class UserResource(Resource):
     l = None
 
@@ -50,14 +51,13 @@ class UserResource(Resource):
         self.bindDN = os.getenv("LDAP_BINDDN")
         self.bindPW = os.getenv("LDAP_BINDPW")
 
-        if not self.uri or  not self.baseDN:
+        if not self.uri or not self.baseDN:
             raise RuntimeError("missing LDAP_URI or LDAP_BASEDN in environment")
 
         try:
             self.l = ldap.ldapobject.ReconnectLDAPObject(self.uri, retry_max=self.retryMax, retry_delay=self.retryDelay)
         except ldap.LDAPError as e:
             print("unable to connect to LDAP server", e)
-
 
         if self.bindDN is not None and self.bindPW is not None:
             try:
@@ -154,4 +154,4 @@ class UserResource(Resource):
                 data['@odata.nextLink'] = '/api/gc/v1/users?$skip=%d' % (top + skip)
 
         resp.content_type = "application/json"
-        resp.body = json.dumps(data, indent=2, ensure_ascii=False).encode('utf-8') # TODO stream
+        resp.body = json.dumps(data, indent=2, ensure_ascii=False).encode('utf-8')  # TODO stream

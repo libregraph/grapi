@@ -173,7 +173,7 @@ class Processor(Thread):
                     POST_COUNT.inc()
                 logging.debug('subscription notification, id:%s, url:%s', subscription['id'], subscription['notificationUrl'])
                 # TODO(longsleep): This must be asynchronous or a queue per notificationUrl.
-                response = requests.post(subscription['notificationUrl'], json=data, timeout=10, verify=verify)
+                requests.post(subscription['notificationUrl'], json=data, timeout=10, verify=verify)
                 # TODO(longsleep): Retry respons errors.
             except Exception:
                 logging.exception('subscription notification failed, id:%s, url:%s', subscription['id'], subscription['notificationUrl'])

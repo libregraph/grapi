@@ -3,6 +3,7 @@ import falcon
 
 from .config import PREFIX
 
+
 class BackendMiddleware(object):
     def __init__(self, name_backend, default_backend, options):
         self.name_backend = name_backend
@@ -49,6 +50,7 @@ class BackendMiddleware(object):
         # result: eg ldap.UserResource() or kopano.MessageResource()
         resource.resource = getattr(backend, resource.name)(self.options)
 
+
 class BackendResource(object):
     def __init__(self, default_backend, resource_name):
         self.default_backend = default_backend
@@ -73,8 +75,6 @@ class BackendResource(object):
 
 class RestAPI(falcon.API):
     def __init__(self, options=None, middleware=None, backends=None):
-#        backends = ['ldap', 'imap', 'caldav']
-
         if backends is None:
             backends = ['kopano']
 
@@ -97,7 +97,7 @@ class RestAPI(falcon.API):
         for type_ in ('directory', 'mail', 'calendar'):
             for name, types in backend_types.items():
                 if name in backends and type_ in types:
-                    default_backend[type_] = name_backend[name] # TODO type occurs twice
+                    default_backend[type_] = name_backend[name]  # TODO type occurs twice
 
         middleware = (middleware or []) + [BackendMiddleware(name_backend, default_backend, options)]
         super().__init__(media_type=None, middleware=middleware)
@@ -106,7 +106,7 @@ class RestAPI(falcon.API):
 
     def route(self, path, resource, method=True):
         self.add_route(path, resource)
-        if method: # TODO make optional in a better way?
+        if method:  # TODO make optional in a better way?
             self.add_route(path+'/{method}', resource)
 
     def import_backend(self, name):
@@ -122,7 +122,7 @@ class RestAPI(falcon.API):
             photos = BackendResource(directory, 'ProfilePhotoResource')
 
             self.route(PREFIX+'/me', users)
-            self.route(PREFIX+'/users', users, method=False) # TODO method == ugly
+            self.route(PREFIX+'/users', users, method=False)  # TODO method == ugly
             self.route(PREFIX+'/users/{userid}', users)
             self.route(PREFIX+'/groups', groups, method=False)
             self.route(PREFIX+'/groups/{groupid}', groups)
@@ -163,6 +163,6 @@ class RestAPI(falcon.API):
                 self.route(user+'/events/{eventid}', events)
                 self.route(user+'/calendar/events/{eventid}', events)
                 self.route(user+'/calendars/{folderid}/events/{eventid}', events)
-                self.route(user+'/events/{eventid}/attachments/{attachmentid}', calendar_attachments) # TODO other routes
+                self.route(user+'/events/{eventid}/attachments/{attachmentid}', calendar_attachments)  # TODO other routes
                 self.route(user+'/calendar/events/{eventid}/attachments/{attachmentid}', calendar_attachments)
                 self.route(user+'/calendars/{folderid}/events/{eventid}/attachments/{attachmentid}', calendar_attachments)
