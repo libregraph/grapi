@@ -86,16 +86,19 @@ class MailFolderResource(FolderResource):
         self.respond(req, resp, item, MessageResource.fields)
 
     def handle_post_childFolders(self, req, resp, store, folderid):
+        folder = _folder(store, folderid)
+        fields = self.load_json(req)
         child = folder.create_folder(fields['displayName'])  # TODO exception on conflict
         self.respond(req, resp, child, MailFolderResource.fields)
 
     def handle_post_copy(self, req, resp, store, folderid):
-        this._handle_post_copyOrMove(move=False)
+        self._handle_post_copyOrMove(req, resp, store=store, folderid=folderid, move=False)
 
     def handle_post_move(self, req, resp, store, folderid):
-        this._handle_post_copyOrMove(move=True)
+        self._handle_post_copyOrMove(req, resp, store=store, folderid=folderid, move=True)
 
     def _handle_post_copyOrMove(self, req, resp, store, folderid, move=False):
+        folder = _folder(store, folderid)
         fields = self.load_json(req)
         to_folder = store.folder(entryid=fields['destinationId'].encode('ascii'))  # TODO ascii?
         if not move:
@@ -107,16 +110,16 @@ class MailFolderResource(FolderResource):
         handler = None
 
         if method == 'messages':
-            handler = this.handle_post_messages
+            handler = self.handle_post_messages
 
         elif method == 'childFolders':
-            handler = this.handle_post_childFolders
+            handler = self.handle_post_childFolders
 
         elif method == 'copy':
-            handler = this.handle_post_copy
+            handler = self.handle_post_copy
 
         elif method == 'move':
-            handler = this.handle_post_move
+            handler = self.handle_post_move
 
         elif method:
             raise HTTPBadRequest("Unsupported mailfolder segment '%s'" % method)

@@ -82,7 +82,7 @@ def _tzdate(d, tzinfo, req):
     if pref_timezone:
         try:
             tzinfo = to_timezone(pref_timezone)
-        except Exception as e:
+        except Exception:
             raise HTTPBadRequest("A valid TimeZone value must be specified. The following TimeZone value is not supported: '%s'." % pref_timezone)
         d = d.astimezone(tzinfo).replace(tzinfo=None)
     else:
@@ -286,7 +286,7 @@ class Resource(object):
     def load_json(self, req):
         try:
             return json.loads(req.stream.read().decode('utf-8'))
-        except ValueError as e:
+        except ValueError:
             raise HTTPBadRequest("Invalid JSON")
 
     def validate_json(self, schema, fields):

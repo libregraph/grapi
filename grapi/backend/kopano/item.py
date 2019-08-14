@@ -11,6 +11,7 @@ from .resource import (
     DEFAULT_TOP, Resource, _header_sub_arg, _date
 )
 
+
 def get_body(req, item):
     type_ = _header_sub_arg(req, 'Prefer', 'outlook.body-content-type') or item.body_type
 

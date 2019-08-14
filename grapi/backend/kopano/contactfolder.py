@@ -85,4 +85,4 @@ class ContactFolderResource(FolderResource):
             raise HTTPBadRequest("Unsupported in contactfolder")
 
         server, store, userid = _server_store(req, userid, self.options)
-        hander(req, resp, store=store, folderid=folderid)
+        handler(req, resp, store=store, folderid=folderid)

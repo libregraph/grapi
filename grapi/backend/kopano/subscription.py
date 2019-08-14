@@ -348,10 +348,11 @@ class SubscriptionResource:
                 return
             data = _export_subscription(subscription)
         else:
+            user = record.user
             userid = user.userid
             data = {
                 '@odata.context': req.path,
-                'value': [_export_subscription(subscription) for (subscription, _, uid) in SUBSCRIPTIONS.values() if uid == userid],  # TODO doesn't scale
+                'value': [_export_subscription(subscription) for (subscription, _, uid) in record.subscriptions.values() if uid == userid],  # TODO doesn't scale
             }
 
         resp.content_type = "application/json"

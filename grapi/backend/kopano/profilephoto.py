@@ -2,9 +2,10 @@
 import falcon
 from MAPI.Util import GetDefaultStore
 import kopano
+import logging
 
 from .utils import (
-    _server_store, _folder, _item, experimental
+    _server_store, _folder, _item, experimental, HTTPBadRequest
 )
 from .resource import Resource
 

@@ -9,6 +9,9 @@ from .folder import (
 from .event import (
     EventResource
 )
+from .resource import (
+    _start_end
+)
 
 
 @experimental
