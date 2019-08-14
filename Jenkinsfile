@@ -26,6 +26,8 @@ pipeline {
 					libpcap-dev \
 					libsasl2-dev \
 					python3-pip \
+					python3-pytest \
+					flake8 \
 					'
 				sh 'echo "deb [trusted=yes] ${REPO_URL} ./" > /etc/apt/sources.list.d/kopano.list'
 				sh 'apt-get update'
@@ -34,7 +36,6 @@ pipeline {
 				// Filter out already installed dependencies
 				sh 'grep -Ev "kopano|MAPI"  requirements.txt > jenkins_requirements.txt'
 				sh 'pip3 install -r jenkins_requirements.txt'
-				sh 'pip3 install pylint pytest'
 			}
 		}
 		stage('Lint') {

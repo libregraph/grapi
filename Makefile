@@ -1,7 +1,7 @@
 # Tools
 
 PYTHON ?= python3
-PYLINT ?= pylint3
+FLAKE8 ?= flake8
 PYTEST ?= py.test-3
 PYTEST_OPTIONS+=-s
 PYTEST_COVERAGE_OPTIONS+=--cov-report=term-missing
@@ -20,7 +20,7 @@ all:
 
 .PHONY: lint
 lint:
-	$(PYLINT) ./grapi
+	$(FLAKE8) ./grapi
 
 .PHONY: test
 test:
