@@ -20,7 +20,7 @@ all:
 
 .PHONY: lint
 lint:
-	$(FLAKE8) ./grapi
+	$(FLAKE8) -v --format=pylint --exclude=grapi/backend/caldav,grapi/backend/imap ./grapi
 
 .PHONY: test
 test:
