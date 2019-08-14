@@ -1,7 +1,7 @@
 # Tools
 
 PYTHON ?= python3
-PYLINT ?= pylint
+PYLINT ?= pylint3
 PYTEST ?= py.test-3
 PYTEST_OPTIONS+=-s
 PYTEST_COVERAGE_OPTIONS+=--cov-report=term-missing
