@@ -4,10 +4,17 @@ import codecs
 from contextlib import closing
 import fcntl
 import time
+import logging
 
 import falcon
 
 import bsddb3 as bsddb
+
+try:
+    from prometheus_client import Counter, Gauge
+    PROMETHEUS = True
+except ImportError:
+    PROMETHEUS = False
 
 from MAPI.Util import kc_session_save, kc_session_restore, GetDefaultStore
 from MAPI.Struct import MAPIErrorNotFound, MAPIErrorNoAccess, MAPIErrorInvalidParameter
@@ -16,14 +23,29 @@ import kopano
 from grapi.api.v1.resource import HTTPBadRequest
 from grapi.api.v1.decorators import experimental as experimentalDecorator
 
-USERID_SESSION = {}
+experimental = experimentalDecorator
 
+# NOTE(longsleep): Global dicts are threadsafe as of now in CPython.
+# TOKEN_SESSIONS hold the cached session data from token authentications.
 TOKEN_SESSION = {}
-LAST_PURGE_TIME = None
+# TOKEN_SESSION_CACHE_TIME defines the time how long stale token cached session
+# data should stay in the cache before it is purged.
+TOKEN_SESSION_CACHE_TIME = 300
+# TOKEN_SESSION_PURGE_TIME is the time when the next token session data cache
+# purge should happen.
+TOKEN_SESSION_PURGE_TIME = time.monotonic() + 300
+# PASSTHROUGH_SESSION hold the cached session data from pass through auths.
+PASSTHROUGH_SESSION = {}
 
 _marker = object()
 
-experimental = experimentalDecorator
+# metrics
+if PROMETHEUS:
+    SESSION_CREATE_COUNT = Counter('kopano_mfr_kopano_total_created_sessions', 'Total number of created sessions')
+    SESSION_RESUME_COUNT = Counter('kopano_mfr_kopano_total_resumed_sessions', 'Total number of resumed sessions')
+    SESSION_EXPIRED_COUNT = Counter('kopano_mfr_kopano_total_expired_sessions', 'Total number of expired sessions')
+    TOKEN_SESSION_ACTIVE = Gauge('kopano_mfr_kopano_active_token_sessions', 'Number of token sessions in sessions cache')
+    PASSTHROUGH_SESSIONS_ACTIVE = Gauge('kopano_mfr_kopano_active_passthrough_sessions', 'Number of pass through sessions in sessions cache')
 
 
 def _auth(req, options):
@@ -34,8 +56,8 @@ def _auth(req, options):
         token = codecs.encode(auth_header[7:], 'ascii')
         return {
             'method': 'bearer',
-            'user': req.get_header('X-Kopano-Username', ''),
-            'userid': req.get_header('X-Kopano-UserEntryID', ''),
+            'user': req.get_header('X-Kopano-Username', ''),  # injected by kapi
+            'userid': req.get_header('X-Kopano-UserEntryID', ''),  # injected by kapi
             'token': token,
         }
 
@@ -49,9 +71,8 @@ def _auth(req, options):
             'password': password,
         }
 
-    # TODO remove
-    elif not options or options.auth_passthrough:  # pragma: no cover
-        userid = req.get_header('X-Kopano-UserEntryID')
+    elif not options or options.auth_passthrough:
+        userid = req.get_header('X-Kopano-UserEntryID')  # injected by proxy
         if userid:
             return {
                 'method': 'passthrough',
@@ -73,48 +94,82 @@ def db_put(key, value):
 
 
 def _server(req, options):
-    global LAST_PURGE_TIME
+    global TOKEN_SESSION_PURGE_TIME
     auth = _auth(req, options)
     if not auth:
         raise falcon.HTTPForbidden('Unauthorized', None)
 
     if auth['method'] == 'bearer':
         token = auth['token']
-        sessiondata = TOKEN_SESSION.get(token)
+        userid = req.context.userid = auth['userid']
+        sessiondata = TOKEN_SESSION.get(userid)
         if sessiondata:
             mapisession = kc_session_restore(sessiondata[0])
             server = kopano.Server(mapisession=mapisession, parse_args=False)
+            now = time.monotonic()
+            sessiondata[1] = now
+            if options and options.with_metrics:
+                SESSION_RESUME_COUNT.inc()
         else:
-            server = kopano.Server(auth_user=auth['userid'], auth_pass=token,
+            logging.debug('creating session for bearer token user %s', userid)
+            server = kopano.Server(auth_user=userid, auth_pass=token,
                                    parse_args=False, oidc=True)
             sessiondata = kc_session_save(server.mapisession)
-            now = time.time()
-            TOKEN_SESSION[token] = (sessiondata, now)
+            now = time.monotonic()
+            if userid:
+                TOKEN_SESSION[userid] = [sessiondata, now]
+            if options and options.with_metrics:
+                SESSION_CREATE_COUNT.inc()
+                TOKEN_SESSION_ACTIVE.inc()
 
-            # expire tokens after 15 mins TODO make configurable?
-            if LAST_PURGE_TIME is None or now > LAST_PURGE_TIME+10:
-                for (token, (sessiondata, t)) in list(TOKEN_SESSION.items()):
-                    if t < now - 15*60:
-                        del TOKEN_SESSION[token]
-                LAST_PURGE_TIME = now
+        # Expire tokens after 15 mins TODO make configurable?
+        # TODO(longsleep): Put into thread, and run asynchronosly.
+        if TOKEN_SESSION_PURGE_TIME < now:
+            logging.debug('purging token sessions start')
+            expiration = now + 60
+            for (userid, (sessiondata, t)) in list(TOKEN_SESSION.items()):
+                if t < expiration:
+                    logging.debug('purging token session for token user %s', userid)
+                    del TOKEN_SESSION[userid]
+                    if options and options.with_metrics:
+                        SESSION_EXPIRED_COUNT.inc()
+                        TOKEN_SESSION_ACTIVE.dec()
+            TOKEN_SESSION_PURGE_TIME = now + TOKEN_SESSION_CACHE_TIME
+            logging.debug('purging token sessions end')
+
         return server
 
     elif auth['method'] == 'basic':
-        return kopano.Server(auth_user=auth['user'], auth_pass=auth['password'], parse_args=False)
+        logging.debug('creating session for basic auth user %s', auth['user'])
+        server = kopano.Server(auth_user=auth['user'], auth_pass=auth['password'], parse_args=False)
+        if options and options.with_metrics:
+            SESSION_CREATE_COUNT.inc()
 
-    # TODO remove
-    elif auth['method'] == 'passthrough':  # pragma: no cover
-        userid = auth['userid']
-        sessiondata = USERID_SESSION.get(userid)
+        return server
+
+    # TODO(longsleep): Add expiration for PASSTHROUGH_SESSION contents.
+    elif auth['method'] == 'passthrough':
+        userid = req.context.userid = auth['userid']
+        sessiondata = PASSTHROUGH_SESSION.get(userid)
         if sessiondata:
-            mapisession = kc_session_restore(sessiondata)
+            mapisession = kc_session_restore(sessiondata[0])
             server = kopano.Server(mapisession=mapisession, parse_args=False)
+            now = time.monotonic()
+            sessiondata[1] = now
+            if options and options.with_metrics:
+                SESSION_RESUME_COUNT.inc()
         else:
-            username = _username(auth['userid'])
+            logging.debug('creating session for passthrough user %s', userid)
+            username = _username(userid)
             server = kopano.Server(auth_user=username, auth_pass='',
                                    parse_args=False, store_cache=False)
             sessiondata = kc_session_save(server.mapisession)
-            USERID_SESSION[userid] = sessiondata
+            now = time.monotonic()
+            PASSTHROUGH_SESSION[userid] = [sessiondata, now]
+            if options and options.with_metrics:
+                SESSION_CREATE_COUNT.inc()
+                PASSTHROUGH_SESSIONS_ACTIVE.inc()
+
         return server
 
 
@@ -137,6 +192,7 @@ def _server_store(req, userid, options):
         try:
             server = _server(req, options)
         except MAPIErrorNotFound:  # no store
+            logging.info('no store for user %s for request %s', req.context.userid, req.path, exc_info=True)
             raise falcon.HTTPForbidden('Unauthorized', None)
 
         if userid and userid != 'delta':
@@ -168,6 +224,7 @@ def _server_store(req, userid, options):
         return server, store, userid
 
     except (kopano.LogonError, MAPIErrorNoAccess):
+        logging.info('logon failed for user %s for request %s', req.context.userid, req.path, exc_info=True)
         raise falcon.HTTPForbidden('Unauthorized', None)
 
 

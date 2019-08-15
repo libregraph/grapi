@@ -201,7 +201,7 @@ class Resource(object):
                 wa = self.json(req, o, fields, all_fields, multi=True)
                 yield b'\n'.join([b'    '+line for line in wa.splitlines()])
         except Exception:
-            logging.exception("failed to marshal JSON")
+            logging.exception("failed to marshal %s JSON response", req.path)
         yield b'\n  ]\n}'
 
     def respond(self, req, resp, obj, all_fields=None, deltalink=None):

@@ -72,11 +72,11 @@ PATTERN_CONTACTS = (falcon.routing.compile_uri_template('/me/contactFolders/{fol
 PATTERN_EVENTS = (falcon.routing.compile_uri_template('/me/calendars/{folderid}/events')[1], 'Event')
 
 if PROMETHEUS:
-    SUBSCR_COUNT = Counter('kopano_mfr_total_subscriptions', 'Total number of subscriptions')
-    SUBSCR_EXPIRED = Counter('kopano_mfr_total_expired_subscriptions', 'Total number of subscriptions which expired')
-    SUBSCR_ACTIVE = Gauge('kopano_mfr_active_subscriptions', 'Number of active subscriptions', multiprocess_mode='livesum')
-    POST_COUNT = Counter('kopano_mfr_total_webhook_posts', 'Total number of webhook posts')
-    DANGLING_COUNT = Counter('kopano_mfr_total_broken_subscription_conns', 'Total number of broken subscription connections')
+    SUBSCR_COUNT = Counter('kopano_mfr_kopano_total_subscriptions', 'Total number of subscriptions')
+    SUBSCR_EXPIRED = Counter('kopano_mfr_kopano_total_expired_subscriptions', 'Total number of subscriptions which expired')
+    SUBSCR_ACTIVE = Gauge('kopano_mfr_kopano_active_subscriptions', 'Number of active subscriptions', multiprocess_mode='livesum')
+    POST_COUNT = Counter('kopano_mfr_kopano_total_webhook_posts', 'Total number of webhook posts')
+    DANGLING_COUNT = Counter('kopano_mfr_kopano_total_broken_subscription_conns', 'Total number of broken subscription connections')
 
 
 def _server(auth_user, auth_pass, oidc=False, reconnect=False):

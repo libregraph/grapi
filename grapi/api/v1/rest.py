@@ -2,7 +2,7 @@
 import falcon
 
 from .config import PREFIX
-
+from .request import Request
 
 class BackendMiddleware(object):
     def __init__(self, name_backend, default_backend, options):
@@ -100,7 +100,7 @@ class RestAPI(falcon.API):
                     default_backend[type_] = name_backend[name]  # TODO type occurs twice
 
         middleware = (middleware or []) + [BackendMiddleware(name_backend, default_backend, options)]
-        super().__init__(media_type=None, middleware=middleware)
+        super().__init__(media_type=None, middleware=middleware, request_type=Request)
 
         self.add_routes(default_backend, options)
 
