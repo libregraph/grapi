@@ -32,7 +32,7 @@ except ImportError:  # pragma: no cover
     PROMETHEUS = False
 
 from MAPI.Struct import (
-    MAPIErrorNetworkError, MAPIErrorEndOfSession, MAPIErrorNoSupport
+    MAPIErrorNoSupport
 )
 
 INDENT = True
@@ -59,10 +59,10 @@ threadLock = Lock()
 # RECORDS hold the named tuple Record values for users which have active
 # subscriptions.
 RECORDS = {}
-# RECORD_COUNT is incremented whenever a active subscription gets replaced
+# RECORD_INDEX is incremented whenever a active subscription gets replaced
 # and the incremented value is appended to the key of the record in RECRODS
 # to allow it to be cleaned up later.
-RECORD_COUNT = 0
+RECORD_INDEX = 0
 # Record is a named tuple binding subscription and conection information
 # per user. Named tuple is used for easy painless access to its members.
 Record = namedtuple('Record', ['server', 'user', 'store', 'subscriptions'])
@@ -92,7 +92,7 @@ def _record(req, options):
     Return the record matching the provided request. If no record is found, a
     new one is created.
     """
-    global RECORD_COUNT
+    global RECORD_INDEX
     global RECORDS
 
     auth = utils._auth(req, options)
@@ -122,12 +122,12 @@ def _record(req, options):
         try:
             user = record.server.user(username)
             return record
-        except (MAPIErrorNetworkError, MAPIErrorEndOfSession):  # server restart: try to reconnect TODO check kc_session_restore (incl. notifs!)
+        except Exception:  # server restart: try to reconnect TODO check kc_session_restore (incl. notifs!)
             logging.exception('network or session error while getting user from server, reconnect automatically')
             with threadLock:
                 oldRecord = RECORDS.pop(auth_username)
-                RECORD_COUNT += 1
-                RECORDS['{}_dangle_{}'.format(auth_username, RECORD_COUNT)] = oldRecord
+                RECORD_INDEX += 1
+                RECORDS['{}_dangle_{}'.format(auth_username, RECORD_INDEX)] = oldRecord
             if options and options.with_metrics:
                 DANGLING_COUNT.inc()
 

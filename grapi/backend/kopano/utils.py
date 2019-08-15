@@ -6,6 +6,8 @@ import fcntl
 import time
 import logging
 
+from threading import Lock
+
 import falcon
 
 import bsddb3 as bsddb
@@ -25,7 +27,15 @@ from grapi.api.v1.decorators import experimental as experimentalDecorator
 
 experimental = experimentalDecorator
 
-# NOTE(longsleep): Global dicts are threadsafe as of now in CPython.
+# threadLock is a global lock which can be used to protect the global
+# states in this file.
+threadLock = Lock()
+
+# DANGLE_INDEX is incremented whenever an active session gets replaced
+# and the incremented value is appended to the key of the session data in
+# TOKEN_SESSION to allow it to be cleaned up later.
+DANGLE_INDEX = 0
+
 # TOKEN_SESSIONS hold the cached session data from token authentications.
 TOKEN_SESSION = {}
 # TOKEN_SESSION_CACHE_TIME defines the time how long stale token cached session
@@ -46,6 +56,7 @@ if PROMETHEUS:
     SESSION_EXPIRED_COUNT = Counter('kopano_mfr_kopano_total_expired_sessions', 'Total number of expired sessions')
     TOKEN_SESSION_ACTIVE = Gauge('kopano_mfr_kopano_active_token_sessions', 'Number of token sessions in sessions cache')
     PASSTHROUGH_SESSIONS_ACTIVE = Gauge('kopano_mfr_kopano_active_passthrough_sessions', 'Number of pass through sessions in sessions cache')
+    DANGLING_COUNT = Counter('kopano_mfr_kopano_total_broken_sessions', 'Total number of broken sessions')
 
 
 def _auth(req, options):
@@ -94,7 +105,11 @@ def db_put(key, value):
 
 
 def _server(req, options):
+    global TOKEN_SESSION
     global TOKEN_SESSION_PURGE_TIME
+    global PASSTHROUGH_SESSION
+    global DANGLE_INDEX
+
     auth = _auth(req, options)
     if not auth:
         raise falcon.HTTPForbidden('Unauthorized', None)
@@ -102,22 +117,37 @@ def _server(req, options):
     if auth['method'] == 'bearer':
         token = auth['token']
         userid = req.context.userid = auth['userid']
-        sessiondata = TOKEN_SESSION.get(userid)
+        with threadLock:
+            sessiondata = TOKEN_SESSION.get(userid)
         if sessiondata:
             mapisession = kc_session_restore(sessiondata[0])
             server = kopano.Server(mapisession=mapisession, parse_args=False)
-            now = time.monotonic()
-            sessiondata[1] = now
-            if options and options.with_metrics:
-                SESSION_RESUME_COUNT.inc()
-        else:
+            try:
+                server.user(userid=userid)
+            except Exception:
+                logging.exception('network or session error while restoring bearer token user session, reconnect automatically')
+                with threadLock:
+                    oldSessionData = TOKEN_SESSION.pop(userid)
+                    DANGLE_INDEX += 1
+                    TOKEN_SESSION['{}_dangle_{}'.format(userid, DANGLE_INDEX)] = oldSessionData
+                sessiondata = None
+                if options and options.with_metrics:
+                    DANGLING_COUNT.inc()
+            else:
+                now = time.monotonic()
+                sessiondata[1] = now  # NOTE(longsleep): Array mutate is threadsafe in CPython - we do not care who wins here.
+                if options and options.with_metrics:
+                    SESSION_RESUME_COUNT.inc()
+
+        if not sessiondata:
             logging.debug('creating session for bearer token user %s', userid)
             server = kopano.Server(auth_user=userid, auth_pass=token,
                                    parse_args=False, oidc=True)
             sessiondata = kc_session_save(server.mapisession)
             now = time.monotonic()
             if userid:
-                TOKEN_SESSION[userid] = [sessiondata, now]
+                with threadLock:
+                    TOKEN_SESSION[userid] = [sessiondata, now]
             if options and options.with_metrics:
                 SESSION_CREATE_COUNT.inc()
                 TOKEN_SESSION_ACTIVE.inc()
@@ -125,17 +155,18 @@ def _server(req, options):
         # Expire tokens after 15 mins TODO make configurable?
         # TODO(longsleep): Put into thread, and run asynchronosly.
         if TOKEN_SESSION_PURGE_TIME < now:
-            logging.debug('purging token sessions start')
-            expiration = now + 60
-            for (userid, (sessiondata, t)) in list(TOKEN_SESSION.items()):
-                if t < expiration:
-                    logging.debug('purging token session for token user %s', userid)
-                    del TOKEN_SESSION[userid]
-                    if options and options.with_metrics:
-                        SESSION_EXPIRED_COUNT.inc()
-                        TOKEN_SESSION_ACTIVE.dec()
-            TOKEN_SESSION_PURGE_TIME = now + TOKEN_SESSION_CACHE_TIME
-            logging.debug('purging token sessions end')
+            with threadLock:
+                logging.debug('purging token sessions start')
+                expiration = now + 60
+                for (userid, (sessiondata, t)) in list(TOKEN_SESSION.items()):
+                    if t < expiration:
+                        logging.debug('purging token session for token user %s', userid)
+                        del TOKEN_SESSION[userid]
+                        if options and options.with_metrics:
+                            SESSION_EXPIRED_COUNT.inc()
+                            TOKEN_SESSION_ACTIVE.dec()
+                TOKEN_SESSION_PURGE_TIME = now + TOKEN_SESSION_CACHE_TIME
+                logging.debug('purging token sessions end')
 
         return server
 
@@ -150,22 +181,37 @@ def _server(req, options):
     # TODO(longsleep): Add expiration for PASSTHROUGH_SESSION contents.
     elif auth['method'] == 'passthrough':
         userid = req.context.userid = auth['userid']
-        sessiondata = PASSTHROUGH_SESSION.get(userid)
+        with threadLock:
+            sessiondata = PASSTHROUGH_SESSION.get(userid)
         if sessiondata:
             mapisession = kc_session_restore(sessiondata[0])
             server = kopano.Server(mapisession=mapisession, parse_args=False)
-            now = time.monotonic()
-            sessiondata[1] = now
-            if options and options.with_metrics:
-                SESSION_RESUME_COUNT.inc()
-        else:
+            try:
+                server.user(userid=userid)
+            except Exception:
+                logging.exception('network or session error while restoring passthroug user session, reconnect automatically')
+                with threadLock:
+                    oldSessionData = PASSTHROUGH_SESSION.pop(userid)
+                    DANGLE_INDEX += 1
+                    PASSTHROUGH_SESSION['{}_dangle_{}'.format(userid, DANGLE_INDEX)] = oldSessionData
+                sessiondata = None
+                if options and options.with_metrics:
+                    DANGLING_COUNT.inc()
+            else:
+                now = time.monotonic()
+                sessiondata[1] = now
+                if options and options.with_metrics:
+                    SESSION_RESUME_COUNT.inc()
+
+        if not sessiondata:
             logging.debug('creating session for passthrough user %s', userid)
             username = _username(userid)
             server = kopano.Server(auth_user=username, auth_pass='',
                                    parse_args=False, store_cache=False)
             sessiondata = kc_session_save(server.mapisession)
             now = time.monotonic()
-            PASSTHROUGH_SESSION[userid] = [sessiondata, now]
+            with threadLock:
+                PASSTHROUGH_SESSION[userid] = [sessiondata, now]
             if options and options.with_metrics:
                 SESSION_CREATE_COUNT.inc()
                 PASSTHROUGH_SESSIONS_ACTIVE.inc()
