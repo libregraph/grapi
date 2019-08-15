@@ -7,6 +7,7 @@ import time
 import logging
 
 from threading import Lock
+from collections import namedtuple
 
 import falcon
 
@@ -18,8 +19,8 @@ try:
 except ImportError:
     PROMETHEUS = False
 
-from MAPI.Util import kc_session_save, kc_session_restore, GetDefaultStore
-from MAPI.Struct import MAPIErrorNotFound, MAPIErrorNoAccess, MAPIErrorInvalidParameter
+from MAPI.Util import GetDefaultStore
+from MAPI.Struct import MAPIErrorNotFound, MAPIErrorNoAccess, MAPIErrorInvalidParameter, MAPIErrorUnconfigured
 import kopano
 
 from grapi.api.v1.resource import HTTPBadRequest
@@ -46,6 +47,10 @@ TOKEN_SESSION_CACHE_TIME = 300
 TOKEN_SESSION_PURGE_TIME = time.monotonic() + 300
 # PASSTHROUGH_SESSION hold the cached session data from pass through auths.
 PASSTHROUGH_SESSION = {}
+
+# Record is a named tuple binding subscription and conection information
+# per user. Named tuple is used for easy painless access to its members.
+Record = namedtuple('Record', ['server'])
 
 _marker = object()
 
@@ -104,7 +109,7 @@ def db_put(key, value):
             db[codecs.encode(key, 'ascii')] = codecs.encode(value, 'ascii')
 
 
-def _server(req, options):
+def _server(req, options, forceReconnect=False):
     global TOKEN_SESSION
     global TOKEN_SESSION_PURGE_TIME
     global PASSTHROUGH_SESSION
@@ -114,28 +119,31 @@ def _server(req, options):
     if not auth:
         raise falcon.HTTPForbidden('Unauthorized', None)
 
+    now = time.monotonic()
+
     if auth['method'] == 'bearer':
         token = auth['token']
         userid = req.context.userid = auth['userid']
         with threadLock:
             sessiondata = TOKEN_SESSION.get(userid)
         if sessiondata:
-            mapisession = kc_session_restore(sessiondata[0])
-            server = kopano.Server(mapisession=mapisession, parse_args=False)
-            try:
-                server.user(userid=userid)
-            except Exception:
-                logging.exception('network or session error while restoring bearer token user session, reconnect automatically')
+            if not forceReconnect:
+                server = sessiondata[0].server
+                try:
+                    server.user(userid=userid)
+                except Exception:
+                    logging.exception('network or session error while reusing bearer token user session, reconnect automatically')
+                    forceReconnect = True
+            if forceReconnect:
                 with threadLock:
-                    oldSessionData = TOKEN_SESSION.pop(userid)
+                    oldSessiondata = TOKEN_SESSION.pop(userid)
                     DANGLE_INDEX += 1
-                    TOKEN_SESSION['{}_dangle_{}'.format(userid, DANGLE_INDEX)] = oldSessionData
+                    TOKEN_SESSION['{}_dangle_{}'.format(userid, DANGLE_INDEX)] = oldSessiondata
                 sessiondata = None
                 if options and options.with_metrics:
                     DANGLING_COUNT.inc()
             else:
-                now = time.monotonic()
-                sessiondata[1] = now  # NOTE(longsleep): Array mutate is threadsafe in CPython - we do not care who wins here.
+                sessiondata[1] = now  # NOTE(longsleep): Mutate is threadsafe in CPython - we do not care who wins here.
                 if options and options.with_metrics:
                     SESSION_RESUME_COUNT.inc()
 
@@ -143,11 +151,13 @@ def _server(req, options):
             logging.debug('creating session for bearer token user %s', userid)
             server = kopano.Server(auth_user=userid, auth_pass=token,
                                    parse_args=False, oidc=True)
-            sessiondata = kc_session_save(server.mapisession)
-            now = time.monotonic()
-            if userid:
-                with threadLock:
-                    TOKEN_SESSION[userid] = [sessiondata, now]
+            sessiondata = [Record(server=server), now]
+            with threadLock:
+                if userid:
+                    TOKEN_SESSION[userid] = sessiondata
+                else:
+                    DANGLE_INDEX += 1
+                    TOKEN_SESSION['_dangle_{}'.format(DANGLE_INDEX)] = sessiondata
             if options and options.with_metrics:
                 SESSION_CREATE_COUNT.inc()
                 TOKEN_SESSION_ACTIVE.inc()
@@ -158,8 +168,8 @@ def _server(req, options):
             with threadLock:
                 logging.debug('purging token sessions start')
                 expiration = now + 60
-                for (userid, (sessiondata, t)) in list(TOKEN_SESSION.items()):
-                    if t < expiration:
+                for userid, (record, ts) in list(TOKEN_SESSION.items()):
+                    if ts < expiration:
                         logging.debug('purging token session for token user %s', userid)
                         del TOKEN_SESSION[userid]
                         if options and options.with_metrics:
@@ -184,22 +194,23 @@ def _server(req, options):
         with threadLock:
             sessiondata = PASSTHROUGH_SESSION.get(userid)
         if sessiondata:
-            mapisession = kc_session_restore(sessiondata[0])
-            server = kopano.Server(mapisession=mapisession, parse_args=False)
-            try:
-                server.user(userid=userid)
-            except Exception:
-                logging.exception('network or session error while restoring passthroug user session, reconnect automatically')
+            if not forceReconnect:
+                server = sessiondata[0].server
+                try:
+                    server.user(userid=userid)
+                except Exception:
+                    logging.exception('network or session error while reusing passthrough user session, reconnect automatically')
+                    forceReconnect = True
+            if forceReconnect:
                 with threadLock:
-                    oldSessionData = PASSTHROUGH_SESSION.pop(userid)
+                    oldSessiondata = PASSTHROUGH_SESSION.pop(userid)
                     DANGLE_INDEX += 1
-                    PASSTHROUGH_SESSION['{}_dangle_{}'.format(userid, DANGLE_INDEX)] = oldSessionData
+                    PASSTHROUGH_SESSION['{}_dangle_{}'.format(userid, DANGLE_INDEX)] = oldSessiondata
                 sessiondata = None
                 if options and options.with_metrics:
                     DANGLING_COUNT.inc()
             else:
-                now = time.monotonic()
-                sessiondata[1] = now
+                sessiondata[1] = time.monotonic()  # NOTE(longsleep): Array mutate is threadsafe in CPython - we do not care who wins here.
                 if options and options.with_metrics:
                     SESSION_RESUME_COUNT.inc()
 
@@ -208,10 +219,9 @@ def _server(req, options):
             username = _username(userid)
             server = kopano.Server(auth_user=username, auth_pass='',
                                    parse_args=False, store_cache=False)
-            sessiondata = kc_session_save(server.mapisession)
-            now = time.monotonic()
+            sessiondata = [Record(server=server), now]
             with threadLock:
-                PASSTHROUGH_SESSION[userid] = [sessiondata, now]
+                PASSTHROUGH_SESSION[userid] = sessiondata
             if options and options.with_metrics:
                 SESSION_CREATE_COUNT.inc()
                 PASSTHROUGH_SESSIONS_ACTIVE.inc()
@@ -233,43 +243,49 @@ def _username(userid):  # pragma: no cover
     return SERVER.user(userid=userid).name
 
 
-def _server_store(req, userid, options):
+def _server_store(req, userid, options, forceReconnect=False):
     try:
         try:
-            server = _server(req, options)
+            server = _server(req, options, forceReconnect=forceReconnect)
         except MAPIErrorNotFound:  # no store
             logging.info('no store for user %s for request %s', req.context.userid, req.path, exc_info=True)
             raise falcon.HTTPForbidden('Unauthorized', None)
 
-        if userid and userid != 'delta':
-            try:
-                if userid.startswith('AAAAA'):
-                    try:
-                        user = server.user(userid=userid)
-                    except (kopano.NotFoundError, MAPIErrorInvalidParameter):
-                        user = server.user(name=userid)
-                        userid = user.userid
-                else:
-                    try:
-                        user = server.user(name=userid)
-                        userid = user.userid
-                    except kopano.NotFoundError as ex:
-                        # FIXME(longsleep): This just blindly retries lookup even
-                        # if it does not make sense.
+        try:
+            if userid and userid != 'delta':
+                try:
+                    if userid.startswith('AAAAA'):  # FIXME(longsleep): Fix this poor mans check.
                         try:
                             user = server.user(userid=userid)
-                        except MAPIErrorInvalidParameter:
-                            raise ex
-            except (kopano.NotFoundError, kopano.ArgumentError, MAPIErrorNotFound):
-                raise falcon.HTTPNotFound(description='No such user: %s' % userid)
+                        except (kopano.NotFoundError, MAPIErrorInvalidParameter):
+                            user = server.user(name=userid)
+                            userid = user.userid
+                    else:
+                        try:
+                            user = server.user(name=userid)
+                            userid = user.userid
+                        except kopano.NotFoundError as ex:
+                            # FIXME(longsleep): This just blindly retries lookup even
+                            # if it does not make sense.
+                            try:
+                                user = server.user(userid=userid)
+                            except MAPIErrorInvalidParameter:
+                                raise ex
+                except (kopano.NotFoundError, kopano.ArgumentError, MAPIErrorNotFound):
+                    raise falcon.HTTPNotFound(description='No such user: %s' % userid)
 
-            store = user.store
-        else:
-            store = kopano.Store(server=server, mapiobj=GetDefaultStore(server.mapisession))
+                store = user.store
+            else:
+                store = kopano.Store(server=server, mapiobj=GetDefaultStore(server.mapisession))
+        except MAPIErrorUnconfigured:
+            if forceReconnect:
+                raise
+            logging.exception('network or session error while getting store, forcing reconnect')
+            return _server_store(req, userid, options, forceReconnect=True)
 
         return server, store, userid
 
-    except (kopano.LogonError, MAPIErrorNoAccess):
+    except (kopano.LogonError, kopano.NotFoundError, MAPIErrorNoAccess, MAPIErrorUnconfigured):
         logging.info('logon failed for user %s for request %s', req.context.userid, req.path, exc_info=True)
         raise falcon.HTTPForbidden('Unauthorized', None)
 
