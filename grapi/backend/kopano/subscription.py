@@ -131,6 +131,7 @@ def _record(req, options):
             if options and options.with_metrics:
                 DANGLING_COUNT.inc()
 
+    logging.debug('creating subscription session for user %s', auth_username)
     server = _server(auth_username, auth_password, oidc=oidc)
     user = server.user(username)
     store = user.store
