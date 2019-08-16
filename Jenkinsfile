@@ -48,7 +48,7 @@ pipeline {
 		stage('Test') {
 			steps {
 				echo 'Testing..'
-				sh 'make test PYTEST=pytest'
+				sh 'make test'
 			}
 		}
 	}
