@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import codecs
 import falcon
+import logging
 
 import kopano  # TODO remove?
 from MAPI.Util import GetDefaultStore
 
 from .utils import (
-    _server_store, HTTPBadRequest, experimental
+    _server_store, HTTPBadRequest, HTTPNotFound, experimental
 )
 from .resource import (
     DEFAULT_TOP, Resource, _start_end
@@ -90,7 +91,11 @@ class UserResource(Resource):
     def _handle_get_without_userid(self, req, resp, store, server):
         args = self.parse_qs(req)
         userid = kopano.Store(server=server, mapiobj=GetDefaultStore(server.mapisession)).user.userid
-        company = server.user(userid=userid).company
+        try:
+            company = server.user(userid=userid).company
+        except kopano.errors.NotFoundError:
+            logging.warn('failed to get company for user %s', userid, exc_info=True)
+            raise HTTPNotFound(description="The company wasn't found")
         query = None
         if '$search' in args:
             query = args['$search'][0]

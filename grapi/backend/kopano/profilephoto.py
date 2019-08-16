@@ -1,11 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-import falcon
 from MAPI.Util import GetDefaultStore
 import kopano
 import logging
 
 from .utils import (
-    _server_store, _folder, _item, experimental, HTTPBadRequest
+    _server_store, _folder, _item, experimental, HTTPBadRequest, HTTPNotFound
 )
 from .resource import Resource
 
@@ -32,15 +31,15 @@ class ProfilePhotoResource(Resource):
             photo = server.user(userid=userid).photo
 
         if not photo:
-            raise falcon.HTTPNotFound(description="The photo wasn't found")
+            raise HTTPNotFound(description="The photo wasn't found")
 
         if photoid:
             try:
                 size = tuple(map(int, photoid.lower().split('x')))
             except ValueError:
-                raise falcon.HTTPNotFound(description="Invalid photo size - must be wxh")
+                raise HTTPNotFound(description="Invalid photo size - must be wxh")
             if len(size) != 2 or size[0] <= 0 or size[1] <= 0:
-                raise falcon.HTTPNotFound(description="Invalid photo size - must be wxh")
+                raise HTTPNotFound(description="Invalid photo size - must be wxh")
             try:
                 photo = photo.scale(size)
             except NotImplementedError:

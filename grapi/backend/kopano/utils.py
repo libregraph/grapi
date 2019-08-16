@@ -28,6 +28,8 @@ from grapi.api.v1.decorators import experimental as experimentalDecorator
 
 experimental = experimentalDecorator
 
+HTTPNotFound = falcon.HTTPNotFound
+
 # threadLock is a global lock which can be used to protect the global
 # states in this file.
 threadLock = Lock()
