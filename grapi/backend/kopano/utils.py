@@ -43,10 +43,10 @@ DANGLE_INDEX = 0
 TOKEN_SESSION = {}
 # TOKEN_SESSION_CACHE_TIME defines the time how long stale token cached session
 # data should stay in the cache before it is purged.
-TOKEN_SESSION_CACHE_TIME = 300
+TOKEN_SESSION_CACHE_TIME = 240  # TODO(longsleep): Add to configuration.
 # TOKEN_SESSION_PURGE_TIME is the time when the next token session data cache
 # purge should happen.
-TOKEN_SESSION_PURGE_TIME = time.monotonic() + 300
+TOKEN_SESSION_PURGE_TIME = time.monotonic() + 60
 # PASSTHROUGH_SESSION hold the cached session data from pass through auths.
 PASSTHROUGH_SESSION = {}
 
@@ -134,7 +134,7 @@ def _server(req, options, forceReconnect=False):
                 try:
                     server.user(userid=userid)
                 except Exception:
-                    logging.exception('network or session error while reusing bearer token user session, reconnect automatically')
+                    logging.exception('network or session (%s) error while reusing bearer token user %s session, reconnect automatically', id(server), userid)
                     forceReconnect = True
             if forceReconnect:
                 with threadLock:
@@ -164,7 +164,6 @@ def _server(req, options, forceReconnect=False):
                 SESSION_CREATE_COUNT.inc()
                 TOKEN_SESSION_ACTIVE.inc()
 
-        # Expire tokens after 15 mins TODO make configurable?
         # TODO(longsleep): Put into thread, and run asynchronosly.
         if TOKEN_SESSION_PURGE_TIME < now:
             with threadLock:
@@ -172,7 +171,7 @@ def _server(req, options, forceReconnect=False):
                 expiration = now + 60
                 for userid, (record, ts) in list(TOKEN_SESSION.items()):
                     if ts < expiration:
-                        logging.debug('purging token session for token user %s', userid)
+                        logging.debug('purging token session for token user %s (%s)', userid, id(record.server))
                         del TOKEN_SESSION[userid]
                         if options and options.with_metrics:
                             SESSION_EXPIRED_COUNT.inc()
@@ -201,7 +200,7 @@ def _server(req, options, forceReconnect=False):
                 try:
                     server.user(userid=userid)
                 except Exception:
-                    logging.exception('network or session error while reusing passthrough user session, reconnect automatically')
+                    logging.exception('network or session (%s) error while reusing passthrough user session user %s, reconnect automatically', id(server), userid)
                     forceReconnect = True
             if forceReconnect:
                 with threadLock:
