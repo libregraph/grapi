@@ -340,8 +340,9 @@ def _get_group_by_id(server, groupid, default=_marker):
     return default
 
 
-def _handle_exception(ex):
+def _handle_exception(ex, req):
     try:
         raise ex
     except MAPIErrorNoAccess:
+        logging.debug('access forbidden for user %s for request %s', req.context.userid, req.path, exc_info=True)
         raise falcon.HTTPForbidden('No access', None)

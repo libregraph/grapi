@@ -16,12 +16,12 @@ def experimental(f, *args, **kwargs):
 def resourceException(_func=None, *, handler=None):
     def decoratorResourceException(f):
         @functools.wraps(f)
-        def wrapperResourceException(resource, *args, **kwargs):
+        def wrapperResourceException(resource, req, resp, **params):
             try:
-                return f(resource, *args, **kwargs)
+                return f(resource, req, resp, **params)
             except Exception as e:
                 if handler is not None:
-                    handler(resource, e)
+                    handler(resource, e, req, resp, **params)
                 raise
         return wrapperResourceException
 

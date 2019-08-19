@@ -148,8 +148,8 @@ class Resource(object):
     def __init__(self, options):
         self.options = options
 
-    def exceptionHandler(self, ex):
-        _handle_exception(ex)
+    def exceptionHandler(self, ex, req, resp, **params):
+        _handle_exception(ex, req)
 
     def get_fields(self, req, obj, fields, all_fields):
         fields = fields or all_fields or self.fields

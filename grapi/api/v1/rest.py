@@ -59,9 +59,9 @@ class BackendResource(object):
         self.name = resource_name
         # self.resource is set by BackendMiddleware
 
-    def exceptionHandler(self, ex=None):
+    def exceptionHandler(self, ex, req, resp, **params):
         if self.resource and self.resource.exceptionHandler:
-            self.resource.exceptionHandler(ex)
+            self.resource.exceptionHandler(ex, req, resp, **params)
 
     @resourceException(handler=exceptionHandler)
     def on_get(self, *args, **kwargs):
