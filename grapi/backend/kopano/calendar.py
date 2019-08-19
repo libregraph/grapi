@@ -65,7 +65,9 @@ class CalendarResource(FolderResource):
         fields = self.load_json(req)
 
         item = self.create_message(folder, fields, EventResource.set_fields)
-        item.send()
+        if fields.get('attendees', None):
+            # NOTE(longsleep): Sending can fail with NO_ACCCESS if no permission to outbox.
+            item.send()
         self.respond(req, resp, item, EventResource.fields)
 
     def on_post(self, req, resp, userid=None, folderid=None, method=None):

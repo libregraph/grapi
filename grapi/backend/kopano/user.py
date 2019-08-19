@@ -246,9 +246,11 @@ class UserResource(Resource):
 
         try:
             item = self.create_message(store.calendar, fields, EventResource.set_fields)
-            item.send()
         except kopano.errors.ArgumentError as e:
             raise HTTPBadRequest("Invalid argument error '{}'".format(e))
+        if fields.get('attendees', None):
+            # NOTE(longsleep): Sending can fail with NO_ACCCESS if no permission to outbox.
+            item.send()
         self.respond(req, resp, item, EventResource.fields)
 
     @experimental
