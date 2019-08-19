@@ -44,9 +44,12 @@ TOKEN_SESSION = {}
 # TOKEN_SESSION_CACHE_TIME defines the time how long stale token cached session
 # data should stay in the cache before it is purged.
 TOKEN_SESSION_CACHE_TIME = 240  # TODO(longsleep): Add to configuration.
+# TOKEN_SESSION_PURGE_INTERVAL is the interval in seconds how often the sessions
+# should be checked if something needs to be purged.
+TOKEN_SESSION_PURGE_INTERVAL = 30
 # TOKEN_SESSION_PURGE_TIME is the time when the next token session data cache
 # purge should happen.
-TOKEN_SESSION_PURGE_TIME = time.monotonic() + 60
+TOKEN_SESSION_PURGE_TIME = time.monotonic() + TOKEN_SESSION_PURGE_INTERVAL
 # PASSTHROUGH_SESSION hold the cached session data from pass through auths.
 PASSTHROUGH_SESSION = {}
 
@@ -126,8 +129,10 @@ def _server(req, options, forceReconnect=False):
     if auth['method'] == 'bearer':
         token = auth['token']
         userid = req.context.userid = auth['userid']
+        cacheid = token  # NOTE(longsleep): We cache per user even if that means that from time to time, the connection
+        # breaks because the token has expired.
         with threadLock:
-            sessiondata = TOKEN_SESSION.get(userid)
+            sessiondata = TOKEN_SESSION.get(cacheid)
         if sessiondata:
             if not forceReconnect:
                 server = sessiondata[0].server
@@ -138,9 +143,9 @@ def _server(req, options, forceReconnect=False):
                     forceReconnect = True
             if forceReconnect:
                 with threadLock:
-                    oldSessiondata = TOKEN_SESSION.pop(userid)
+                    oldSessiondata = TOKEN_SESSION.pop(cacheid)
                     DANGLE_INDEX += 1
-                    TOKEN_SESSION['{}_dangle_{}'.format(userid, DANGLE_INDEX)] = oldSessiondata
+                    TOKEN_SESSION['{}_dangle_{}'.format(cacheid, DANGLE_INDEX)] = oldSessiondata
                 sessiondata = None
                 if options and options.with_metrics:
                     DANGLING_COUNT.inc()
@@ -155,8 +160,8 @@ def _server(req, options, forceReconnect=False):
                                    parse_args=False, oidc=True)
             sessiondata = [Record(server=server), now]
             with threadLock:
-                if userid:
-                    TOKEN_SESSION[userid] = sessiondata
+                if cacheid:
+                    TOKEN_SESSION[cacheid] = sessiondata
                 else:
                     DANGLE_INDEX += 1
                     TOKEN_SESSION['_dangle_{}'.format(DANGLE_INDEX)] = sessiondata
@@ -167,17 +172,15 @@ def _server(req, options, forceReconnect=False):
         # TODO(longsleep): Put into thread, and run asynchronosly.
         if TOKEN_SESSION_PURGE_TIME < now:
             with threadLock:
-                logging.debug('purging token sessions start')
-                expiration = now + 60
-                for userid, (record, ts) in list(TOKEN_SESSION.items()):
-                    if ts < expiration:
-                        logging.debug('purging token session for token user %s (%s)', userid, id(record.server))
-                        del TOKEN_SESSION[userid]
+                deadline = now - TOKEN_SESSION_CACHE_TIME
+                for cacheid, (record, ts) in list(TOKEN_SESSION.items()):
+                    if ts < deadline:
+                        logging.debug('purging cached token session for token (%s)', id(record.server))
+                        del TOKEN_SESSION[cacheid]
                         if options and options.with_metrics:
                             SESSION_EXPIRED_COUNT.inc()
                             TOKEN_SESSION_ACTIVE.dec()
-                TOKEN_SESSION_PURGE_TIME = now + TOKEN_SESSION_CACHE_TIME
-                logging.debug('purging token sessions end')
+            TOKEN_SESSION_PURGE_TIME = now + TOKEN_SESSION_PURGE_INTERVAL
 
         return server
 
@@ -281,7 +284,7 @@ def _server_store(req, userid, options, forceReconnect=False):
         except MAPIErrorUnconfigured:
             if forceReconnect:
                 raise
-            logging.exception('network or session error while getting store, forcing reconnect')
+            logging.exception('network or session (%s) error while getting store for user %s, forcing reconnect', id(server), userid)
             return _server_store(req, userid, options, forceReconnect=True)
 
         return server, store, userid
