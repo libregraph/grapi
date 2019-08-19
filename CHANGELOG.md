@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+- Include individual mapi version
+- Add additional parameters to resource error handler
+- Only trigger send for new calendar events when there are attendees
+- Add backend error handling hook
+- Raise 404 when there is no store
+- Cache connections by token
+- Use correct pytest executable
+- Improve session purging timeouts
+- Add log when subscription creates new server connections
+- Improve logging and not found handling
+- Remove session store/restore in favour of memory cache of connections
+- Catch more errors when trying to resume sessions
+- Improve kopano session caching and add logging and metrics
+- Ignore experimental backends in linting for now
+- Fixup more linter errors
+- Switch to flake8 for linting
+- Fixup more linter errors
+- Increase allowed line length
+- Use pylint3 by default
+- Fixup linter errors
+- Disable experimental API endpoints by default
+- Avoid returning bogus birthday for contacts without set birthday date
+- Fix JSON encoding of nextLink when streaming
+- Add missing handlers to avoid empty returns or other unexpected errors
+- Fixup JSON marshal error/exception logging
+- Make optional event setter fields actually optional
+- Add windows timezone name support
+- Ensure we have working photo support
+- Use Ubuntu 18.04 in Jenkins for testing
+- Fixup local time conversion
 
 
 ## v9.2.1 (2019-08-06)
