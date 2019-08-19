@@ -338,3 +338,10 @@ def _get_group_by_id(server, groupid, default=_marker):
     if default is _marker:
         raise falcon.HTTPNotFound(description='No such group: %s' % groupid)
     return default
+
+
+def _handle_exception(ex):
+    try:
+        raise ex
+    except MAPIErrorNoAccess:
+        raise falcon.HTTPForbidden('No access', None)

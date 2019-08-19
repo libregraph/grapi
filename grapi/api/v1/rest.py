@@ -3,6 +3,8 @@ import falcon
 
 from .config import PREFIX
 from .request import Request
+from .decorators import resourceException
+
 
 class BackendMiddleware(object):
     def __init__(self, name_backend, default_backend, options):
@@ -57,18 +59,27 @@ class BackendResource(object):
         self.name = resource_name
         # self.resource is set by BackendMiddleware
 
+    def exceptionHandler(self, ex=None):
+        if self.resource and self.resource.exceptionHandler:
+            self.resource.exceptionHandler(ex)
+
+    @resourceException(handler=exceptionHandler)
     def on_get(self, *args, **kwargs):
         return self.resource.on_get(*args, **kwargs)
 
+    @resourceException(handler=exceptionHandler)
     def on_post(self, *args, **kwargs):
         return self.resource.on_post(*args, **kwargs)
 
+    @resourceException(handler=exceptionHandler)
     def on_patch(self, *args, **kwargs):
         return self.resource.on_patch(*args, **kwargs)
 
+    @resourceException(handler=exceptionHandler)
     def on_put(self, *args, **kwargs):
         return self.resource.on_put(*args, **kwargs)
 
+    @resourceException(handler=exceptionHandler)
     def on_delete(self, *args, **kwargs):
         return self.resource.on_delete(*args, **kwargs)
 

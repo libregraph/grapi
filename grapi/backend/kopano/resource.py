@@ -22,6 +22,8 @@ from grapi.api.v1.timezone import to_timezone
 import dateutil.parser
 import falcon
 
+from .utils import _handle_exception
+
 UTC = pytz.utc
 LOCAL = tzlocal.get_localzone()
 
@@ -145,6 +147,9 @@ def _start_end(req):
 class Resource(object):
     def __init__(self, options):
         self.options = options
+
+    def exceptionHandler(self, ex):
+        _handle_exception(ex)
 
     def get_fields(self, req, obj, fields, all_fields):
         fields = fields or all_fields or self.fields
