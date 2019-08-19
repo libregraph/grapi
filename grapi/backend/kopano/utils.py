@@ -295,6 +295,9 @@ def _server_store(req, userid, options, forceReconnect=False):
 
 
 def _folder(store, folderid):
+    if store is None:
+        raise falcon.HTTPNotFound(description='No store')
+
     name = folderid.lower()
     if name == 'inbox':
         return store.inbox
