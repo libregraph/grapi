@@ -8,7 +8,7 @@ GRAPI is meant to be used directly by Kopano API (kapi) and requires Python 3.
 
 ## Running GRAPI
 
-GRAPI uses a master runnier to start its services in a way that they can be
+GRAPI uses a master runner to start its services in a way that they can be
 accessed in parallel using unix sockets. So to start GRAPI, one uses the MFR
 script (Master Fleet Runner).
 
