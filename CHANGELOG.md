@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+
+
+## v10.0.0 (2019-08-22)
+
+- Allow to enable experimental endpoints in config
+- Fix typos in README
 - Include individual mapi version
 - Add additional parameters to resource error handler
 - Only trigger send for new calendar events when there are attendees
