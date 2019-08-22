@@ -50,6 +50,10 @@ case "${1}" in
 			set -- "$@" --insecure
 		fi
 
+		if [ "$enable_experimental_endpoints" = "yes" ]; then
+			set -- "$@" --enable-experimental-endpoints
+		fi
+
 		set -- "$@" --socket-path="$socket_path" --workers="$num_workers" --pid-file="$pid_file" --process-name="${PROCESS_NAME}"
 
 		# Environment.
