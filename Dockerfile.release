@@ -15,7 +15,16 @@
 #
 
 FROM ubuntu:bionic
-LABEL maintainer="development@kopano.io"
+
+LABEL \
+    maintainer="development@kopano.io" \
+    org.label-schema.name="Kopano Grapi container" \
+    org.label-schema.description="Container for running the Kopano Rest API" \
+    org.label-schema.url="https://kopano.io" \
+    org.label-schema.vcs-ref=$VCS_REF \
+    org.label-schema.vcs-url="https://stash.kopano.io/projects/KC/repos/grapi/browse" \
+    org.label-schema.version=$KOPANO_VERSION \
+    org.label-schema.schema-version="1.0"
 
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -151,12 +160,3 @@ CMD [ \
 # Health check support is cool too.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s \
 	CMD healthcheck.sh || exit 1
-
-LABEL \
-    org.label-schema.name="Kopano Grapi container" \
-    org.label-schema.description="Container for running the Kopano Rest API" \
-    org.label-schema.url="https://kopano.io" \
-    org.label-schema.vcs-ref=$VCS_REF \
-    org.label-schema.vcs-url="https://stash.kopano.io/projects/KC/repos/grapi/browse" \
-    org.label-schema.version=$KOPANO_VERSION \
-    org.label-schema.schema-version="1.0"
