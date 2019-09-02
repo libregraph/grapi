@@ -60,7 +60,7 @@ class BackendResource(object):
         # self.resource is set by BackendMiddleware
 
     def exceptionHandler(self, ex, req, resp, **params):
-        if self.resource and self.resource.exceptionHandler:
+        if self.resource and hasattr(self.resource, 'exceptionHandler'):
             self.resource.exceptionHandler(ex, req, resp, **params)
 
     @resourceException(handler=exceptionHandler)
