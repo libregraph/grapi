@@ -6,7 +6,7 @@ import logging
 
 def experimental(f, *args, **kwargs):
     def _experimental(req, resp, resource, params):
-        if not resource.options.with_experimental:
+        if not resource.options is None and not resource.options.with_experimental:
             logging.debug('incoming request to disabled experimental endpoint: %s', req.path)
             raise falcon.HTTPNotFound()
 
