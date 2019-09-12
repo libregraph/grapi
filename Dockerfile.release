@@ -16,6 +16,11 @@
 
 FROM ubuntu:bionic
 
+ARG BUILD_DATE=unknown
+ARG KOPANO_VERSION=8.7.82.61
+ARG KOPANO_CHANNEL=community
+ARG VCS_REF=unknown
+
 LABEL \
     maintainer="development@kopano.io" \
     org.label-schema.name="Kopano Grapi container" \
@@ -80,11 +85,6 @@ RUN set -ex && \
 	done
 RUN gpg --verify /gosu.asc && chmod +x /gosu
 RUN /gosu nobody true
-
-ARG BUILD_DATE=unknown
-ARG KOPANO_VERSION=8.7.82.61
-ARG KOPANO_CHANNEL=community
-ARG VCS_REF=unknown
 
 # Kopano base dependencies.
 ENV KOPANO_VERSION=${KOPANO_VERSION}
