@@ -22,6 +22,13 @@ EMAIL1 = 'grapi@kopano.io'
 KOPANO_SSLKEY_FILE = os.getenv('KOPANO_SSLKEY_FILE', '')
 KOPANO_SSLKEY_PASS = os.getenv('KOPANO_SSLKEY_PASS', '')
 
+
+class Options:
+    with_experimental = True
+    auth_basic = True
+    with_metrics = False
+
+
 def create_auth_header(username, password):
     b64 = base64.b64encode('{}:{}'.format(username, password).encode())
     return {'Authorization': 'Basic {}'.format(b64.decode())}
@@ -30,7 +37,7 @@ def create_auth_header(username, password):
 # https://falcon.readthedocs.io/en/stable/api/testing.html
 @pytest.fixture(scope='module')
 def client():
-    return TestClient(RestAPI(backends=[BACKEND]))
+    return TestClient(RestAPI(options=Options(), backends=[BACKEND]))
 
 
 @pytest.fixture()
@@ -94,3 +101,13 @@ def json_contact():
 @pytest.fixture()
 def json_event():
     return json.load(open('{}/event'.format(DATA_DIR)))
+
+
+@pytest.fixture()
+def json_event_daily():
+    return json.load(open('{}/event_daily'.format(DATA_DIR)))
+
+
+@pytest.fixture()
+def calendar_entryid(user):
+    return user.calendar.entryid

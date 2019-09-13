@@ -11,7 +11,6 @@
         "address": {}
     },
     "showAs": "Busy",
-    "seriesMasterId": null,
     "end": {
         "timeZone": "UTC",
         "dateTime": "2018-06-06T11:30:00"

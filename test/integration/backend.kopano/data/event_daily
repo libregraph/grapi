@@ -1,0 +1,64 @@
+{
+    "importance": "normal",
+    "location": {
+        "displayName": "office",
+        "address": {}
+    },
+    "start": {
+        "dateTime": "2018-06-05T07:00:00",
+        "timeZone": "UTC"
+    },
+    "reminderMinutesBeforeStart": 15,
+    "isAllDay": false,
+    "recurrence": {
+        "range": {
+            "numberOfOccurrences": 40,
+            "recurrenceTimeZone": "Europe/Amsterdam",
+            "type": "numbered",
+            "endDate": "2018-07-14",
+            "startDate": "2018-06-05"
+        },
+        "pattern": {
+            "dayOfMonth": 0,
+            "index": "first",
+            "type": "daily",
+            "firstDayOfWeek": "sunday",
+            "month": 0,
+            "interval": 1
+        }
+    },
+    "hasAttachments": false,
+    "end": {
+        "dateTime": "2018-06-05T07:30:00",
+        "timeZone": "UTC"
+    },
+    "subject": "daily",
+    "organizer": {
+        "emailAddress": {
+            "name": "John Doe",
+            "address": "jdoe@domain.com"
+        }
+    },
+    "showAs": "Busy",
+    "responseRequested": false,
+    "attendees": [
+        {
+            "type": "required",
+            "status": {
+                "response": "none",
+                "time": "0001-01-01T00:00:00Z"
+            },
+            "emailAddress": {
+                "name": "Bob",
+                "address": "bob@domain.com"
+            }
+        }
+    ],
+    "isOrganizer": true,
+    "isReminderOn": true,
+    "type": "seriesMaster",
+    "body": {
+        "contentType": "text",
+        "content": "This is my body"
+    }
+}
