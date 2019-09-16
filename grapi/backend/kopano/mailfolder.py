@@ -106,6 +106,9 @@ class MailFolderResource(FolderResource):
         else:
             folder.parent.move(folder, to_folder)
 
+        new_folder = to_folder.folder(folder.name)
+        self.respond(req, resp, new_folder, MailFolderResource.fields)
+
     def on_post(self, req, resp, userid=None, folderid=None, method=None):
         handler = None
 
