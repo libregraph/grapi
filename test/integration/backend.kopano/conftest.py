@@ -58,7 +58,7 @@ def user():
     if KOPANO_SSLKEY_FILE:
         admin_server.user(USERNAME1).unhook()
     else:
-        [f.empty() for f in user.folders()]
+        [f.empty() for f in user.folders(recurse=False)]
 
 
 @pytest.fixture
