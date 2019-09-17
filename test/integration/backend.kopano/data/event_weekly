@@ -1,0 +1,37 @@
+{
+    "subject": "reucurring",
+    "start": {
+        "dateTime": "2019-09-17T00:00:00",
+        "timeZone": "Europe/Amsterdam"
+    },
+    "end": {
+        "dateTime": "2019-09-18T00:00:00",
+        "timeZone": "Europe/Amsterdam"
+    },
+    "isAllDay": true,
+    "body": {
+        "contentType": "text",
+        "content": ""
+    },
+    "onlineMeetingUrl": "",
+    "reminderMinutesBeforeStart": 5,
+    "isReminderOn": true,
+    "recurrence": {
+        "pattern": {
+            "type": "weekly",
+            "interval": 1,
+            "daysOfWeek": [
+                "tuesday"
+            ],
+            "dayOfMonth": 0,
+            "firstDayOfWeek": "Sunday"
+        },
+        "range": {
+            "type": "noEnd",
+            "startDate": "2019-09-17",
+            "endDate": "2038-01-01",
+            "recurrenceTimeZone": "Europe/Amsterdam",
+            "numberOfOccurrences": 0
+        }
+    }
+}
