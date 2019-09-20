@@ -19,6 +19,9 @@ from .item import (
 from .attachment import (
     AttachmentResource
 )
+from .schema import (
+        mr_schema
+)
 
 pattern_map = {
     'monthly': 'absoluteMonthly',
@@ -248,15 +251,18 @@ class EventResource(ItemResource):
         handler(req, resp, event=event)
 
     def handle_post_accept(self, req, resp, fields, item):
-        item.accept(comment=fields.get('comment'), respond=(fields.get('sendResponse') == 'true'))
+        self.validate_json(mr_schema, fields)
+        item.accept(comment=fields.get('comment'), respond=(fields.get('sendResponse', True)))
         resp.status = falcon.HTTP_202
 
     def handle_post_tentativelyAccept(self, req, resp, fields, item):
-        item.accept(comment=fields.get('comment'), tentative=True, respond=(fields.get('sendResponse') == 'true'))
+        self.validate_json(mr_schema, fields)
+        item.accept(comment=fields.get('comment'), tentative=True, respond=(fields.get('sendResponse', True)))
         resp.status = falcon.HTTP_202
 
     def handle_post_decline(self, req, resp, fields, item):
-        item.decline(comment=fields.get('comment'), respond=(fields.get('sendResponse') == 'true'))
+        self.validate_json(mr_schema, fields)
+        item.decline(comment=fields.get('comment'), respond=(fields.get('sendResponse', True)))
         resp.status = falcon.HTTP_202
 
     def handle_post_attachments(self, req, resp, fields, item):

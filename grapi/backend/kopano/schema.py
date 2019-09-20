@@ -27,4 +27,15 @@ _event_schema = {
     "required": ["subject", "start", "end"],
 }
 
+# meeting request accept/tentativelyAccept/decline
+_mr_schema = {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {
+        "comment": {"type": "string"},
+        "sendResponse": {"type": "boolean"},
+    },
+}
+
 event_schema = jsonschema.Draft4Validator(_event_schema)
+mr_schema = jsonschema.Draft4Validator(_mr_schema)
