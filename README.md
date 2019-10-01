@@ -2,9 +2,23 @@
 
 Kopano GRAPI provides a general REST web service for multiple groupware
 applications/standards. It aims to be largely compatible with Microsoft Graph.
-See `COMPAT.MD` for compatibility details.
+See [COMPAT.MD](https://stash.kopano.io/projects/KC/repos/grapi/browse/COMPAT.md) for compatibility details.
 
 GRAPI is meant to be used directly by Kopano API (kapi) and requires Python 3.
+The endpoints exposed by GRAPI can map multiple data provider backends into the
+same API using backend implementations. See the [Backends](#Backends) section below
+for details.
+
+## Technologies
+
+- Python
+- Multiprocessing
+- WSGI
+- MAPI
+- JSON
+- LDAP
+- CalDAV
+- IMAP
 
 ## Running GRAPI
 
