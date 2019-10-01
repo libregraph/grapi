@@ -1,18 +1,15 @@
 # Kopano GRAPI API compatibility with Microsoft Graph
 
-This document summarizes the Kopano GRAPI implementation differences and socpe
-in relation to Microsoft Graph.
+This document summarizes the Kopano GRAPI implementation differences and scope
+in relation to Microsoft Graph API. Thus the [upstream documentation](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/overview.md) applies to GRAPI. For a list of endpoints implemented by GRAPI
+see the [Resources](#Resources) section below.
 
-## Summary
+## What's noteworthy
 
 - Endpoints such as "/me/messages" or "/me/events" do not expose the entire
   store, but just the inbox or calendar, respectively.
-- We do not support relative paths, such as
-  "mailFolder/id/childFolder/id/childFolder/id/.."
-- Certain esoteric OData fields such as @odata.context are not yet correctly
-  exported.
-- Many fields are not exported, such as user or contact fields, or cannot be
-  changed at the moment.
+- Relative paths, such as "mailFolder/id/childFolder/id/childFolder/id/.." are
+  not supported.
 
 ## Query Parameters
 
@@ -28,6 +25,10 @@ Genereally the [Graph documentation](https://developer.microsoft.com/en-us/graph
 - We support the query parameter `$search` for `/users`.
 
 ## Resources
+
+This API supports groupware related endpoints. GRAPI follows a experimental/non-experimental
+approach. Experimental endpoints are disabled by default (enable with `--enable-experimental-endpoints`
+commandline switch).
 
 ### attachment Resource
 
