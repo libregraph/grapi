@@ -28,6 +28,14 @@ try:
 except ImportError:
     SETPROCTITLE = False
 
+PROFILE_DIR = os.getenv('PROFILE_DIR')
+if PROFILE_DIR:
+    if os.path.exists(PROFILE_DIR):
+        import cProfile
+    else:
+        print("PROFILE_DIR '{}' is invalid, not enabling profiling".format(PROFILE_DIR))
+        PROFILE_DIR = None
+
 import bjoern
 
 """
@@ -149,6 +157,24 @@ class FalconMetrics(object):
             REQUEST_TIME.labels(req.method, label).observe(t)
 
 
+class FalconProfiler(object):
+    def process_request(self, req, resp):
+        profile = cProfile.Profile()
+        profile.enable()
+        req.context['profile'] = profile
+
+    def process_resource(self, req, resp, resource, params):
+        req.context['profile_label'] = \
+            req.uri_template.replace('method', params.get('method', ''))
+
+    def process_response(self, req, resp, resource):
+        profile = req.context['profile']
+        profile.disable()
+        label = req.context['profile_label']
+        label = label.replace('/', '_')
+        profile.dump_stats('{}/{}.prof'.format(PROFILE_DIR, label))
+
+
 def collect_worker_metrics(workers):
     ticks = 100.0
     try:
@@ -186,10 +212,11 @@ def run_app(socket_path, n, options):
     signal.signal(signal.SIGINT, lambda *args: 0)
     if SETPROCTITLE:
         setproctitle.setproctitle('%s rest %d' % (options.process_name, n))
+    middleware = []
     if options.with_metrics:
-        middleware = [FalconMetrics()]
-    else:
-        middleware = None
+        middleware.append(FalconMetrics())
+    if PROFILE_DIR:
+        middleware.append(FalconProfiler())
     backends = options.backends.split(',')
     app = grapi.RestAPI(options=options, middleware=middleware, backends=backends)
     handler = partial(error_handler, with_metrics=options.with_metrics)
@@ -203,10 +230,11 @@ def run_notify(socket_path, options):
     signal.signal(signal.SIGINT, lambda *args: 0)
     if SETPROCTITLE:
         setproctitle.setproctitle('%s notify' % options.process_name)
+    middleware = []
     if options.with_metrics:
-        middleware = [FalconMetrics()]
-    else:
-        middleware = None
+        middleware.append(FalconMetrics())
+    if PROFILE_DIR:
+        middleware.append(FalconProfiler())
     backends = options.backends.split(',')
     app = grapi.NotifyAPI(options=options, middleware=middleware, backends=backends)
     handler = partial(error_handler, with_metrics=options.with_metrics)

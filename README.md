@@ -196,6 +196,20 @@ metrics are enabled using the appropriate flag `--with-metrics` is set. The env
 variable `prometheus_multiproc_dir` must be set to a directory that the client
 library can use for metrics.
 
+## Profiling
+
+Grapi can generate pstats profiles using Python's native cProfile module by
+setting an environment variable named 'PROFILE_DIR' to a writeable directory.
+It generates a cProfile file named after the route and overwrites it every time
+a request is done. The profile file can be converted to a QCachegrind file with
+pyprof2calltree. Viewing profiling data in for example Qcachegrind can be done
+by installing `pyprof2calltree` and running `pyprof2calltree -i
+_api_gc_v1_me_calendars_{folderid}_{calendarView}.prof -k`.
+
+```
+PROFILE_DIR=/path/to/profiledir/ make start-mfr
+```
+
 ## License
 
 See `LICENSE.txt` for licensing information of this project.
