@@ -10,7 +10,6 @@ import uuid
 
 from queue import Queue
 from threading import Thread, Event, Lock
-from collections import namedtuple
 
 from . import utils
 
@@ -63,9 +62,17 @@ RECORDS = {}
 # and the incremented value is appended to the key of the record in RECRODS
 # to allow it to be cleaned up later.
 RECORD_INDEX = 0
-# Record is a named tuple binding subscription and conection information
-# per user. Named tuple is used for easy painless access to its members.
-Record = namedtuple('Record', ['server', 'user', 'store', 'subscriptions'])
+
+
+# Record binds subscription and conection information per user for easy painless
+# access to its members.
+class Record:
+    def __init__(self, server, user, store, subscriptions):
+        self.server = server
+        self.user = user
+        self.store = store
+        self.subscriptions = subscriptions
+
 
 PATTERN_MESSAGES = (falcon.routing.compile_uri_template('/me/mailFolders/{folderid}/messages')[1], 'Message')
 PATTERN_CONTACTS = (falcon.routing.compile_uri_template('/me/contactFolders/{folderid}/contacts')[1], 'Contact')
@@ -81,7 +88,7 @@ if PROMETHEUS:
 
 def _server(auth_user, auth_pass, oidc=False, reconnect=False):
     server = kopano.Server(auth_user=auth_user, auth_pass=auth_pass,
-                           notifications=True, parse_args=False, oidc=oidc)
+                           notifications=True, parse_args=False, store_cache=False, oidc=oidc)
     logging.info('server connection established, server:%s, auth_user:%s', server, server.auth_user)
 
     return server
@@ -124,11 +131,25 @@ def _record(req, options):
             return record
         except Exception:  # server restart: try to reconnect TODO check kc_session_restore (incl. notifs!)
             logging.exception('network or session error while getting user from server, reconnect automatically')
+            oldRecord = None
+            oldSubscriptions = None
             with threadLock:
-                oldRecord = RECORDS.pop(auth_username)
-                RECORD_INDEX += 1
-                RECORDS['{}_dangle_{}'.format(auth_username, RECORD_INDEX)] = oldRecord
-            if options and options.with_metrics:
+                oldRecord = RECORDS.pop(auth_username, None)
+                if oldRecord:
+                    oldSubscriptions = oldRecord.subscriptions.copy()
+                    oldRecord.subscriptions.clear()
+                    RECORD_INDEX += 1
+                    RECORDS['{}_dangle_{}'.format(auth_username, RECORD_INDEX)] = oldRecord
+
+            if oldSubscriptions:
+                # Instantly kill of subscriptions.
+                for subscriptionid, (subscription, sink, userid) in oldSubscriptions.items():
+                    sink.unsubscribe()
+                    logging.debug('subscription cleaned up after connection error, id:%s', subscriptionid)
+                    if options and options.with_metrics:
+                        SUBSCR_ACTIVE.dec(1)
+                oldSubscriptions = None
+            if oldRecord and options and options.with_metrics:
                 DANGLING_COUNT.inc()
 
     logging.debug('creating subscription session for user %s', auth_username)
@@ -189,12 +210,12 @@ class Watcher(Thread):
         self.exit = Event()
 
     def run(self):
+        expired = {}
+        purge = []
         while not self.exit.wait(timeout=60):
             records = RECORDS
-            purge = []
             for auth_username, record in records.items():
                 subscriptions = record.subscriptions
-                expired = {}
                 now = datetime.datetime.now(tz=datetime.timezone.utc)
                 for subscriptionid, (subscription, sink, userid) in subscriptions.items():
                     expirationDateTime = dateutil.parser.parse(subscription['expirationDateTime'])
@@ -209,13 +230,13 @@ class Watcher(Thread):
                                 del subscriptions[subscriptionid]
                             except KeyError:
                                 continue
-                            sink.store.unsubscribe(sink)
+                            sink.unsubscribe()
                             logging.debug('subscription cleaned up, id:%s', subscriptionid)
                             if self.options and self.options.with_metrics:
                                 SUBSCR_EXPIRED.inc()
                                 SUBSCR_ACTIVE.dec(1)
                         except Exception:
-                            logging.exception('faild to clean up subscription, id:%s', subscriptionid)
+                            logging.exception('failed to clean up subscription, id:%s', subscriptionid)
                 if len(subscriptions) == 0:
                     logging.debug('cleaning up user without any subscriptions, auth_user:%s', auth_username)
                     purge.append((auth_username, record))
@@ -225,17 +246,31 @@ class Watcher(Thread):
                     currentRecord = records[auth_username]
                     if currentRecord is record:
                         del records[auth_username]
+                    # NOTE(longsleep): Clear record references to ensure that
+                    # the associated objects can be destroyed and the notification
+                    # thread is stopped.
+                    record.user = None
+                    record.store = None
+                    record.server = None
+
+            expired.clear()
+            del purge[:]
 
 
 class Sink:
-    def __init__(self, options, store, subscription):
-        self.options = options
+    def __init__(self, store, options, subscription):
         self.store = store
+        self.options = options
         self.subscription = subscription
         self.expired = False
 
     def update(self, notification):
-        QUEUE.put((self.store, notification, self.subscription))
+        if self.store is not None:
+            QUEUE.put((self.store, notification, self.subscription))
+
+    def unsubscribe(self):
+        self.store.unsubscribe(self)
+        self.store = None
 
 
 def _subscription_object(store, resource):
@@ -307,7 +342,7 @@ class SubscriptionResource:
         subscription['id'] = id_
         subscription['_datatype'] = data_type
 
-        sink = Sink(self.options, store, subscription)
+        sink = Sink(store, self.options, subscription)
         object_types = ['item']  # TODO folders not supported by graph atm?
         event_types = [x.strip() for x in subscription['changeType'].split(',')]
 

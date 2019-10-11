@@ -157,7 +157,7 @@ def _server(req, options, forceReconnect=False):
         if not sessiondata:
             logging.debug('creating session for bearer token user %s', userid)
             server = kopano.Server(auth_user=userid, auth_pass=token,
-                                   parse_args=False, oidc=True)
+                                   parse_args=False, store_cache=False, oidc=True)
             sessiondata = [Record(server=server), now]
             with threadLock:
                 if cacheid:
@@ -186,7 +186,7 @@ def _server(req, options, forceReconnect=False):
 
     elif auth['method'] == 'basic':
         logging.debug('creating session for basic auth user %s', auth['user'])
-        server = kopano.Server(auth_user=auth['user'], auth_pass=auth['password'], parse_args=False)
+        server = kopano.Server(auth_user=auth['user'], auth_pass=auth['password'], parse_args=False, store_cache=False)
         if options and options.with_metrics:
             SESSION_CREATE_COUNT.inc()
 
