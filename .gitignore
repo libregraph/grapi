@@ -9,3 +9,6 @@ test/coverage/
 
 # vim
 *.swp
+
+/mapping_db
+/mapping_db.lock

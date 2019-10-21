@@ -5,6 +5,7 @@ from contextlib import closing
 import fcntl
 import time
 import logging
+import os
 
 from threading import Lock
 from collections import namedtuple
@@ -25,6 +26,8 @@ import kopano
 
 from grapi.api.v1.resource import HTTPBadRequest
 from grapi.api.v1.decorators import experimental as experimentalDecorator
+
+PERSISTENCY_PATH = os.getenv('GRAPI_PERSISTENCY_PATH', '')
 
 experimental = experimentalDecorator
 
@@ -103,14 +106,14 @@ def _auth(req, options):
 
 
 def db_get(key):
-    with closing(bsddb.hashopen('mapping_db', 'c')) as db:
+    with closing(bsddb.hashopen(os.path.join(PERSISTENCY_PATH, 'mapping_db'), 'c')) as db:
         return codecs.decode(db.get(codecs.encode(key, 'ascii')), 'ascii')
 
 
 def db_put(key, value):
-    with open('mapping_db.lock', 'w') as lockfile:
+    with open(os.path.join(PERSISTENCY_PATH, 'mapping_db.lock'), 'w') as lockfile:
         fcntl.flock(lockfile.fileno(), fcntl.LOCK_EX)
-        with closing(bsddb.hashopen('mapping_db', 'c')) as db:
+        with closing(bsddb.hashopen(os.path.join(PERSISTENCY_PATH, 'mapping_db'), 'c')) as db:
             db[codecs.encode(key, 'ascii')] = codecs.encode(value, 'ascii')
 
 

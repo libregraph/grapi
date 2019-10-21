@@ -17,6 +17,7 @@ DEFAULT_SOCKET_PATH=/var/run/kopano-grapi
 DEFAULT_NUM_WORKERS=8
 DEFAULT_PID_FILE=${DEFAULT_SOCKET_PATH}/grapi.pid
 DEFAULT_STORAGE_SERVER_SOCKET=file:///var/run/kopano/server.sock
+DEFAULT_PERSISTENCY_PATH=
 
 # Handle parameters for configuration.
 
@@ -24,6 +25,25 @@ if [ -z "${1}" ]; then
 	set -- "$@" --help
 fi
 case "${1}" in
+	setup)
+		if [ -z "${2}" ]; then
+			>&2 echo "Usage: ${0} ${1} {uid}:{gid}"
+			exit 1
+		fi
+
+		if [ -n "$socket_path" -a ! -d "$socket_path" ]; then
+			mkdir -p "$socket_path" && chown ${2} "$socket_path"
+		fi
+
+		if [ -n "$persistency_path" -a ! -d "$persistency_path" ]; then
+			mkdir -p "$persistency_path" && chown ${2} "$persistency_path"
+		fi
+
+		# Setup subcommand does nothing.
+		exit 0
+
+		;;
+
 	serve)
 		# Inject values from environment into command line. This is mainly used
 		# when this script is run from systemd or docker.
@@ -54,16 +74,24 @@ case "${1}" in
 			set -- "$@" --enable-experimental-endpoints
 		fi
 
+		if [ -z "$persistency_path" ]; then
+			persistency_path="${DEFAULT_PERSISTENCY_PATH}"
+		fi
+
 		set -- "$@" --socket-path="$socket_path" --workers="$num_workers" --pid-file="$pid_file" --process-name="${PROCESS_NAME}"
 
 		# Environment.
 
 		export KOPANO_SOCKET="$server_socket"
+		if [ -n "$persistency_path" ]; then
+			export GRAPI_PERSISTENCY_PATH="$persistency_path"
+		fi
 
 		# Try to create stuff.
 
 		mkdir -p "$socket_path" || true
 		mkdir -p $(dirname "$pid_file") || true
+		mkdir -p "$persistency_path" || true
 
 		;;
 

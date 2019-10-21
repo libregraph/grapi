@@ -47,6 +47,7 @@ ENV KOPANO_GRAPI_GROUP=nogroup
 ENV KOPANO_GRAPI_SOCKET_PATH=/run/kopano-grapi
 ENV KOPANO_GRAPI_PID_FILE=/tmp/grapi.pid
 ENV KOPANO_GRAPI_KOPANO_SERVER_URI=file:///run/kopano/server.sock
+ENV KOPANO_GRAPI_PERSISTENCY_PATH=/var/lib/kopano-grapi
 ENV KOPANO_GRAPI_NUM_WORKERS=""
 ENV ARGS=""
 
@@ -127,6 +128,7 @@ setup_env() { \n\
 	export socket_path=${KOPANO_GRAPI_SOCKET_PATH} \n\
 	export pid_file=${KOPANO_GRAPI_PID_FILE} \n\
 	export server_socket=${KOPANO_GRAPI_KOPANO_SERVER_URI} \n\
+	export persistency_path=${KOPANO_GRAPI_PERSISTENCY_PATH} \n\
 	if [ -z "${KOPANO_GRAPI_NUM_WORKERS}" ]; then \n\
 		export num_workers=$(cat /proc/cpuinfo | grep processor | wc -l) \n\
 	else \n\
@@ -136,6 +138,9 @@ setup_env() { \n\
 		mkdir -p "${socket_path}" && chown ${KOPANO_GRAPI_USER}:${KOPANO_GRAPI_GROUP} "${socket_path}" \n\
 	fi \n\
 	mkdir -p $(dirname "$pid_file") \n\
+	if [ ! -d "${persistency_path}" ]; then \n\
+		mkdir -p "${persistency_path}" && chown ${KOPANO_GRAPI_USER}:${KOPANO_GRAPI_GROUP} "${persistency_path}" \n\
+	fi \n\
 	export prometheus_multiproc_dir=/tmp/prometheus && \n\
 		mkdir /tmp/prometheus && \n\
 		chown ${KOPANO_GRAPI_USER}:${KOPANO_GRAPI_GROUP} /tmp/prometheus \n\
