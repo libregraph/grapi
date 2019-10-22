@@ -278,7 +278,7 @@ def main():
     args = opt_args()
 
     if SETPROCTITLE:
-        setproctitle.setproctitle(args.process_name + ' master')
+        setproctitle.setproctitle(args.process_name + ' master %s' % ' '.join(sys.argv[1:]))
 
     create_pidfile(args.pid_file)
 
