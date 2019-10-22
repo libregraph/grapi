@@ -302,6 +302,9 @@ def main():
         worker.daemon = True
         worker.start()
 
+    if args.with_experimental:
+        logging.warn('experimental endpoints are enabled')
+
     if args.with_metrics:
         if PROMETHEUS:
             if not os.environ.get('prometheus_multiproc_dir'):
