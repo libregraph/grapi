@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- Log when mfr runs with experimental endpoints enabled
+- Keep mfr args in process list
+- Add persistency path via environment variable
+- Ensure kc subscriptions are properly destroyed when no longer needed
+- grapi: add profiling option to mfr
+- Improve COMPAT notes
+- Add list of used technologies
+- grapi: meeting request accept/tentative/decline fixes
+- test: kopano: extend event and calendar tests
+- test: kopano: event: test multiple endpoint with fixtures
+- test: kopano: add mailfolder tests
+- test: kopano: do not try to remove folders in the inbox
+- grapi: kopano: return new folder on copy/move
+- test: add calendar event tests
+- Add Docker integration tests
+- grapi: test if options are not None
+- test: Add integration for Kopano backend
+- move arg assignment to the top as well
+- move label definition to the top
+- Add version information through labels
+- Fix error handler detection
 
 
 ## v10.0.0 (2019-08-22)
