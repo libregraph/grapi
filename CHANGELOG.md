@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+
+
+## v10.1.0 (2019-10-31)
+
+- kopano: Add proper format for event location get and set
 - Log when mfr runs with experimental endpoints enabled
 - Keep mfr args in process list
 - Add persistency path via environment variable
