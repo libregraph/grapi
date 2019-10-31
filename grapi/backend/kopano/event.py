@@ -132,6 +132,21 @@ def attendees_json(item):
     return result
 
 
+def location_json(item):
+    if not item.location or item.location.strip() == '':
+        return None
+
+    return {
+        'displayName': item.location,
+        'locationType': 'default',
+    }
+
+
+def location_set(item, arg):
+    # TODO(longsleep): Support storing locationType.
+    setattr(item, 'location', arg.get('displayName', ''))
+
+
 def attendees_set(item, arg):
     for a in arg:
         email = a['emailAddress']
@@ -140,11 +155,11 @@ def attendees_set(item, arg):
 
 
 def responsestatus_json(item):
-    # Compatibility for 8.7.x
+    # 8.7.x does not have response_status attribute, so we must check.
     response_status = item.response_status if hasattr(item, 'response_status') else 'None'
     return {
         'response': response_status,
-        'time': '0001-01-01T00:00:00Z',
+        'time': '0001-01-01T00:00:00Z',  # FIXME(longsleep): Get real date.
     }
 
 
@@ -170,7 +185,7 @@ class EventResource(ItemResource):
         'recurrence': recurrence_json,
         'start': lambda req, item: _tzdate(item.start, item.tzinfo, req),
         'end': lambda req, item: _tzdate(item.end, item.tzinfo, req),
-        'location': lambda item: {'displayName': item.location, 'address': {}},  # TODO
+        'location': location_json,
         'importance': lambda item: item.urgency,
         'sensitivity': lambda item: sensitivity_map[item.sensitivity],
         'hasAttachments': lambda item: item.has_attachments,
@@ -194,7 +209,7 @@ class EventResource(ItemResource):
 
     set_fields = {
         'subject': lambda item, arg: setattr(item, 'subject', arg),
-        'location': lambda item, arg: setattr(item, 'location', arg['displayName']),  # TODO
+        'location': lambda item, arg: location_set(item, arg),
         'body': set_body,
         'start': lambda item, arg: set_date(item, 'start', arg),
         'end': lambda item, arg: set_date(item, 'end', arg),
