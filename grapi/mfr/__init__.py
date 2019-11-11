@@ -102,6 +102,7 @@ def opt_args():
     parser = argparse.ArgumentParser(prog=PROCESS_NAME, description='Kopano Grapi Master Fleet Runner')
     parser.add_argument("--socket-path", dest="socket_path",
                         help="parent directory for unix sockets (default: {})".format(SOCKET_PATH),
+                        type=is_path,
                         default=SOCKET_PATH)
     parser.add_argument("--pid-file", dest='pid_file', default=PID_FILE,
                         help="pid file location (default: {})".format(PID_FILE), metavar="PATH")
@@ -126,6 +127,14 @@ def opt_args():
     parser.add_argument("--enable-experimental-endpoints", dest='with_experimental', action='store_true', default=False, help="enable API endpoints which are considered experimental")
 
     return parser.parse_args()
+
+
+def is_path(path):
+    if not os.path.isdir(path):
+        raise argparse.ArgumentTypeError("is_path:{} is not a valid path".format(path))
+    if not os.access(path, os.W_OK):
+        raise argparse.ArgumentTypeError("is_path:{} is not a writeable path".format(path))
+    return path
 
 
 def error_handler(ex, req, resp, params, with_metrics):
