@@ -23,10 +23,10 @@ class UserResource(Resource):
     bindPW = None
 
     searchScope = ldap.SCOPE_SUBTREE
-    searchFilter = "(objectClass=inetOrgPerson)"
+    searchFilter = None
 
-    useridSearchFilterTemplate = "(uid=%(userid)s)"
-    searchSearchFilterTemplate = "(|(mail=*%(search)s*)(givenName=*%(search)s*)(sn=*%(search)s*))"
+    useridSearchFilterTemplate = None
+    searchSearchFilterTemplate = None
 
     retryMax = 3
     retryDelay = 1.0
@@ -50,6 +50,12 @@ class UserResource(Resource):
         self.baseDN = os.getenv("LDAP_BASEDN")
         self.bindDN = os.getenv("LDAP_BINDDN")
         self.bindPW = os.getenv("LDAP_BINDPW")
+        self.searchFilter = os.getenv("LDAP_FILTER", "(objectClass=inetOrgPerson)")
+        self.useridSearchFilterTemplate = os.getenv("LDAP_LOGIN_ATTRIBUTE_FILTER_TEMPLATE", "(uid=%(userid)s)")
+        self.searchSearchFilterTemplate = os.getenv("LDAP_SEARCH_FILTER_TEMPLATE", "(|(mail=*%(search)s*)(givenName=*%(search)s*)(sn=*%(search)s*))")
+
+        if not self.searchFilter or not self.useridSearchFilterTemplate or not self.searchSearchFilterTemplate:
+            raise RuntimeError("filters must not be empty - check environment")
 
         if not self.uri or not self.baseDN:
             raise RuntimeError("missing LDAP_URI or LDAP_BASEDN in environment")
