@@ -1,13 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import json
-import os
 
 import ldap
 from ldap.controls import SimplePagedResultsControl
 
 from grapi.backend.ldap import Resource
-from .utils import _get_ldap_attr_value
+from .utils import _get_from_env, _get_ldap_attr_value
 
 PAGESIZE = 1000
 ldap.set_option(ldap.OPT_REFERRALS, 0)
@@ -46,13 +45,13 @@ class UserResource(Resource):
     def __init__(self, options):
         Resource.__init__(self, options)
 
-        self.uri = os.getenv("LDAP_URI")
-        self.baseDN = os.getenv("LDAP_BASEDN")
-        self.bindDN = os.getenv("LDAP_BINDDN")
-        self.bindPW = os.getenv("LDAP_BINDPW")
-        self.searchFilter = os.getenv("LDAP_FILTER", "(objectClass=inetOrgPerson)")
-        self.useridSearchFilterTemplate = os.getenv("LDAP_LOGIN_ATTRIBUTE_FILTER_TEMPLATE", "(uid=%(userid)s)")
-        self.searchSearchFilterTemplate = os.getenv("LDAP_SEARCH_FILTER_TEMPLATE", "(|(mail=*%(search)s*)(givenName=*%(search)s*)(sn=*%(search)s*))")
+        self.uri = _get_from_env("LDAP_URI", None)
+        self.baseDN = _get_from_env("LDAP_BASEDN", None)
+        self.bindDN = _get_from_env("LDAP_BINDDN", None)
+        self.bindPW = _get_from_env("LDAP_BINDPW", "")
+        self.searchFilter = _get_from_env("LDAP_FILTER", "(objectClass=inetOrgPerson)")
+        self.useridSearchFilterTemplate = _get_from_env("LDAP_LOGIN_ATTRIBUTE_FILTER_TEMPLATE", "(uid=%(userid)s)")
+        self.searchSearchFilterTemplate = _get_from_env("LDAP_SEARCH_FILTER_TEMPLATE", "(|(mail=*%(search)s*)(givenName=*%(search)s*)(sn=*%(search)s*))")
 
         if not self.searchFilter or not self.useridSearchFilterTemplate or not self.searchSearchFilterTemplate:
             raise RuntimeError("filters must not be empty - check environment")
@@ -65,7 +64,7 @@ class UserResource(Resource):
         except ldap.LDAPError as e:
             print("unable to connect to LDAP server", e)
 
-        if self.bindDN is not None and self.bindPW is not None:
+        if self.bindDN is not None:
             try:
                 self.l.simple_bind_s(self.bindDN, self.bindPW)
             except ldap.INVALID_CREDENTIALS as e:
