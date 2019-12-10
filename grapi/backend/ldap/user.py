@@ -5,12 +5,17 @@ import json
 import ldap
 from ldap.controls import SimplePagedResultsControl
 
+from grapi.api.v1.resource import HTTPBadRequest
 from grapi.backend.ldap import Resource
+
 from .utils import _get_from_env, _get_ldap_attr_value
 
 PAGESIZE = 1000
 ldap.set_option(ldap.OPT_REFERRALS, 0)
 ldap.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
+
+USERID_SEARCH_FILTER_TEMPLATE = "({loginAttribute}=%(userid)s)"
+SEARCH_SEARCH_FILTER_TEMPLATE = "(|({emailAttribute}=*%(search)s*)({givenNameAttribute}=*%(search)s*)({familyNameAttribute}=*%(search)s*))"
 
 
 class UserResource(Resource):
@@ -22,25 +27,15 @@ class UserResource(Resource):
     bindPW = None
 
     searchScope = ldap.SCOPE_SUBTREE
-    searchFilter = None
+    searchFilter = "(objectClass=inetOrgPerson)"
 
+    attributeMapping = None
+    searchFields = []
     useridSearchFilterTemplate = None
     searchSearchFilterTemplate = None
 
     retryMax = 3
     retryDelay = 1.0
-
-    fields = {
-        'id': lambda user: user.userid,
-        'displayName': lambda user: user.fullname,
-        'jobTitle': lambda user: user.job_title,
-        'givenName': lambda user: user.first_name,
-        'mail': lambda user: user.email,
-        'mobilePhone': lambda user: user.mobile_phone,
-        'officeLocation': lambda user: user.office_location,
-        'surname': lambda user: user.last_name,
-        'userPrincipalName': lambda user: user.name,
-    }
 
     def __init__(self, options):
         Resource.__init__(self, options)
@@ -49,9 +44,45 @@ class UserResource(Resource):
         self.baseDN = _get_from_env("LDAP_BASEDN", None)
         self.bindDN = _get_from_env("LDAP_BINDDN", None)
         self.bindPW = _get_from_env("LDAP_BINDPW", "")
-        self.searchFilter = _get_from_env("LDAP_FILTER", "(objectClass=inetOrgPerson)")
-        self.useridSearchFilterTemplate = _get_from_env("LDAP_LOGIN_ATTRIBUTE_FILTER_TEMPLATE", "(uid=%(userid)s)")
-        self.searchSearchFilterTemplate = _get_from_env("LDAP_SEARCH_FILTER_TEMPLATE", "(|(mail=*%(search)s*)(givenName=*%(search)s*)(sn=*%(search)s*))")
+
+        self.attributeMapping = {
+            'loginAttribute': 'uid',
+            'emailAttribute': 'mail',
+            'nameAttribute': 'cn',
+            'familyNameAttribute': 'sn',
+            'givenNameAttribute': 'givenName',
+            'jobTitleAttribute': 'title',
+            'officeLocationAttribute': 'l',
+            'businessPhoneAttribute': 'telephoneNumber',
+            'mobilePhoneAttribute': 'mobile',
+        }
+        self.attributeMapping['loginAttribute'] = _get_from_env("LDAP_LOGIN_ATTRIBUTE", self.attributeMapping['loginAttribute'])
+        self.attributeMapping['emailAttribute'] = _get_from_env("LDAP_EMAIL_ATTRIBUTE", self.attributeMapping['emailAttribute'])
+        self.attributeMapping['nameAttribute'] = _get_from_env("LDAP_NAME_ATTRIBUTE", self.attributeMapping['nameAttribute'])
+        self.attributeMapping['familyNameAttribute'] = _get_from_env("LDAP_FAMILY_NAME_ATTRIBUTE", self.attributeMapping['familyNameAttribute'])
+        self.attributeMapping['givenNameAttribute'] = _get_from_env("LDAP_GIVEN_NAME_ATTRIBUTE", self.attributeMapping['givenNameAttribute'])
+        self.attributeMapping['jobTitleAttribute'] = _get_from_env("LDAP_JOB_TITLE_ATTRIBUTE", self.attributeMapping['jobTitleAttribute'])
+        self.attributeMapping['officeLocationAttribute'] = _get_from_env("LDAP_OFFICE_LOCATION_ATTRIBUTE", self.attributeMapping['officeLocationAttribute'])
+        self.attributeMapping['businessPhoneAttribute'] = _get_from_env("LDAP_BUSINESS_PHONE_ATTRIBUTE", self.attributeMapping['businessPhoneAttribute'])
+        self.attributeMapping['mobilePhoneAttribute'] = _get_from_env("LDAP_MOBILE_PHONE_ATTRIBUTE", self.attributeMapping['mobilePhoneAttribute'])
+
+        self.searchFields = [
+            'objectClass',
+        ].extend(self.attributeMapping.values())
+
+        searchScope = _get_from_env("LDAP_SCOPE", "sub")
+        if searchScope == "sub":
+            self.searchScope = ldap.SCOPE_SUBTREE
+        elif searchScope == "base":
+            self.searchSCope = ldap.SCOPE_BASE
+        elif searchScope == "onelevel":
+            self.searchScope = ldap.SCOPE_ONELEVEL
+        else:
+            raise RuntimeError("unknown LDAP_SCOPE in environment")
+
+        self.searchFilter = _get_from_env("LDAP_FILTER", self.searchFilter)
+        self.useridSearchFilterTemplate = _get_from_env("LDAP_LOGIN_ATTRIBUTE_FILTER_TEMPLATE", USERID_SEARCH_FILTER_TEMPLATE).format(**self.attributeMapping)
+        self.searchSearchFilterTemplate = _get_from_env("LDAP_SEARCH_FILTER_TEMPLATE", SEARCH_SEARCH_FILTER_TEMPLATE).format(**self.attributeMapping)
 
         if not self.searchFilter or not self.useridSearchFilterTemplate or not self.searchSearchFilterTemplate:
             raise RuntimeError("filters must not be empty - check environment")
@@ -71,6 +102,14 @@ class UserResource(Resource):
                 print("invalid LDAP credentials", e)
 
     def on_get(self, req, resp, userid=None, method=None):
+        if method:
+            raise HTTPBadRequest("Unsupported user segment '%s'" % method)
+
+        if not userid and req.path.split('/')[-1] != 'users':
+            userid = req.get_header('X-Kopano-Username', None)
+            if not userid:
+                raise HTTPBadRequest('No user')
+
         l = self.l
 
         value = []
@@ -100,7 +139,7 @@ class UserResource(Resource):
                 self.baseDN,
                 self.searchScope,
                 searchFilter,
-                ['objectClass', 'cn', 'mail', 'uid', 'givenName', 'sn', 'title'],
+                self.searchFields,
                 serverctrls=[lc]
             )
 
@@ -112,25 +151,30 @@ class UserResource(Resource):
                     continue
 
                 try:
-                    uid = _get_ldap_attr_value(attrs, 'uid')
+                    uid = _get_ldap_attr_value(attrs, self.attributeMapping['loginAttribute'])
                 except KeyError:
-                    # Ignore entries which have no uid.
+                    # Ignore entries which have no login attribute.
                     continue
-                cn = _get_ldap_attr_value(attrs, 'cn', '')
-                mail = _get_ldap_attr_value(attrs, 'mail', '')
-                givenName = _get_ldap_attr_value(attrs, 'givenName', '')
-                sn = _get_ldap_attr_value(attrs, 'sn', '')
-                title = _get_ldap_attr_value(attrs, 'title', '')
-                d = {x: '' for x in self.fields}
-                d.update({
+                cn = _get_ldap_attr_value(attrs, self.attributeMapping['nameAttribute'], '')
+                mail = _get_ldap_attr_value(attrs,  self.attributeMapping['emailAttribute'], '')
+                givenName = _get_ldap_attr_value(attrs, self.attributeMapping['givenNameAttribute'], '')
+                sn = _get_ldap_attr_value(attrs, self.attributeMapping['familyNameAttribute'], '')
+                jobTitle = _get_ldap_attr_value(attrs, self.attributeMapping['jobTitleAttribute'], '')
+                officeLocation = _get_ldap_attr_value(attrs, self.attributeMapping['officeLocationAttribute'], '')
+                businessPhone = _get_ldap_attr_value(attrs, self.attributeMapping['businessPhoneAttribute'], '')
+                mobilePhone = _get_ldap_attr_value(attrs, self.attributeMapping['mobilePhoneAttribute'], '')
+                d = {
                     'displayName': cn,
                     'mail': mail,
                     'id': uid,
                     'userPrincipalName': uid,
                     'surname': sn,
                     'givenName': givenName,
-                    'title': title,
-                })
+                    'jobTitle': jobTitle,
+                    'officeLocation': officeLocation,
+                    'businessPhone': businessPhone,
+                    'mobilePhone': mobilePhone,
+                }
                 value.append(d)
 
                 if end and count >= end:

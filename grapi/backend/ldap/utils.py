@@ -6,7 +6,7 @@ _marker = object()
 
 
 def _get_from_env(name, default=_marker):
-    value = os.getenv(name).strip()
+    value = os.getenv(name, "").strip()
     if value == "":
         # Not found or empty.
         if default is _marker:

@@ -3,7 +3,7 @@ import falcon
 
 from .config import PREFIX
 from .request import Request
-from .decorators import resourceException
+from .decorators import resourceException, requireResourceHandler
 
 
 class BackendMiddleware(object):
@@ -34,16 +34,16 @@ class BackendMiddleware(object):
                 'messages',
                 'mailFolders'
             ):
-                backend = self.default_backend['mail']
+                backend = self.default_backend.get('mail')
             elif method in (
                 'contacts',
                 'contactFolders',
                 'memberOf',
                 'photos'
             ):
-                backend = self.default_backend['directory']
+                backend = self.default_backend.get('directory')
             else:
-                backend = self.default_backend['calendar']
+                backend = self.default_backend.get('calendar')
 
         # fall back to default backend for type
         if not backend:
@@ -64,22 +64,27 @@ class BackendResource(object):
             self.resource.exceptionHandler(ex, req, resp, **params)
 
     @resourceException(handler=exceptionHandler)
+    @requireResourceHandler
     def on_get(self, *args, **kwargs):
         return self.resource.on_get(*args, **kwargs)
 
     @resourceException(handler=exceptionHandler)
+    @requireResourceHandler
     def on_post(self, *args, **kwargs):
         return self.resource.on_post(*args, **kwargs)
 
     @resourceException(handler=exceptionHandler)
+    @requireResourceHandler
     def on_patch(self, *args, **kwargs):
         return self.resource.on_patch(*args, **kwargs)
 
     @resourceException(handler=exceptionHandler)
+    @requireResourceHandler
     def on_put(self, *args, **kwargs):
         return self.resource.on_put(*args, **kwargs)
 
     @resourceException(handler=exceptionHandler)
+    @requireResourceHandler
     def on_delete(self, *args, **kwargs):
         return self.resource.on_delete(*args, **kwargs)
 

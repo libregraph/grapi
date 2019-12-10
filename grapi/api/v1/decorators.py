@@ -6,7 +6,7 @@ import logging
 
 def experimental(f, *args, **kwargs):
     def _experimental(req, resp, resource, params):
-        if not resource.options is None and not resource.options.with_experimental:
+        if resource.options is not None and not resource.options.with_experimental:
             logging.debug('incoming request to disabled experimental endpoint: %s', req.path)
             raise falcon.HTTPNotFound()
 
@@ -29,3 +29,12 @@ def resourceException(_func=None, *, handler=None):
         return decoratorResourceException
     else:
         return decoratorResourceException(_func)
+
+
+def requireResourceHandler(f):
+    @functools.wraps(f)
+    def wrapperRequireResourceHandler(resource, req, resp, **params):
+        if not hasattr(resource.resource, f.__name__):
+            raise falcon.HTTPNotFound()
+        return f(resource, req, resp, **params)
+    return wrapperRequireResourceHandler
