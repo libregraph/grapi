@@ -66,13 +66,19 @@ RUNNING = True
 def sigchld(*args):
     global RUNNING
     if RUNNING:
-        logging.info('child was terminated, initiate shutdown')
+        try:
+            logging.info('child was terminated, initiate shutdown')
+        except Exception:
+            pass
         RUNNING = False
 
 
 def sigterm(*args):
     global RUNNING
-    logging.info('process received shutdown signal')
+    try:
+        logging.info('process received shutdown signal')
+    except Exception:
+        pass
     RUNNING = False
 
 
@@ -235,10 +241,10 @@ def run_app(socket_path, n, options):
     bjoern.run(app, unix_socket)
 
 
-def run_notify(socket_path, options):
+def run_notify(socket_path, n, options):
     signal.signal(signal.SIGINT, lambda *args: 0)
     if SETPROCTITLE:
-        setproctitle.setproctitle('%s notify' % options.process_name)
+        setproctitle.setproctitle('%s notify %d' % (options.process_name, n))
     middleware = []
     if options.with_metrics:
         middleware.append(FalconMetrics())
@@ -248,7 +254,7 @@ def run_notify(socket_path, options):
     app = grapi.NotifyAPI(options=options, middleware=middleware, backends=backends)
     handler = partial(error_handler, with_metrics=options.with_metrics)
     app.add_error_handler(Exception, handler)
-    unix_socket = 'unix:' + os.path.join(socket_path, 'notify.sock')
+    unix_socket = 'unix:' + os.path.join(socket_path, 'notify%d.sock' % n)
     logging.info('starting notify worker: %s', unix_socket)
     bjoern.run(app, unix_socket)
 
@@ -301,11 +307,10 @@ def main():
 
     workers = []
     for n in range(args.workers):
-        process = multiprocessing.Process(target=run_app, name='rest{}'.format(n), args=(args.socket_path, n, args))
-        workers.append(process)
-
-    notify_process = multiprocessing.Process(target=run_notify, name='notify', args=(args.socket_path, args))
-    workers.append(notify_process)
+        rest = multiprocessing.Process(target=run_app, name='rest{}'.format(n), args=(args.socket_path, n, args))
+        workers.append(rest)
+        notify = multiprocessing.Process(target=run_notify, name='notify{}'.format(n), args=(args.socket_path, n, args))
+        workers.append(notify)
 
     for worker in workers:
         worker.daemon = True
@@ -353,7 +358,8 @@ def main():
     sockets = []
     for n in range(args.workers):
         sockets.append('rest%d.sock' % n)
-    sockets.append('notify.sock')
+    for n in range(args.workers):
+        sockets.append('notify%d.sock' % n)
     for socket in sockets:
         try:
             unix_socket = os.path.join(args.socket_path, socket)
