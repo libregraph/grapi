@@ -1,14 +1,16 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import codecs
+import collections
 import falcon
 import kopano
 import datetime
 import dateutil.parser
 import requests
+import time
 import logging
 import uuid
 
-from queue import Queue
+from queue import Queue, Empty
 from threading import Thread, Event, Lock
 
 from . import utils
@@ -25,7 +27,7 @@ except ImportError:  # pragma: no cover
     def set_thread_name(name): pass
 
 try:
-    from prometheus_client import Counter, Gauge
+    from prometheus_client import Counter, Gauge, Histogram
     PROMETHEUS = True
 except ImportError:  # pragma: no cover
     PROMETHEUS = False
@@ -81,9 +83,13 @@ PATTERN_EVENTS = (falcon.routing.compile_uri_template('/me/calendars/{folderid}/
 if PROMETHEUS:
     SUBSCR_COUNT = Counter('kopano_mfr_kopano_total_subscriptions', 'Total number of subscriptions')
     SUBSCR_EXPIRED = Counter('kopano_mfr_kopano_total_expired_subscriptions', 'Total number of subscriptions which expired')
-    SUBSCR_ACTIVE = Gauge('kopano_mfr_kopano_active_subscriptions', 'Number of active subscriptions', multiprocess_mode='livesum')
+    SUBSCR_ACTIVE = Gauge('kopano_mfr_kopano_active_subscriptions', 'Number of active subscriptions', multiprocess_mode='liveall')
+    PROCESSOR_BATCH_HIST = Histogram('kopano_mfr_kopano_webhook_batch_size', 'Number of webhook posts processed in one batch')
     POST_COUNT = Counter('kopano_mfr_kopano_total_webhook_posts', 'Total number of webhook posts')
+    POST_ERRORS = Counter('kopano_mfr_kopano_total_webhook_post_errors', 'Total number of webhook post errors')
+    POST_HIST = Histogram('kopano_mfr_kopano_webhook_post_duration_seconds', 'Duration of webhook post requests in seconds')
     DANGLING_COUNT = Counter('kopano_mfr_kopano_total_broken_subscription_conns', 'Total number of broken subscription connections')
+    QUEUE_SIZE_GAUGE = Gauge('kopano_mfr_kopano_subscription_queue_size', 'Current size of subscriptions processor queue', multiprocess_mode='liveall')
 
 
 def _server(auth_user, auth_pass, oidc=False, reconnect=False):
@@ -164,6 +170,26 @@ def _record(req, options):
         return RECORDS.get(auth_username)
 
 
+NotificationRecord = collections.namedtuple('NotificationRecord', [
+    'subscriptionId',
+    'clientState',
+    'changeType',
+    'resource',
+    'dataType',
+    'url',
+    'id',
+])
+
+
+class LastUpdatedOrderedDict(collections.OrderedDict):
+    '''Store items in the order the keys were last added.'''
+
+    def __setitem__(self, key, value):
+        if key in self:
+            del self[key]
+        collections.OrderedDict.__setitem__(self, key, value)
+
+
 class Processor(Thread):
     def __init__(self, options):
         Thread.__init__(self, name='processor')
@@ -171,34 +197,83 @@ class Processor(Thread):
         self.options = options
         self.daemon = True
 
-    def _notification(self, subscription, event_type, obj):
+    def _record(self, subscription, notification):
+        return NotificationRecord(
+            subscriptionId=subscription['id'],
+            clientState=subscription['clientState'],
+            changeType=notification.event_type,
+            resource=subscription['resource'],
+            dataType=subscription['_datatype'],
+            url=subscription['notificationUrl'],
+            id=notification.object.eventid if subscription['_datatype'] == 'Event' else notification.object.entryid,
+        )
+
+    def _notification(self, record):
         return {
-            'subscriptionId': subscription['id'],
-            'clientState': subscription['clientState'],
-            'changeType': event_type,
-            'resource': subscription['resource'],
+            'subscriptionId': record.subscriptionId,
+            'clientState': record.clientState,
+            'changeType': record.changeType,
+            'resource': record.resource,
             'resourceData': {
-                '@data.type': '#Microsoft.Graph.%s' % subscription['_datatype'],
-                'id': obj.eventid if subscription['_datatype'] == 'Event' else obj.entryid,
-            }
+                '@data.type': '#Microsoft.Graph.%s' % record.dataType,
+                'id': record.id,
+            },
         }
 
     def run(self):
+        # Store all pending records in their order.
+        pending = LastUpdatedOrderedDict()
+        # Ts is used to keep track of the last action, allowing debounce.
+        ts = 0
+        debounceDelay = 1
         while True:
-            store, notification, subscription = QUEUE.get()
-
-            data = self._notification(subscription, notification.event_type, notification.object)
+            waitingItems = len(pending)
+            try:
+                # Get queue entries, either blocking or with timeout. A timeout is used when records
+                # are already pending.
+                store, notification, subscription = QUEUE.get(block=True, timeout=debounceDelay if waitingItems else None)
+                record = self._record(subscription, notification)
+                # Add record to pending sorted dict. This also changes the position of existing records to the end.
+                pending[record] = True
+                now = time.monotonic()
+                if not waitingItems:
+                    # Nothing was waiting before, reset ts and wait.
+                    ts = now
+                    continue
+                if now - ts < debounceDelay:
+                    # Delay is not reached, wait longer.
+                    continue
+                # If we get here, all pending records will be processed.
+            except Empty:
+                if not waitingItems:
+                    continue
+                # If we get here, it means items are pending and no more have been coming, pending records will be processed.
 
             verify = not self.options or not self.options.insecure
-            try:
-                if self.options and self.options.with_metrics:
-                    POST_COUNT.inc()
-                logging.debug('subscription notification, id:%s, url:%s', subscription['id'], subscription['notificationUrl'])
-                # TODO(longsleep): This must be asynchronous or a queue per notificationUrl.
-                requests.post(subscription['notificationUrl'], json=data, timeout=10, verify=verify)
-                # TODO(longsleep): Retry respons errors.
-            except Exception:
-                logging.exception('subscription notification failed, id:%s, url:%s', subscription['id'], subscription['notificationUrl'])
+            with_metrics = self.options and self.options.with_metrics
+
+            if with_metrics:
+                PROCESSOR_BATCH_HIST.observe(len(pending))
+
+            # Process pending records in their order.
+            for record in pending:
+                try:
+                    if with_metrics:
+                        POST_COUNT.inc()
+                    logging.debug('subscription notification, id:%s, url:%s', record.subscriptionId, record.url)
+                    # TODO(longsleep): This must be asynchronous or a queue per notificationUrl.
+                    # TODO(longsleep): Make timeout configuration.
+                    with POST_HIST.time():
+                        requests.post(record.url, json=self._notification(record), timeout=10, verify=verify)
+                except Exception:
+                    # TODO(longsleep): Retry response errors.
+                    if with_metrics:
+                        POST_ERRORS.inc()
+                    logging.exception('subscription notification failed, id:%s, url:%s', record.subscriptionId, record.url)
+
+            # All done, clear for next round.
+            pending.clear()
+            ts = time.monotonic()
 
 
 class Watcher(Thread):
@@ -306,6 +381,8 @@ class SubscriptionResource:
             QUEUE
         except NameError:
             QUEUE = Queue()
+            if self.options and self.options.with_metrics:
+                QUEUE_SIZE_GAUGE.set_function(QUEUE.qsize)
             Processor(self.options).start()
             Watcher(self.options).start()
 
