@@ -17,3 +17,10 @@ from .subscription import SubscriptionResource  # noqa: F401
 kopano.set_bin_encoding('base64')
 kopano.set_missing_none()
 # TODO set_timezone_aware?
+
+
+def initialize(options):
+    '''Backend initialize function, should be called only once.'''
+    from .utils import SessionPurger
+
+    SessionPurger(options).start()

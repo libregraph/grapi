@@ -19,12 +19,6 @@ try:
     import ujson as json
 except ImportError:  # pragma: no cover
     import json
-try:
-    import prctl
-
-    def set_thread_name(name): prctl.set_name(name)
-except ImportError:  # pragma: no cover
-    def set_thread_name(name): pass
 
 try:
     from prometheus_client import Counter, Gauge, Histogram
@@ -190,10 +184,10 @@ class LastUpdatedOrderedDict(collections.OrderedDict):
         collections.OrderedDict.__setitem__(self, key, value)
 
 
-class Processor(Thread):
+class SubscriptionProcessor(Thread):
     def __init__(self, options):
-        Thread.__init__(self, name='processor')
-        set_thread_name(self.name)
+        Thread.__init__(self, name='kopano_subscription_processor')
+        utils.set_thread_name(self.name)
         self.options = options
         self.daemon = True
 
@@ -276,10 +270,10 @@ class Processor(Thread):
             ts = time.monotonic()
 
 
-class Watcher(Thread):
+class SubscriptionPurger(Thread):
     def __init__(self, options):
-        Thread.__init__(self, name='watcher')
-        set_thread_name(self.name)
+        Thread.__init__(self, name='kopano_subscription_purger')
+        utils.set_thread_name(self.name)
         self.options = options
         self.daemon = True
         self.exit = Event()
@@ -332,7 +326,7 @@ class Watcher(Thread):
             del purge[:]
 
 
-class Sink:
+class SubscriptionSink:
     def __init__(self, store, options, subscription):
         self.store = store
         self.options = options
@@ -383,8 +377,8 @@ class SubscriptionResource:
             QUEUE = Queue()
             if self.options and self.options.with_metrics:
                 QUEUE_SIZE_GAUGE.set_function(QUEUE.qsize)
-            Processor(self.options).start()
-            Watcher(self.options).start()
+            SubscriptionProcessor(self.options).start()
+            SubscriptionPurger(self.options).start()
 
     def on_post(self, req, resp):
         record = _record(req, self.options)
@@ -419,7 +413,7 @@ class SubscriptionResource:
         subscription['id'] = id_
         subscription['_datatype'] = data_type
 
-        sink = Sink(store, self.options, subscription)
+        sink = SubscriptionSink(store, self.options, subscription)
         object_types = ['item']  # TODO folders not supported by graph atm?
         event_types = [x.strip() for x in subscription['changeType'].split(',')]
 

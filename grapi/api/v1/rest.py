@@ -1,12 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-import falcon
-
+from .api import API, APIResource
 from .config import PREFIX
 from .request import Request
-from .decorators import resourceException, requireResourceHandler
 
 
-class BackendMiddleware(object):
+class BackendMiddleware:
     def __init__(self, name_backend, default_backend, options):
         self.name_backend = name_backend
         self.default_backend = default_backend
@@ -53,50 +51,23 @@ class BackendMiddleware(object):
         resource.resource = getattr(backend, resource.name)(self.options)
 
 
-class BackendResource(object):
+class BackendResource(APIResource):
     def __init__(self, default_backend, resource_name):
+        # self.resource is set by BackendMiddleware
+        super().__init__(resource=None)
+
         self.default_backend = default_backend
         self.name = resource_name
-        # self.resource is set by BackendMiddleware
-
-    def exceptionHandler(self, ex, req, resp, **params):
-        if self.resource and hasattr(self.resource, 'exceptionHandler'):
-            self.resource.exceptionHandler(ex, req, resp, **params)
-
-    @resourceException(handler=exceptionHandler)
-    @requireResourceHandler
-    def on_get(self, *args, **kwargs):
-        return self.resource.on_get(*args, **kwargs)
-
-    @resourceException(handler=exceptionHandler)
-    @requireResourceHandler
-    def on_post(self, *args, **kwargs):
-        return self.resource.on_post(*args, **kwargs)
-
-    @resourceException(handler=exceptionHandler)
-    @requireResourceHandler
-    def on_patch(self, *args, **kwargs):
-        return self.resource.on_patch(*args, **kwargs)
-
-    @resourceException(handler=exceptionHandler)
-    @requireResourceHandler
-    def on_put(self, *args, **kwargs):
-        return self.resource.on_put(*args, **kwargs)
-
-    @resourceException(handler=exceptionHandler)
-    @requireResourceHandler
-    def on_delete(self, *args, **kwargs):
-        return self.resource.on_delete(*args, **kwargs)
 
 
-class RestAPI(falcon.API):
+class RestAPI(API):
     def __init__(self, options=None, middleware=None, backends=None):
         if backends is None:
             backends = ['kopano']
 
         name_backend = {}
         for name in backends:
-            backend = self.import_backend(name)
+            backend = self.import_backend(name, options)
             name_backend[name] = backend
 
         # TODO(jelle): make backends define their types by introducting a constant in grapi.api
@@ -124,9 +95,6 @@ class RestAPI(falcon.API):
         self.add_route(path, resource)
         if method:  # TODO make optional in a better way?
             self.add_route(path+'/{method}', resource)
-
-    def import_backend(self, name):
-        return __import__('grapi.backend.'+name, globals=globals(), fromlist=[''])
 
     def add_routes(self, default_backend, options):
         directory = default_backend.get('directory')

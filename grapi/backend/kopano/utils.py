@@ -7,7 +7,7 @@ import time
 import logging
 import os
 
-from threading import Lock
+from threading import Thread, Event, Lock
 from collections import namedtuple
 
 import falcon
@@ -70,6 +70,14 @@ if PROMETHEUS:
     TOKEN_SESSION_ACTIVE = Gauge('kopano_mfr_kopano_active_token_sessions', 'Number of token sessions in sessions cache')
     PASSTHROUGH_SESSIONS_ACTIVE = Gauge('kopano_mfr_kopano_active_passthrough_sessions', 'Number of pass through sessions in sessions cache')
     DANGLING_COUNT = Counter('kopano_mfr_kopano_total_broken_sessions', 'Total number of broken sessions')
+
+
+try:
+    import prctl
+
+    def set_thread_name(name): prctl.set_name(name)
+except ImportError:  # pragma: no cover
+    def set_thread_name(name): pass
 
 
 def _auth(req, options):
@@ -172,19 +180,6 @@ def _server(req, options, forceReconnect=False):
                 SESSION_CREATE_COUNT.inc()
                 TOKEN_SESSION_ACTIVE.inc()
 
-        # TODO(longsleep): Put into thread, and run asynchronosly.
-        if TOKEN_SESSION_PURGE_TIME < now:
-            with threadLock:
-                deadline = now - TOKEN_SESSION_CACHE_TIME
-                for cacheid, (record, ts) in list(TOKEN_SESSION.items()):
-                    if ts < deadline:
-                        logging.debug('purging cached token session for token (%s)', id(record.server))
-                        del TOKEN_SESSION[cacheid]
-                        if options and options.with_metrics:
-                            SESSION_EXPIRED_COUNT.inc()
-                            TOKEN_SESSION_ACTIVE.dec()
-            TOKEN_SESSION_PURGE_TIME = now + TOKEN_SESSION_PURGE_INTERVAL
-
         return server
 
     elif auth['method'] == 'basic':
@@ -234,6 +229,38 @@ def _server(req, options, forceReconnect=False):
                 PASSTHROUGH_SESSIONS_ACTIVE.inc()
 
         return server
+
+
+class SessionPurger(Thread):
+    def __init__(self, options):
+        Thread.__init__(self, name='kopano_session_purger')
+        set_thread_name(self.name)
+        self.options = options
+        self.daemon = True
+        self.exit = Event()
+
+    def run(self):
+        quick = False
+        timeout = 60
+        while not self.exit.wait(timeout=timeout):
+            with threadLock:
+                now = time.monotonic()
+                deadline = now - TOKEN_SESSION_CACHE_TIME
+                count = 0
+                quick = False
+                for cacheid, (record, ts) in list(TOKEN_SESSION.items()):
+                    if ts < deadline:
+                        count += 1
+                        logging.debug('purging cached token session for token (%s)', id(record.server))
+                        del TOKEN_SESSION[cacheid]
+                        if self.options and self.options.with_metrics:
+                            SESSION_EXPIRED_COUNT.inc()
+                            TOKEN_SESSION_ACTIVE.dec()
+                        if count > 100:
+                            # If lots of stuff got purged, stop here and and come back quickly.
+                            quick = True
+                            break
+            timeout = 5 if quick else 60
 
 
 # TODO remove
