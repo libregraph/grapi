@@ -41,8 +41,8 @@ pipeline {
 						sh 'apt-get install -y python3-kopano'
 
 						// Filter out already installed dependencies
-						sh 'grep -Ev "kopano|MAPI"  requirements.txt > jenkins_requirements.txt'
-						sh 'pip3 install -r jenkins_requirements.txt'
+						sh 'grep -Ev "kopano|MAPI"  requirements.txt > /tmp/jenkins_requirements.txt'
+						sh 'pip3 install -r /tmp/jenkins_requirements.txt'
 					}
 				}
 				stage('Lint') {
@@ -66,7 +66,7 @@ pipeline {
 				stage('Run test') {
 					steps {
 						echo 'Integration testing..'
-						sh 'make -C test test-backend-kopano-ci-run || true'
+						sh 'make -C test test-backend-kopano-ci-run EXTRA_LOCAL_ADMIN_USER=$(id -u) DOCKERCOMPOSE_UP_ARGS=--build DOCKERCOMPOSE_RUN_ARGS="-u $(id -u) -e HOME=/tmp" || true'
 						sh 'chown -R $(id -u) test/coverage || true'
 						junit 'test/coverage/integration/backend.kopano/integration.xml'
 						publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'test/coverage/integration/backend.kopano', reportFiles: 'index.html', reportName: 'Kopano Backend Coverage Report', reportTitles: ''])

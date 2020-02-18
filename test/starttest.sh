@@ -9,9 +9,8 @@ PYTEST=${PYTEST:-py.test-3}
 
 if [ "$CI" -eq "1" ]; then
 	# Install dependencies, when in CI mode.
-	grep -Ev "kopano|MAPI" requirements.txt > jenkins_requirements.txt
-	$PYTHON -m pip install -r jenkins_requirements.txt
-	rm -f jenkins_requirements.txt
+	grep -Ev "kopano|MAPI" requirements.txt > /tmp/jenkins_requirements.txt
+	$PYTHON -m pip install -r /tmp/jenkins_requirements.txt
 fi
 
 count=0
