@@ -29,8 +29,10 @@ pipeline {
 							libldap2-dev \
 							libpcap-dev \
 							libsasl2-dev \
+							python3-dev \
 							python3-pip \
 							python3-pytest \
+							python3-pytest-cov \
 							flake8 \
 							'
 						sh 'echo "deb [trusted=yes] ${REPO_URL} ./" > /etc/apt/sources.list.d/kopano.list'
@@ -45,7 +47,7 @@ pipeline {
 				stage('Lint') {
 					steps {
 						echo 'Linting..'
-						sh 'make lint > pylint.log || exit 0'
+						sh 'make lint > pylint.log || true'
 						recordIssues tool: pyLint(pattern: 'pylint.log'), qualityGates: [[threshold: 40, type: 'TOTAL', unstable: true]]
 					}
 				}
@@ -63,7 +65,8 @@ pipeline {
 				stage('Run test') {
 					steps {
 						echo 'Integration testing..'
-						sh 'make test-backend-kopano-ci-run'
+						sh 'make -C test test-backend-kopano-ci-run'
+						sh 'chown -R jenkins test/coverage || true'
 						junit 'test/coverage/integration/backend.kopano/integration.xml'
 						publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'test/coverage/integration/backend.kopano', reportFiles: 'index.html', reportName: 'Kopano Backend Coverage Report', reportTitles: ''])
 					}
@@ -71,7 +74,7 @@ pipeline {
 			}
 			post {
 				always {
-					sh 'make test-backend-kopano-ci-clean'
+					sh 'make -C test test-backend-kopano-ci-clean'
 				}
 			}
 		}

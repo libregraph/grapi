@@ -1,8 +1,8 @@
 DOCKERCOMPOSE ?= docker-compose
 
-BUILD_NUMER ?= $(shell date +%s)
+BUILD_TAG ?= $(shell date +%s)
 
-export COMPOSE_PROJECT_NAME=grapi-test-$(BUILD_NUMBER)
+export COMPOSE_PROJECT_NAME=grapi-test-$(BUILD_TAG)
 
 # CI
 
