@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 	python3-pip \
 	python3-pytest \
 	python3-pytest-cov \
+	python3-wheel \
 	flake8 \
 	python3-kopano
 

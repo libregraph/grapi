@@ -33,6 +33,7 @@ pipeline {
 							python3-pip \
 							python3-pytest \
 							python3-pytest-cov \
+							python3-wheel \
 							flake8 \
 							'
 						sh 'echo "deb [trusted=yes] ${REPO_URL} ./" > /etc/apt/sources.list.d/kopano.list'
