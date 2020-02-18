@@ -69,6 +69,11 @@ pipeline {
 					}
 				}
 			}
+			post {
+				always {
+					sh 'make test-backen-kopano-ci-clean'
+				}
+			}
 		}
 	}
 }
