@@ -101,7 +101,7 @@ services:
       - ../:/workspace/
     environment:
       - CI=1
-    command: dockerize -wait file:///var/run/kopano/server.sock -timeout 360s -- /usr/local/bin/starttest.sh
+    command: dockerize -wait file:///var/run/kopano/server.sock -timeout 360s -- /workspace/test/starttest.sh
 
 volumes:
   ldap:

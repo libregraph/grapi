@@ -65,8 +65,8 @@ pipeline {
 				stage('Run test') {
 					steps {
 						echo 'Integration testing..'
-						sh 'make -C test test-backend-kopano-ci-run'
-						sh 'chown -R jenkins test/coverage || true'
+						sh 'make -C test test-backend-kopano-ci-run || true'
+						sh 'chown -R $(id -u) test/coverage || true'
 						junit 'test/coverage/integration/backend.kopano/integration.xml'
 						publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'test/coverage/integration/backend.kopano', reportFiles: 'index.html', reportName: 'Kopano Backend Coverage Report', reportTitles: ''])
 					}
