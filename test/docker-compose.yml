@@ -111,5 +111,4 @@ networks:
   kopano-net:
     driver: bridge
   ldap-net:
-    name: ldap-net
     driver: bridge
