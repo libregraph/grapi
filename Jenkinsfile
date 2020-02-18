@@ -71,7 +71,7 @@ pipeline {
 			}
 			post {
 				always {
-					sh 'make test-backen-kopano-ci-clean'
+					sh 'make test-backend-kopano-ci-clean'
 				}
 			}
 		}

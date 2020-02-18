@@ -1,5 +1,9 @@
 DOCKERCOMPOSE ?= docker-compose
 
+BUILD_NUMER ?= $(shell date +%s)
+
+export COMPOSE_PROJECT_NAME=grapi-test-$(BUILD_NUMBER)
+
 # CI
 
 .PHONY: test-backend-kopano-ci-run
