@@ -198,13 +198,18 @@ library can use for metrics.
 
 ## Profiling
 
-Grapi can generate pstats profiles using Python's native cProfile module by
-setting an environment variable named 'PROFILE_DIR' to a writeable directory.
-It generates a cProfile file named after the route and overwrites it every time
-a request is done. The profile file can be converted to a QCachegrind file with
-pyprof2calltree. Viewing profiling data in for example Qcachegrind can be done
-by installing `pyprof2calltree` and running `pyprof2calltree -i
-_api_gc_v1_me_calendars_{folderid}_{calendarView}.prof -k`.
+Grapi can generate pstats profiles using the [Yappi](https://pypi.org/project/yappi/) Python module.
+
+By setting the environment variable named 'PROFILE_DIR' to a writeable directory,
+Grapi collects profile information, and generates writes them as pstat files
+(named after the corresponding process) when Grapi is stopped.
+
+To view such profile files, use pstats by running `python3 -m pstats rest0.prof`
+or similar.
+
+Profile files can be converted to a QCachegrind file with [pyprof2calltree](https://pypi.org/project/pyprof2calltree/).
+Visualizing profiling can be done by installing `pyprof2calltree` and running
+`pyprof2calltree -i rest0.prof -k`.
 
 ```
 PROFILE_DIR=/path/to/profiledir/ make start-mfr

@@ -9,10 +9,12 @@ import os
 import os.path
 import signal
 import sys
+import threading
 import time
 
 import grapi.api.v1 as grapi
 
+import bjoern
 import falcon
 
 try:
@@ -31,12 +33,11 @@ except ImportError:
 PROFILE_DIR = os.getenv('PROFILE_DIR')
 if PROFILE_DIR:
     if os.path.exists(PROFILE_DIR):
-        import cProfile
+        print("Writing profiles (on exit) to '{}' ...".format(PROFILE_DIR))
+        import yappi
     else:
         print("PROFILE_DIR '{}' is invalid, not enabling profiling".format(PROFILE_DIR))
         PROFILE_DIR = None
-
-import bjoern
 
 """
 Master Fleet Runner
@@ -152,42 +153,26 @@ def error_handler(ex, req, resp, params, with_metrics):
         raise falcon.HTTPError(falcon.HTTP_500)
     raise ex
 
-# falcon metrics middleware
+
+class FalconLabel:
+    def process_resource(self, req, resp, resource, params):
+        label = req.uri_template.replace('method', params.get('method', ''))
+        label = label.replace('/', '_')
+        req.context['label'] = label
 
 
-class FalconMetrics(object):
+class FalconMetrics:
     def process_request(self, req, resp):
         req.context['start_time'] = time.time()
-
-    def process_resource(self, req, resp, resource, params):
-        req.context['label'] = \
-            req.uri_template.replace('{method}', params.get('method', ''))
 
     def process_response(self, req, resp, resource):
         t = time.time() - req.context['start_time']
         label = req.context.get('label')
         if label:
-            if 'deltaid' in req.context:
-                label = label.replace(req.context['deltaid'], 'delta')
+            deltaid = req.context.get('deltaid')
+            if deltaid:
+                label = label.replace(deltaid, 'delta')
             REQUEST_TIME.labels(req.method, label).observe(t)
-
-
-class FalconProfiler(object):
-    def process_request(self, req, resp):
-        profile = cProfile.Profile()
-        profile.enable()
-        req.context['profile'] = profile
-
-    def process_resource(self, req, resp, resource, params):
-        req.context['profile_label'] = \
-            req.uri_template.replace('method', params.get('method', ''))
-
-    def process_response(self, req, resp, resource):
-        profile = req.context['profile']
-        profile.disable()
-        label = req.context['profile_label']
-        label = label.replace('/', '_')
-        profile.dump_stats('{}/{}.prof'.format(PROFILE_DIR, label))
 
 
 def collect_worker_metrics(workers):
@@ -222,51 +207,75 @@ def metrics_app(workers, environ, start_response):
     return iter([data])
 
 
-# TODO merge run_*
-def run_app(socket_path, n, options):
-    signal.signal(signal.SIGINT, lambda *args: 0)
-    if SETPROCTITLE:
-        setproctitle.setproctitle('%s rest %d' % (options.process_name, n))
-    middleware = []
+class Runner:
+    def __init__(self, queue, worker, name, process_name, n):
+        self.queue = queue
+        self.worker = worker
+        self.name = name
+        self.process_name = process_name
+        self.n = n
+
+    def run(self, *args, **kwargs):
+        signal.signal(signal.SIGTERM, lambda *args: 0)
+        signal.signal(signal.SIGINT, lambda *args: 0)
+        if SETPROCTITLE:
+            setproctitle.setproctitle('%s %s %d' % (self.process_name, self.name, self.n))
+
+        if PROFILE_DIR:
+            yappi.start(builtins=False, profile_threads=True)
+
+        self._run(*args, **kwargs)
+
+    def _run(self, *args, **kwargs):
+        # Start in thread, to allow proper termination, without killing the process.
+        thread = threading.Thread(target=self.worker, name='%s %d worker' % (self.name, self.n), args=args, kwargs=kwargs, daemon=True)
+        thread.start()
+        self.queue.join()
+        logging.info('terminating %s %d worker with pid %s', self.name, self.n, os.getpid())
+        self.stop()
+        # NOTE(longsleep): We do not wait on the thread. The process will
+        # terminate and also kill the thread. We have no real control on when
+        # to shutdown bjoern.run properly.
+
+    def stop(self, *args, **kwargs):
+        if PROFILE_DIR:
+            yappi.stop()
+            stats = yappi.convert2pstats(yappi.get_func_stats().get())
+            stats.dump_stats('{}/{}{}.prof'.format(PROFILE_DIR, self.name, self.n))
+            logging.info("dumped profile of %s %d worker", self.name, self.n)
+
+
+def run_rest(socket_path, n, options):
+    middleware = [FalconLabel()]
     if options.with_metrics:
         middleware.append(FalconMetrics())
-    if PROFILE_DIR:
-        middleware.append(FalconProfiler())
     backends = options.backends.split(',')
     app = grapi.RestAPI(options=options, middleware=middleware, backends=backends)
     handler = partial(error_handler, with_metrics=options.with_metrics)
     app.add_error_handler(Exception, handler)
     unix_socket = 'unix:' + os.path.join(socket_path, 'rest%d.sock' % n)
-    logging.info('starting rest worker: %s', unix_socket)
+    logging.info('starting rest worker: %s with pid %d', unix_socket, os.getpid())
     bjoern.run(app, unix_socket)
 
 
 def run_notify(socket_path, n, options):
-    signal.signal(signal.SIGINT, lambda *args: 0)
-    if SETPROCTITLE:
-        setproctitle.setproctitle('%s notify %d' % (options.process_name, n))
-    middleware = []
+    middleware = [FalconLabel()]
     if options.with_metrics:
         middleware.append(FalconMetrics())
-    if PROFILE_DIR:
-        middleware.append(FalconProfiler())
     backends = options.backends.split(',')
     app = grapi.NotifyAPI(options=options, middleware=middleware, backends=backends)
     handler = partial(error_handler, with_metrics=options.with_metrics)
     app.add_error_handler(Exception, handler)
     unix_socket = 'unix:' + os.path.join(socket_path, 'notify%d.sock' % n)
-    logging.info('starting notify worker: %s', unix_socket)
+    logging.info('starting notify worker: %s with pid %d', unix_socket, os.getpid())
     bjoern.run(app, unix_socket)
 
 
 def run_metrics(socket_path, options, workers):
-    signal.signal(signal.SIGINT, lambda *args: 0)
-    if SETPROCTITLE:
-        setproctitle.setproctitle('%s metrics' % options.process_name)
     address = options.metrics_listen
-    logging.info('starting metrics worker: %s', address)
-    address = address.split(':')
-    bjoern.run(partial(metrics_app, workers), address[0], int(address[1]))
+    logging.info('starting metrics worker: %s with pid %d', address, os.getpid())
+    address_parts = address.split(':')
+    bjoern.run(partial(metrics_app, workers),  address_parts[0], int(address_parts[1]))
 
 
 def logger_init():
@@ -305,12 +314,18 @@ def main():
     q_listener, q = logger_init()
     logging.info('starting kopano-mfr')
 
+    # Fake exit queue.
+    queue = multiprocessing.JoinableQueue(1)
+    queue.put(True)
+
     workers = []
     for n in range(args.workers):
-        rest = multiprocessing.Process(target=run_app, name='rest{}'.format(n), args=(args.socket_path, n, args))
-        workers.append(rest)
-        notify = multiprocessing.Process(target=run_notify, name='notify{}'.format(n), args=(args.socket_path, n, args))
-        workers.append(notify)
+        rest_runner = Runner(queue, run_rest, 'rest', args.process_name, n)
+        rest_process = multiprocessing.Process(target=rest_runner.run, name='rest{}'.format(n), args=(args.socket_path, n, args))
+        workers.append(rest_process)
+        notify_runner = Runner(queue, run_notify, 'notify', args.process_name, n)
+        notify_process = multiprocessing.Process(target=notify_runner.run, name='notify{}'.format(n), args=(args.socket_path, n, args))
+        workers.append(notify_process)
 
     for worker in workers:
         worker.daemon = True
@@ -329,7 +344,8 @@ def main():
             monitor_workers = [(worker.name, worker.pid) for worker in workers]
             # Include master process.
             monitor_workers.append(('master', os.getpid()))
-            metrics_process = multiprocessing.Process(target=run_metrics, args=(args.socket_path, args, monitor_workers))
+            metrics_runner = Runner(queue, run_metrics, 'metrics', args.process_name, 0)
+            metrics_process = multiprocessing.Process(target=metrics_runner.run, args=(args.socket_path, args, monitor_workers))
             metrics_process.daemon = True
             metrics_process.start()
             workers.append(metrics_process)
@@ -349,8 +365,22 @@ def main():
 
     logging.info('starting shutdown')
 
+    signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+
+    # Flush queue, so that stuff exits.
+    queue.get()
+    queue.task_done()
+
+    # Give some time to come clean.
+    time.sleep(2)
+
+    ready = multiprocessing.connection.wait([worker.sentinel for worker in workers], timeout=5)
+    kill = len(ready) != len(workers)
     for worker in workers:
-        worker.terminate()
+        if kill and worker.is_alive():
+            logging.warn('terminating worker: %d', worker.pid)
+            worker.terminate()
+        multiprocess.mark_process_dead(worker.pid)
         worker.join()
 
     q_listener.stop()
@@ -364,12 +394,8 @@ def main():
         try:
             unix_socket = os.path.join(args.socket_path, socket)
             os.unlink(unix_socket)
-        except OSError:
-            pass
-
-    if args.with_metrics:
-        for worker in workers:
-            multiprocess.mark_process_dead(worker.pid)
+        except OSError as err:
+            logging.warn('failed to remove socket %s on shutdown, error: %s', unix_socket, err)
 
     logging.info('shutdown complete')
 

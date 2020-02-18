@@ -146,8 +146,8 @@ def test_delete(client, user, json_event, url):
     assert response.status_code == 204
 
     response = client.simulate_get(url + '/' + id_, headers=user.auth_header)
-    # TODO: check if correct
-    assert response.status_code == 400
+    assert response.status_code == 404
+
 
 def test_folders(client, user):
     response = client.simulate_get('/api/gc/v1/me/calendars',

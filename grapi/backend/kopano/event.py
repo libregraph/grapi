@@ -8,7 +8,7 @@ import falcon
 import kopano
 
 from .utils import (
-    _server_store, _folder, HTTPBadRequest, experimental
+    _server_store, _folder, HTTPBadRequest, HTTPNotFound, experimental
 )
 from .resource import (
     DEFAULT_TOP, _date, _tzdate, set_date, _start_end
@@ -230,7 +230,7 @@ class EventResource(ItemResource):
         except binascii.Error:
             raise HTTPBadRequest('Event id is malformed')
         except kopano.errors.NotFoundError:
-            raise HTTPBadRequest('Item not found')
+            raise HTTPNotFound(description='Item not found')
 
     def handle_get_attachments(self, req, resp, event):
         attachments = list(event.attachments(embedded=True))
