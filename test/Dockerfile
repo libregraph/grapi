@@ -1,5 +1,6 @@
-ARG docker_repo=zokradonh
-FROM ${docker_repo}/kopano_core
+ARG docker_repo=kopano
+ARG kopano_core_version=latest
+FROM ${docker_repo}/kopano_core:${kopano_core_version}
 
 WORKDIR /workspace/
 
@@ -20,4 +21,4 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 	flake8 \
 	python3-kopano
 
-CMD [ "/bin/bash" ]
+CMD [ "/bin/true" ]

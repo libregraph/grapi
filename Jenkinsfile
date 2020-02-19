@@ -66,7 +66,7 @@ pipeline {
 				stage('Run test') {
 					steps {
 						echo 'Integration testing..'
-						sh 'make -C test test-backend-kopano-ci-run EXTRA_LOCAL_ADMIN_USER=$(id -u) DOCKERCOMPOSE_UP_ARGS=--build DOCKERCOMPOSE_RUN_ARGS="-u $(id -u) -e HOME=/tmp" || true'
+						sh 'make -C test test-backend-kopano-ci-run EXTRA_LOCAL_ADMIN_USER=$(id -u) DOCKERCOMPOSE_UP_ARGS=--build DOCKERCOMPOSE_EXEC_ARGS="-T -u $(id -u) -e HOME=/workspace" || true'
 						sh 'chown -R $(id -u) test/coverage || true'
 						junit 'test/coverage/integration/backend.kopano/integration.xml'
 						publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'test/coverage/integration/backend.kopano', reportFiles: 'index.html', reportName: 'Kopano Backend Coverage Report', reportTitles: ''])

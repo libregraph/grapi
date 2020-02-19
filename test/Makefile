@@ -1,6 +1,6 @@
 DOCKERCOMPOSE ?= docker-compose
 DOCKERCOMPOSE_UP_ARGS ?=
-DOCKERCOMPOSE_RUN_ARGS ?=
+DOCKERCOMPOSE_EXEC_ARGS ?=
 EXTRA_LOCAL_ADMIN_USER ?=
 
 BUILD_TAG ?= $(shell date +%s)
@@ -13,7 +13,7 @@ export EXTRA_LOCAL_ADMIN_USER
 .PHONY: test-backend-kopano-ci-run
 test-backend-kopano-ci-run:
 	$(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSE_UP_ARGS)
-	$(DOCKERCOMPOSE) run --rm $(DOCKERCOMPOSE_RUN_ARGS) kopano_grapi_test /workspace/test/starttest.sh
+	$(DOCKERCOMPOSE) exec $(DOCKERCOMPOSE_EXEC_ARGS) kopano_grapi_test /workspace/test/starttest.sh
 
 .PHONY: test-backend-kopano-ci-clean
 test-backend-kopano-ci-clean:
