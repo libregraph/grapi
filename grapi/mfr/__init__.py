@@ -232,7 +232,7 @@ class Runner:
         thread = threading.Thread(target=self.worker, name='%s %d worker' % (self.name, self.n), args=args, kwargs=kwargs, daemon=True)
         thread.start()
         self.queue.join()
-        logging.info('terminating %s %d worker with pid %s', self.name, self.n, os.getpid())
+        logging.debug('shutdown %s %d worker with pid %s is complete', self.name, self.n, os.getpid())
         self.stop()
         # NOTE(longsleep): We do not wait on the thread. The process will
         # terminate and also kill the thread. We have no real control on when
@@ -255,7 +255,7 @@ def run_rest(socket_path, n, options):
     handler = partial(error_handler, with_metrics=options.with_metrics)
     app.add_error_handler(Exception, handler)
     unix_socket = 'unix:' + os.path.join(socket_path, 'rest%d.sock' % n)
-    logging.info('starting rest worker: %s with pid %d', unix_socket, os.getpid())
+    logging.debug('starting rest %d worker (%s) with pid %d', n, unix_socket, os.getpid())
     bjoern.run(app, unix_socket)
 
 
@@ -268,13 +268,13 @@ def run_notify(socket_path, n, options):
     handler = partial(error_handler, with_metrics=options.with_metrics)
     app.add_error_handler(Exception, handler)
     unix_socket = 'unix:' + os.path.join(socket_path, 'notify%d.sock' % n)
-    logging.info('starting notify worker: %s with pid %d', unix_socket, os.getpid())
+    logging.debug('starting notify %d worker (%s) with pid %d', n, unix_socket, os.getpid())
     bjoern.run(app, unix_socket)
 
 
 def run_metrics(socket_path, options, workers):
     address = options.metrics_listen
-    logging.info('starting metrics worker: %s with pid %d', address, os.getpid())
+    logging.debug('starting metrics worker (%s) with pid %d', address, os.getpid())
     address_parts = address.split(':')
     bjoern.run(partial(metrics_app, workers),  address_parts[0], int(address_parts[1]))
 
