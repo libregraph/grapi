@@ -124,7 +124,7 @@ def opt_args():
     parser.add_argument("-w", "--workers", dest="workers", type=int, default=WORKERS,
                         help="number of workers (unix sockets)", metavar="N")
     parser.add_argument("--insecure", dest='insecure', action='store_true', default=False,
-                        help="allow insecure connections")
+                        help="allow insecure operations")
     parser.add_argument("--enable-auth-basic", dest='auth_basic', action='store_true', default=False,
                         help="enable basic authentication")
     parser.add_argument("--enable-auth-passthrough", dest='auth_passthrough', action='store_true', default=False,
@@ -344,6 +344,9 @@ def main():
     for worker in workers:
         worker.daemon = True
         worker.start()
+
+    if args.insecure:
+        logging.warn('insecure mode - TLS client connections are are susceptible to man-in-the-middle attacks and safety checks are off - this is not suitable for production use')
 
     if args.with_experimental:
         logging.warn('experimental endpoints are enabled')

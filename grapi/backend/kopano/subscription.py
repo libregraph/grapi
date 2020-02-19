@@ -2,6 +2,7 @@
 import codecs
 import collections
 import falcon
+import http.cookiejar
 import kopano
 import datetime
 import dateutil.parser
@@ -9,9 +10,12 @@ import requests
 import time
 import logging
 import uuid
+import validators
 
-from queue import Queue, Empty
+from queue import Queue, Empty, Full
 from threading import Thread, Event, Lock
+
+from urllib.parse import urlparse
 
 from . import utils
 
@@ -61,6 +65,13 @@ RECORDS = {}
 # to allow it to be cleaned up later.
 RECORD_INDEX = 0
 
+# Global request session, to reuse connections.
+REQUEST_SESSION = requests.Session()
+REQUEST_SESSION.cookies = requests.cookies.RequestsCookieJar(http.cookiejar.DefaultCookiePolicy(allowed_domains=[]))
+REQUEST_SESSION.max_redirects = 3
+REQUEST_HTTPS_ADAPTER = requests.adapters.HTTPAdapter(pool_maxsize=1024)  # TODO(longsleep): Add configuration for pool sizes.
+REQUEST_SESSION.mount('https://', REQUEST_HTTPS_ADAPTER)
+
 
 # Record binds subscription and conection information per user for easy painless
 # access to its members.
@@ -76,6 +87,7 @@ PATTERN_MESSAGES = (falcon.routing.compile_uri_template('/me/mailFolders/{folder
 PATTERN_CONTACTS = (falcon.routing.compile_uri_template('/me/contactFolders/{folderid}/contacts')[1], 'Contact')
 PATTERN_EVENTS = (falcon.routing.compile_uri_template('/me/calendars/{folderid}/events')[1], 'Event')
 
+
 if PROMETHEUS:
     SUBSCR_COUNT = Counter('kopano_mfr_kopano_total_subscriptions', 'Total number of subscriptions')
     SUBSCR_EXPIRED = Counter('kopano_mfr_kopano_total_expired_subscriptions', 'Total number of subscriptions which expired')
@@ -86,6 +98,7 @@ if PROMETHEUS:
     POST_HIST = Histogram('kopano_mfr_kopano_webhook_post_duration_seconds', 'Duration of webhook post requests in seconds')
     DANGLING_COUNT = Counter('kopano_mfr_kopano_total_broken_subscription_conns', 'Total number of broken subscription connections')
     QUEUE_SIZE_GAUGE = Gauge('kopano_mfr_kopano_subscription_queue_size', 'Current size of subscriptions processor queue', multiprocess_mode='liveall')
+    PROCESSOR_POOL_GAUGE = Gauge('kopano_mfr_kopano_webhook_pools', 'Current number of webhook pools')
 
 
 def _server(auth_user, auth_pass, oidc=False, reconnect=False):
@@ -259,8 +272,11 @@ class SubscriptionProcessor(Thread):
                     logging.debug('subscription notification, id:%s, url:%s', record.subscriptionId, record.url)
                     # TODO(longsleep): This must be asynchronous or a queue per notificationUrl.
                     # TODO(longsleep): Make timeout configuration.
-                    with POST_HIST.time():
-                        requests.post(record.url, json=self._notification(record), timeout=10, verify=verify)
+                    if with_metrics:
+                        with POST_HIST.time():
+                            REQUEST_SESSION.post(record.url, json=self._notification(record), timeout=10, verify=verify)
+                    else:
+                        REQUEST_SESSION.post(record.url, json=self._notification(record), timeout=10, verify=verify)
                 except Exception:
                     # TODO(longsleep): Retry response errors.
                     if with_metrics:
@@ -284,6 +300,13 @@ class SubscriptionPurger(Thread):
         expired = {}
         purge = []
         while not self.exit.wait(timeout=60):
+            # NOTE(longsleep): Periodically update some metrics since callbacks
+            # do not get triggerd in multiprocess mode. To get the information
+            # we trigger it manually.
+            if self.options and self.options.with_metrics:
+                QUEUE_SIZE_GAUGE.set(QUEUE.qsize())
+                PROCESSOR_POOL_GAUGE.set(len(REQUEST_HTTPS_ADAPTER.poolmanager.pools.keys()))
+
             records = RECORDS
             for auth_username, record in records.items():
                 subscriptions = record.subscriptions
@@ -337,7 +360,13 @@ class SubscriptionSink:
 
     def update(self, notification):
         if self.store is not None:
-            QUEUE.put((self.store, notification, self.subscription))
+            while True:
+                try:
+                    QUEUE.put((self.store, notification, self.subscription), timeout=5)  # TODO(longsleep): Add configuration for timeout.
+                    break
+                except Full:
+                    logging.warn('subscript sink queue is full: %d', QUEUE.qsize())
+                    time.sleep(1)
 
     def unsubscribe(self):
         self.store.unsubscribe(self)
@@ -376,9 +405,7 @@ class SubscriptionResource:
         try:
             QUEUE
         except NameError:
-            QUEUE = Queue()
-            if self.options and self.options.with_metrics:
-                QUEUE_SIZE_GAUGE.set_function(QUEUE.qsize)
+            QUEUE = Queue(1024)  # TODO(longsleep): Add configuration for queue size.
             SubscriptionProcessor(self.options).start()
             SubscriptionPurger(self.options).start()
 
@@ -391,12 +418,31 @@ class SubscriptionResource:
 
         id_ = str(uuid.uuid4())
 
-        # validate webhook
-        validationToken = str(uuid.uuid4())
         verify = not self.options or not self.options.insecure
+
+        # Validate URL.
+        try:
+            # Enforce URL to valid and to be public, unless running insecure.
+            if not validators.url(fields['notificationUrl'], public=True):
+                if verify:
+                    raise ValueError('url validator failed')
+                else:
+                    logging.warning('ignored notification url validation error (insecure enabled), auth_user:%s, id:%s, url:%s', server.auth_user, id_, fields['notificationUrl'])
+            notificationUrl = urlparse(fields['notificationUrl'])
+            if notificationUrl.scheme != 'https':
+                if not verify and notificationUrl.scheme == 'http':
+                    logging.warning('allowing unencrypted notification url (insecure enabled), auth_user:%s, id:%s, url:%s', server.auth_user, id_, fields['notificationUrl'])
+                else:
+                    raise ValueError('must use https scheme')
+        except Exception:
+            logging.debug('invalid subscription notification url, auth_user:%s, id:%s, url:%s', server.auth_user, id_, fields['notificationUrl'], exc_info=True)
+            raise utils.HTTPBadRequest("Subscription notification url invalid.")
+
+        # Validate webhook.
+        validationToken = str(uuid.uuid4())
         try:  # TODO async
             logging.debug('validating subscription notification url, auth_user:%s, id:%s, url:%s', server.auth_user, id_, fields['notificationUrl'])
-            r = requests.post(fields['notificationUrl']+'?validationToken='+validationToken, timeout=10, verify=verify)
+            r = REQUEST_SESSION.post(fields['notificationUrl']+'?validationToken='+validationToken, timeout=10, verify=verify)  # TODO(longsleep): Add timeout configuration.
             if r.text != validationToken:
                 logging.debug('subscription validation failed, validation token mismatch, id:%s, url:%s', id_, fields['notificationUrl'])
                 raise utils.HTTPBadRequest("Subscription validation request failed.")
@@ -404,13 +450,14 @@ class SubscriptionResource:
             logging.exception('subscription validation request error, id:%s, url:%s', id_, fields['notificationUrl'])
             raise utils.HTTPBadRequest("Subscription validation request failed.")
 
+        # Validate subscription data.
         subscription_object = _subscription_object(store, fields['resource'])
         if not subscription_object:
             logging.error('subscription object is invalid, id:%s, resource:%s', id_, fields['resource'])
             raise utils.HTTPBadRequest("Subscription object invalid.")
         target, folder_types, data_type = subscription_object
 
-        # create subscription
+        # Create subscription.
         subscription = fields
         subscription['id'] = id_
         subscription['_datatype'] = data_type

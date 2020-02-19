@@ -14,7 +14,8 @@ install_requires = [
     'requests',
     'setproctitle',
     'tzlocal',
-    'ujson>=1.35'
+    'ujson>=1.35',
+    'validators'
 ]
 
 
