@@ -5,6 +5,7 @@ from logging.handlers import QueueListener
 from functools import partial
 import multiprocessing
 import argparse
+import errno
 import os
 import os.path
 import signal
@@ -395,7 +396,8 @@ def main():
             unix_socket = os.path.join(args.socket_path, socket)
             os.unlink(unix_socket)
         except OSError as err:
-            logging.warn('failed to remove socket %s on shutdown, error: %s', unix_socket, err)
+            if err.errno != errno.ENOENT:
+                logging.warn('failed to remove socket %s on shutdown, error: %s', unix_socket, err)
 
     logging.info('shutdown complete')
 
