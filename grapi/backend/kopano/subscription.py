@@ -45,7 +45,9 @@ except TypeError:  # pragma: no cover
 # GRAPI uses Base64, tell kopano module about it.
 kopano.set_bin_encoding('base64')
 
+# Requests has a default logger which is chatty. Only get interesting stuff.
 logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 # threadLock is a global lock which can be used to protect the global
 # states in this file.

@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import glob
 import logging
-from logging.handlers import QueueListener
 from functools import partial
 import multiprocessing
 import argparse
@@ -30,6 +29,12 @@ try:
     SETPROCTITLE = True
 except ImportError:
     SETPROCTITLE = False
+
+try:
+    import colorlog
+    COLORLOG = True
+except ImportError:
+    COLORLOG = False
 
 PROFILE_DIR = os.getenv('PROFILE_DIR')
 if PROFILE_DIR:
@@ -114,6 +119,8 @@ def opt_args():
                         default=SOCKET_PATH)
     parser.add_argument("--pid-file", dest='pid_file', default=PID_FILE,
                         help="pid file location (default: {})".format(PID_FILE), metavar="PATH")
+    parser.add_argument("--log-level", dest='log_level', default='INFO',
+                        help="log level (default: INFO)")
     parser.add_argument("-w", "--workers", dest="workers", type=int, default=WORKERS,
                         help="number of workers (unix sockets)", metavar="N")
     parser.add_argument("--insecure", dest='insecure', action='store_true', default=False,
@@ -219,17 +226,15 @@ class Runner:
     def run(self, *args, **kwargs):
         signal.signal(signal.SIGTERM, lambda *args: 0)
         signal.signal(signal.SIGINT, lambda *args: 0)
+
         if SETPROCTITLE:
             setproctitle.setproctitle('%s %s %d' % (self.process_name, self.name, self.n))
 
         if PROFILE_DIR:
             yappi.start(builtins=False, profile_threads=True)
 
-        self._run(*args, **kwargs)
-
-    def _run(self, *args, **kwargs):
         # Start in thread, to allow proper termination, without killing the process.
-        thread = threading.Thread(target=self.worker, name='%s %d worker' % (self.name, self.n), args=args, kwargs=kwargs, daemon=True)
+        thread = threading.Thread(target=self.start, name='%s%d' % (self.name, self.n), args=args, kwargs=kwargs, daemon=True)
         thread.start()
         self.queue.join()
         logging.debug('shutdown %s %d worker with pid %s is complete', self.name, self.n, os.getpid())
@@ -237,6 +242,9 @@ class Runner:
         # NOTE(longsleep): We do not wait on the thread. The process will
         # terminate and also kill the thread. We have no real control on when
         # to shutdown bjoern.run properly.
+
+    def start(self, *args, **kwargs):
+        self.worker(*args, **kwargs)
 
     def stop(self, *args, **kwargs):
         if PROFILE_DIR:
@@ -279,22 +287,27 @@ def run_metrics(socket_path, options, workers):
     bjoern.run(partial(metrics_app, workers),  address_parts[0], int(address_parts[1]))
 
 
-def logger_init():
-    q = multiprocessing.Queue()
-    # this is the handler for all log records
-    handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter("%(levelname)s: %(asctime)s - %(process)s - %(message)s"))
+def init_logging(log_level, log_timestamp=True):
+    numeric_level = getattr(logging, log_level.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError('Invalid log level: %s' % log_level)
 
-    # ql gets records from the queue and sends them to the handler
-    ql = QueueListener(q, handler)
-    ql.start()
+    fmt = '%(threadName)-10s[%(process)5d] %(levelname)-8s %(message)s'
+    if log_timestamp:
+        fmt = '%(asctime)s ' + fmt
 
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    # add the handler to the logger so records from this process are handled
-    logger.addHandler(handler)
+    # This is the handler for all log records.
+    if COLORLOG:
+        handler = colorlog.StreamHandler()
+        handler.setFormatter(colorlog.ColoredFormatter('%(log_color)s' + fmt))
+    else:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter(fmt))
 
-    return ql, q
+    root = logging.getLogger()
+    root.setLevel(numeric_level)
+    # Add the handler to the logger so records from this process are handled.
+    root.addHandler(handler)
 
 
 def main():
@@ -312,7 +325,7 @@ def main():
     for f in glob.glob(os.path.join(args.socket_path, 'notify*.sock')):
         os.unlink(f)
 
-    q_listener, q = logger_init()
+    init_logging(args.log_level)
     logging.info('starting kopano-mfr')
 
     # Fake exit queue.
@@ -384,8 +397,6 @@ def main():
         multiprocess.mark_process_dead(worker.pid)
         worker.join()
 
-    q_listener.stop()
-
     sockets = []
     for n in range(args.workers):
         sockets.append('rest%d.sock' % n)
@@ -400,6 +411,7 @@ def main():
                 logging.warn('failed to remove socket %s on shutdown, error: %s', unix_socket, err)
 
     logging.info('shutdown complete')
+
 
 if __name__ == '__main__':
     main()

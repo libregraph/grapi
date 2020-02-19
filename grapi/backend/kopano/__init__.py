@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import kopano
+import kopano.log
 
 from .user import UserResource  # noqa: F401
 from .group import GroupResource  # noqa: F401
@@ -17,6 +18,12 @@ from .subscription import SubscriptionResource  # noqa: F401
 kopano.set_bin_encoding('base64')
 kopano.set_missing_none()
 # TODO set_timezone_aware?
+
+# Python Kopano has some wild logger with default behavior. We do not want it
+# to do stuff, so remove all handers.
+logger = kopano.log.LOG
+for handler in logger.handlers:
+    logger.removeHandler(handler)
 
 
 def initialize(options):
