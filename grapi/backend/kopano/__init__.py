@@ -1,9 +1,16 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import logging
+import warnings
 
 import kopano
 import kopano.log
+
+try:
+    import ujson
+    UJSON = True
+except ImportError:
+    UJSON = False
 
 from .user import UserResource  # noqa: F401
 from .group import GroupResource  # noqa: F401
@@ -35,6 +42,9 @@ def initialize(options):
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: %s' % log_level)
     logger.setLevel(numeric_level)
+
+    if not UJSON:
+        warnings.warn('ujson module is not available, falling back to json')
 
     from .utils import SessionPurger
 
