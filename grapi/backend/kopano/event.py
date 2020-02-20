@@ -124,7 +124,7 @@ def attendees_json(item):
         address = attendee.address
         data = {
             # TODO map response field names
-            'status': {'response': attendee.response or 'none', 'time': _date(attendee.response_time)},
+            'status': {'response': attendee.response or 'None', 'time': _date(attendee.response_time)},
             'type': attendee.type_,
         }
         data.update(get_email(address))
