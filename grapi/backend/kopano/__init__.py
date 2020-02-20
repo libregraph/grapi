@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import logging
+
 import kopano
 import kopano.log
 
@@ -28,6 +30,12 @@ for handler in logger.handlers:
 
 def initialize(options):
     '''Backend initialize function, should be called only once.'''
+    log_level = options.log_level
+    numeric_level = getattr(logging, log_level.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError('Invalid log level: %s' % log_level)
+    logger.setLevel(numeric_level)
+
     from .utils import SessionPurger
 
     SessionPurger(options).start()

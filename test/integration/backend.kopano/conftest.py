@@ -27,6 +27,7 @@ class Options:
     with_experimental = True
     auth_basic = True
     with_metrics = False
+    log_level = 'DEBUG'
 
 
 def create_auth_header(username, password):
