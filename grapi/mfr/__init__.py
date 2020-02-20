@@ -316,6 +316,9 @@ def init_logging(log_level, log_timestamp=True):
     # Add the handler to the logger so records from this process are handled.
     root.addHandler(handler)
 
+    # Send all warnings to logging.
+    logging.captureWarnings(True)
+
 
 def main():
     global RUNNING
