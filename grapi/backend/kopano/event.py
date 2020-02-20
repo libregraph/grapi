@@ -157,9 +157,10 @@ def attendees_set(item, arg):
 def responsestatus_json(item):
     # 8.7.x does not have response_status attribute, so we must check.
     response_status = item.response_status if hasattr(item, 'response_status') else 'None'
+    response_time = _date(item.replytime) if hasattr(item, 'replytime') else '0001-01-01T00:00:00Z'
     return {
         'response': response_status,
-        'time': '0001-01-01T00:00:00Z',  # FIXME(longsleep): Get real date.
+        'time': response_time,
     }
 
 
