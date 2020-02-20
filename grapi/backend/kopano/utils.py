@@ -168,7 +168,7 @@ def _server(req, options, forceReconnect=False):
         if not sessiondata:
             logging.debug('creating session for bearer token user %s', userid)
             server = kopano.Server(auth_user=userid, auth_pass=token,
-                                   parse_args=False, store_cache=False, oidc=True)
+                                   parse_args=False, store_cache=False, oidc=True, config={})
             sessiondata = [Record(server=server), now]
             with threadLock:
                 if cacheid:
@@ -220,7 +220,7 @@ def _server(req, options, forceReconnect=False):
             logging.debug('creating session for passthrough user %s', userid)
             username = _username(userid)
             server = kopano.Server(auth_user=username, auth_pass='',
-                                   parse_args=False, store_cache=False)
+                                   parse_args=False, store_cache=False, config={})
             sessiondata = [Record(server=server), now]
             with threadLock:
                 PASSTHROUGH_SESSION[userid] = sessiondata
@@ -273,7 +273,7 @@ def _username(userid):  # pragma: no cover
         reconnect = True
 
     if reconnect:
-        SERVER = kopano.Server(parse_args=False, store_cache=False)
+        SERVER = kopano.Server(parse_args=False, store_cache=False, config={})
     return SERVER.user(userid=userid).name
 
 

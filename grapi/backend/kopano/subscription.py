@@ -103,7 +103,7 @@ if PROMETHEUS:
 
 def _server(auth_user, auth_pass, oidc=False, reconnect=False):
     server = kopano.Server(auth_user=auth_user, auth_pass=auth_pass,
-                           notifications=True, parse_args=False, store_cache=False, oidc=oidc)
+                           notifications=True, parse_args=False, store_cache=False, oidc=oidc, config={})
     logging.info('server connection established, server:%s, auth_user:%s', server, server.auth_user)
 
     return server
