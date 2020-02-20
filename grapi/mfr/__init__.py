@@ -68,16 +68,19 @@ if PROMETHEUS:
     CPUTIME_GAUGE = Gauge('kopano_mfr_cpu_seconds_total', 'Total user and system CPU time spent in seconds', ['worker'])
 
 RUNNING = True
+ABNORMAL_SHUTDOWN = False
 
 
 def sigchld(*args):
     global RUNNING
+    global ABNORMAL_SHUTDOWN
     if RUNNING:
         try:
-            logging.info('child was terminated, initiate shutdown')
+            logging.critical('child was terminated unexpectedly, initiating abnormal shutdown')
         except Exception:
             pass
         RUNNING = False
+        ABNORMAL_SHUTDOWN = True
 
 
 def sigterm(*args):
@@ -244,7 +247,11 @@ class Runner:
         # to shutdown bjoern.run properly.
 
     def start(self, *args, **kwargs):
-        self.worker(*args, **kwargs)
+        try:
+            self.worker(*args, **kwargs)
+        except Exception:
+            logging.critical('error in %s %d worker with pid %s', self.name, self.n, os.getpid(), exc_info=True)
+            self.queue.task_done()  # Mark queue as done, to indicate exit.
 
     def stop(self, *args, **kwargs):
         if PROFILE_DIR:
@@ -312,6 +319,7 @@ def init_logging(log_level, log_timestamp=True):
 
 def main():
     global RUNNING
+    global ABNORMAL_SHUTDOWN
 
     args = opt_args()
 
@@ -384,22 +392,39 @@ def main():
 
     signal.signal(signal.SIGCHLD, signal.SIG_IGN)
 
-    # Flush queue, so that stuff exits.
-    queue.get()
-    queue.task_done()
+    if not ABNORMAL_SHUTDOWN:
+        # Flush queue, to tell workers to cleanly exit.
+        queue.get()
+        try:
+            queue.task_done()
+        except ValueError:
+            # NOTE(longsleep): If a process encountered an error taks_done() was
+            # already called, thus it errors which is ok and can be ignored.
+            pass
 
-    # Give some time to come clean.
-    time.sleep(2)
+    # Wait for workers to exit.
+    deadline = time.monotonic() + 5
+    done = []
+    while deadline > time.monotonic():
+        ready = multiprocessing.connection.wait([worker.sentinel for worker in workers if worker.sentinel not in done], timeout=1)
+        done.extend(ready)
+        if len(done) == len(workers):
+            break
 
-    ready = multiprocessing.connection.wait([worker.sentinel for worker in workers], timeout=5)
-    kill = len(ready) != len(workers)
+    # Kill off workers which did not exit.
+    kill = len(done) != len(workers)
     for worker in workers:
         if kill and worker.is_alive():
-            logging.warn('terminating worker: %d', worker.pid)
-            worker.terminate()
+            if ABNORMAL_SHUTDOWN:
+                logging.critical('killing worker: %d', worker.pid)
+                os.kill(worker.pid, signal.SIGKILL)
+            else:
+                logging.warn('terminating worker: %d', worker.pid)
+                worker.terminate()
         multiprocess.mark_process_dead(worker.pid)
         worker.join()
 
+    # Cleanup potentially left over sockets.
     sockets = []
     for n in range(args.workers):
         sockets.append('rest%d.sock' % n)
