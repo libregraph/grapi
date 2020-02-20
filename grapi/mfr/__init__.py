@@ -323,6 +323,7 @@ def main():
 
     args = opt_args()
 
+    threading.currentThread().setName('master')
     if SETPROCTITLE:
         setproctitle.setproctitle(args.process_name + ' master %s' % ' '.join(sys.argv[1:]))
 
