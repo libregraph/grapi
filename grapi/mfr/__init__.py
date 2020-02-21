@@ -8,6 +8,7 @@ import errno
 import os
 import os.path
 import signal
+import socket
 import sys
 import threading
 import time
@@ -286,6 +287,15 @@ class Runner:
             logging.info("dumped profile of %s %d worker", self.name, self.n)
 
 
+def create_socket_and_listen(socket_path):
+    sock = socket.socket(socket.AF_UNIX)
+    sock.bind(socket_path)
+    sock.setblocking(False)
+    sock.listen(socket.SOMAXCONN)
+
+    return sock
+
+
 def run_rest(socket_path, n, options):
     middleware = [FalconLabel()]
     if options.with_metrics:
@@ -296,9 +306,11 @@ def run_rest(socket_path, n, options):
     app = grapi.RestAPI(options=options, middleware=middleware, backends=backends)
     handler = partial(error_handler, with_metrics=options.with_metrics)
     app.add_error_handler(Exception, handler)
-    unix_socket = 'unix:' + os.path.join(socket_path, 'rest%d.sock' % n)
-    logging.debug('starting rest %d worker (%s) with pid %d', n, unix_socket, os.getpid())
-    bjoern.run(app, unix_socket)
+    unix_socket_path = os.path.join(socket_path, 'rest%d.sock' % n)
+
+    # Run server, this blocks.
+    logging.debug('starting rest %d worker (unix:%s) with pid %d', n, unix_socket_path, os.getpid())
+    bjoern.server_run(create_socket_and_listen(unix_socket_path), app)
 
 
 def run_notify(socket_path, n, options):
@@ -311,16 +323,21 @@ def run_notify(socket_path, n, options):
     app = grapi.NotifyAPI(options=options, middleware=middleware, backends=backends)
     handler = partial(error_handler, with_metrics=options.with_metrics)
     app.add_error_handler(Exception, handler)
-    unix_socket = 'unix:' + os.path.join(socket_path, 'notify%d.sock' % n)
-    logging.debug('starting notify %d worker (%s) with pid %d', n, unix_socket, os.getpid())
-    bjoern.run(app, unix_socket)
+    unix_socket_path = os.path.join(socket_path, 'notify%d.sock' % n)
+
+    # Run server, this blocks.
+    logging.debug('starting notify %d worker (unix:%s) with pid %d', n, unix_socket_path, os.getpid())
+    bjoern.server_run(create_socket_and_listen(unix_socket_path), app)
 
 
 def run_metrics(socket_path, options, workers):
     address = options.metrics_listen
-    logging.debug('starting metrics worker (%s) with pid %d', address, os.getpid())
+
     address_parts = address.split(':')
-    bjoern.run(partial(metrics_app, workers),  address_parts[0], int(address_parts[1]))
+
+    # Run server, this blocks.
+    logging.debug('starting metrics worker (%s) with pid %d', address, os.getpid())
+    bjoern.run(partial(metrics_app, workers), address_parts[0], int(address_parts[1]))
 
 
 def init_logging(log_level, log_timestamp=True):
