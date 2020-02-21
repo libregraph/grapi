@@ -36,11 +36,20 @@ try:
 except ImportError:
     COLORLOG = False
 
+WITH_YAPPI = False
+WITH_CPROFILE = False
+PROFILE_MODE = os.getenv('PROFILE_MODE', None)  # One in [full, request]
 PROFILE_DIR = os.getenv('PROFILE_DIR')
 if PROFILE_DIR:
     if os.path.exists(PROFILE_DIR):
-        print("Writing profiles (on exit) to '{}' ...".format(PROFILE_DIR))
-        import yappi
+        if PROFILE_MODE == 'request':
+            print("Writing request profiles to '{}' ...".format(PROFILE_DIR))
+            import cProfile
+            WITH_CPROFILE = True
+        else:
+            print("Writing profiles (on exit) to '{}' ...".format(PROFILE_DIR))
+            import yappi
+            WITH_YAPPI = True
     else:
         print("PROFILE_DIR '{}' is invalid, not enabling profiling".format(PROFILE_DIR))
         PROFILE_DIR = None
@@ -169,21 +178,37 @@ class FalconLabel:
     def process_resource(self, req, resp, resource, params):
         label = req.uri_template.replace('method', params.get('method', ''))
         label = label.replace('/', '_')
-        req.context['label'] = label
+        req.context.label = label
 
 
 class FalconMetrics:
     def process_request(self, req, resp):
-        req.context['start_time'] = time.time()
+        req.context.start_time = time.time()
 
     def process_response(self, req, resp, resource):
-        t = time.time() - req.context['start_time']
-        label = req.context.get('label')
+        t = time.time() - req.context.start_time
+        label = req.context.label
         if label:
             deltaid = req.context.get('deltaid')
             if deltaid:
                 label = label.replace(deltaid, 'delta')
             REQUEST_TIME.labels(req.method, label).observe(t)
+
+
+class FalconRequestProfiler:
+    def process_request(self, req, resp):
+        profile = cProfile.Profile()
+        profile.enable()
+        req.context.profile = profile
+
+    def process_resource(self, req, resp, resource, params):
+        pass
+
+    def process_response(self, req, resp, resource):
+        profile = req.context.profile
+        profile.disable()
+        label = req.context.label
+        profile.dump_stats('{}/{}.prof'.format(PROFILE_DIR, label))
 
 
 def collect_worker_metrics(workers):
@@ -233,7 +258,7 @@ class Runner:
         if SETPROCTITLE:
             setproctitle.setproctitle('%s %s %d' % (self.process_name, self.name, self.n))
 
-        if PROFILE_DIR:
+        if WITH_YAPPI and PROFILE_DIR:
             yappi.start(builtins=False, profile_threads=True)
 
         # Start in thread, to allow proper termination, without killing the process.
@@ -254,7 +279,7 @@ class Runner:
             self.queue.task_done()  # Mark queue as done, to indicate exit.
 
     def stop(self, *args, **kwargs):
-        if PROFILE_DIR:
+        if WITH_YAPPI and PROFILE_DIR:
             yappi.stop()
             stats = yappi.convert2pstats(yappi.get_func_stats().get())
             stats.dump_stats('{}/{}{}.prof'.format(PROFILE_DIR, self.name, self.n))
@@ -265,6 +290,8 @@ def run_rest(socket_path, n, options):
     middleware = [FalconLabel()]
     if options.with_metrics:
         middleware.append(FalconMetrics())
+    if WITH_CPROFILE and PROFILE_DIR:
+        middleware.append(FalconRequestProfiler())
     backends = options.backends.split(',')
     app = grapi.RestAPI(options=options, middleware=middleware, backends=backends)
     handler = partial(error_handler, with_metrics=options.with_metrics)
@@ -278,6 +305,8 @@ def run_notify(socket_path, n, options):
     middleware = [FalconLabel()]
     if options.with_metrics:
         middleware.append(FalconMetrics())
+    if PROFILE_DIR and PROFILE_MODE == 'request':
+        middleware.append(FalconRequestProfiler())
     backends = options.backends.split(',')
     app = grapi.NotifyAPI(options=options, middleware=middleware, backends=backends)
     handler = partial(error_handler, with_metrics=options.with_metrics)

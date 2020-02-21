@@ -20,7 +20,6 @@ try:
 except ImportError:
     PROMETHEUS = False
 
-from MAPI.Util import GetDefaultStore
 from MAPI.Struct import MAPIErrorNotFound, MAPIErrorNoAccess, MAPIErrorInvalidParameter, MAPIErrorUnconfigured
 import kopano
 
@@ -170,7 +169,7 @@ def _server(req, options, forceReconnect=False):
             logging.debug('creating session for bearer token user %s', userid)
             server = kopano.Server(auth_user=userid, auth_pass=token,
                                    parse_args=False, store_cache=False, oidc=True, config={})
-            store = kopano.Store(server=server, mapiobj=GetDefaultStore(server.mapisession))
+            store = kopano.Store(server=server, mapiobj=server.mapistore)
             record = Record(server=server, store=store)
             sessiondata = [record, now]
             with threadLock:
@@ -189,7 +188,7 @@ def _server(req, options, forceReconnect=False):
         logging.debug('creating session for basic auth user %s', auth['user'])
         server = kopano.Server(auth_user=auth['user'], auth_pass=auth['password'],
                                parse_args=False, store_cache=False, config={})
-        store = kopano.Store(server=server, mapiobj=GetDefaultStore(server.mapisession))
+        store = kopano.Store(server=server, mapiobj=server.mapistore)
         if options and options.with_metrics:
             SESSION_CREATE_COUNT.inc()
 
@@ -228,7 +227,7 @@ def _server(req, options, forceReconnect=False):
             username = _username(userid)
             server = kopano.Server(auth_user=username, auth_pass='',
                                    parse_args=False, store_cache=False, config={})
-            store = kopano.Store(server=server, mapiobj=GetDefaultStore(server.mapisession))
+            store = kopano.Store(server=server, mapiobj=server.mapistore)
             record = Record(server=server, store=store)
             sessiondata = [record, now]
             with threadLock:
@@ -321,9 +320,6 @@ def _server_store(req, userid, options, forceReconnect=False):
                     raise falcon.HTTPNotFound(description='No such user: %s' % userid)
 
                 store = user.store
-            else:
-                # Ensure that the store can access its user.
-                store.user
         except MAPIErrorUnconfigured:
             if forceReconnect:
                 raise

@@ -54,7 +54,7 @@ class MailFolderResource(FolderResource):
                 self._handle_get_with_folderid(req, resp, store=store, folderid=folderid)
 
     def _handle_get_delta(self, req, resp, store):
-        req.context['deltaid'] = '{folderid}'
+        req.context.deltaid = '{folderid}'
         self.delta(req, resp, store=store)
 
     def _handle_get_with_folderid(self, req, resp, store, folderid):

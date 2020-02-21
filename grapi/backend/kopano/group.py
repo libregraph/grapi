@@ -33,7 +33,7 @@ class GroupResource(Resource):
             self._handle_get_without_groupid(req, resp, server=server)
 
     def _handle_get_delta(self, req, resp, server):
-        req.context['deltaid'] = '{groupid}'
+        req.context.deltaid = '{groupid}'
         self.delta(req, resp, server)
 
     def _handle_get_with_groupid(self, req, resp, server, groupid):

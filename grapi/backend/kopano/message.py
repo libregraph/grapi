@@ -78,7 +78,7 @@ class MessageResource(ItemResource):
             self._handle_get_with_itemid(req, resp, store=store, folder=folder, itemid=itemid)
 
     def _handle_get_delta(self, req, resp, store, folder):
-        req.context['deltaid'] = '{itemid}'
+        req.context.deltaid = '{itemid}'
         self.delta(req, resp, folder=folder)
 
     def _handle_get_with_itemid(self, req, resp, store, folder, itemid):

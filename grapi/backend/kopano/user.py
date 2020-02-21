@@ -4,7 +4,6 @@ import falcon
 import logging
 
 import kopano  # TODO remove?
-from MAPI.Util import GetDefaultStore
 
 from .utils import (
     _server_store, HTTPBadRequest, HTTPNotFound, experimental
@@ -81,7 +80,7 @@ class UserResource(Resource):
 
     @experimental
     def _handle_get_delta(self, req, resp, store, server):
-        req.context['deltaid'] = '{userid}'
+        req.context.deltaid = '{userid}'
         self.delta(req, resp, server=server)
 
     def _handle_get_with_userid(self, req, resp, store, server, userid):
@@ -90,7 +89,7 @@ class UserResource(Resource):
 
     def _handle_get_without_userid(self, req, resp, store, server):
         args = self.parse_qs(req)
-        userid = kopano.Store(server=server, mapiobj=GetDefaultStore(server.mapisession)).user.userid
+        userid = kopano.Store(server=server, mapiobj=server.mapistore).user.userid
         try:
             company = server.user(userid=userid).company
         except kopano.errors.NotFoundError:
@@ -220,7 +219,7 @@ class UserResource(Resource):
 
         server, store, userid = _server_store(req, userid, self.options)
         if not userid and req.path.split('/')[-1] != 'users':
-            userid = kopano.Store(server=server, mapiobj=GetDefaultStore(server.mapisession)).user.userid
+            userid = kopano.Store(server=server, mapiobj=server.mapistore).user.userid
         handler(req, resp, store=store, server=server, userid=userid)
 
     @experimental

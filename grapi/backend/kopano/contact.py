@@ -92,7 +92,7 @@ class ContactResource(ItemResource):
             raise HTTPBadRequest("Missing contact itemid")
 
     def _handle_get_delta(self, req, resp, folder):
-        req.context['deltaid'] = '{itemid}'
+        req.context.deltaid = '{itemid}'
         self.delta(req, resp, folder)
 
     def _handle_get_with_itemid(self, req, resp, folder, itemid):

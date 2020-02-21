@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 from .api import API, APIResource
 from .config import PREFIX
+from .request import Request
 from .healthcheck import HealthCheckResource
 
 
@@ -11,7 +12,7 @@ class NotifyAPI(API):
 
         supported_backends = ['kopano']
 
-        super().__init__(media_type=None, middleware=middleware)
+        super().__init__(media_type=None, middleware=middleware, request_type=Request)
 
         for backend in backends:
             if backend in supported_backends:  # TODO multiple would require prefix selection

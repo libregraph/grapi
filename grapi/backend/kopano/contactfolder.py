@@ -30,7 +30,7 @@ class ContactFolderResource(FolderResource):
     container_classes = ('IPF.Contact',)
 
     def handle_get_delta(self, req, resp, store, folderid):
-        req.context['deltaid'] = '{folderid}'
+        req.context.deltaid = '{folderid}'
         self.delta(req, resp, store)
 
     def handle_get(self, req, resp, store, folderid):
