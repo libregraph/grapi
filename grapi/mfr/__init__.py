@@ -186,7 +186,7 @@ class FalconMetrics:
     def process_request(self, req, resp):
         req.context.start_time = time.time()
 
-    def process_response(self, req, resp, resource):
+    def process_response(self, req, resp, resource, req_succeeded=True):
         t = time.time() - req.context.start_time
         label = req.context.label
         if label:
@@ -205,7 +205,7 @@ class FalconRequestProfiler:
     def process_resource(self, req, resp, resource, params):
         pass
 
-    def process_response(self, req, resp, resource):
+    def process_response(self, req, resp, resource, req_succeeded=True):
         profile = req.context.profile
         profile.disable()
         label = req.context.label
