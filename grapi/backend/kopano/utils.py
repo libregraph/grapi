@@ -58,7 +58,7 @@ PASSTHROUGH_SESSION = {}
 
 # Record is a named tuple binding subscription and conection information
 # per user. Named tuple is used for easy painless access to its members.
-Record = namedtuple('Record', ['server'])
+Record = namedtuple('Record', ['server', 'store'])
 
 _marker = object()
 
@@ -145,8 +145,9 @@ def _server(req, options, forceReconnect=False):
         with threadLock:
             sessiondata = TOKEN_SESSION.get(cacheid)
         if sessiondata:
+            record = sessiondata[0]
             if not forceReconnect:
-                server = sessiondata[0].server
+                server = record.server
                 try:
                     server.user(userid=userid)
                 except Exception:
@@ -169,7 +170,9 @@ def _server(req, options, forceReconnect=False):
             logging.debug('creating session for bearer token user %s', userid)
             server = kopano.Server(auth_user=userid, auth_pass=token,
                                    parse_args=False, store_cache=False, oidc=True, config={})
-            sessiondata = [Record(server=server), now]
+            store = kopano.Store(server=server, mapiobj=GetDefaultStore(server.mapisession))
+            record = Record(server=server, store=store)
+            sessiondata = [record, now]
             with threadLock:
                 if cacheid:
                     TOKEN_SESSION[cacheid] = sessiondata
@@ -180,24 +183,28 @@ def _server(req, options, forceReconnect=False):
                 SESSION_CREATE_COUNT.inc()
                 TOKEN_SESSION_ACTIVE.inc()
 
-        return server
+        return record
 
     elif auth['method'] == 'basic':
         logging.debug('creating session for basic auth user %s', auth['user'])
-        server = kopano.Server(auth_user=auth['user'], auth_pass=auth['password'], parse_args=False, store_cache=False)
+        server = kopano.Server(auth_user=auth['user'], auth_pass=auth['password'],
+                               parse_args=False, store_cache=False, config={})
+        store = kopano.Store(server=server, mapiobj=GetDefaultStore(server.mapisession))
         if options and options.with_metrics:
             SESSION_CREATE_COUNT.inc()
 
-        return server
+        return Record(server=server, store=store)
 
     # TODO(longsleep): Add expiration for PASSTHROUGH_SESSION contents.
     elif auth['method'] == 'passthrough':
         userid = req.context.userid = auth['userid']
+        cacheid = userid  # NOTE(longsleep): We cache per user id.
         with threadLock:
-            sessiondata = PASSTHROUGH_SESSION.get(userid)
+            sessiondata = PASSTHROUGH_SESSION.get(cacheid)
         if sessiondata:
+            record = sessiondata[0]
             if not forceReconnect:
-                server = sessiondata[0].server
+                server = record.server
                 try:
                     server.user(userid=userid)
                 except Exception:
@@ -205,9 +212,9 @@ def _server(req, options, forceReconnect=False):
                     forceReconnect = True
             if forceReconnect:
                 with threadLock:
-                    oldSessiondata = PASSTHROUGH_SESSION.pop(userid)
+                    oldSessiondata = PASSTHROUGH_SESSION.pop(cacheid)
                     DANGLE_INDEX += 1
-                    PASSTHROUGH_SESSION['{}_dangle_{}'.format(userid, DANGLE_INDEX)] = oldSessiondata
+                    PASSTHROUGH_SESSION['_dangle_{}'.format(DANGLE_INDEX)] = oldSessiondata
                 sessiondata = None
                 if options and options.with_metrics:
                     DANGLING_COUNT.inc()
@@ -221,14 +228,16 @@ def _server(req, options, forceReconnect=False):
             username = _username(userid)
             server = kopano.Server(auth_user=username, auth_pass='',
                                    parse_args=False, store_cache=False, config={})
-            sessiondata = [Record(server=server), now]
+            store = kopano.Store(server=server, mapiobj=GetDefaultStore(server.mapisession))
+            record = Record(server=server, store=store)
+            sessiondata = [record, now]
             with threadLock:
-                PASSTHROUGH_SESSION[userid] = sessiondata
+                PASSTHROUGH_SESSION[cacheid] = sessiondata
             if options and options.with_metrics:
                 SESSION_CREATE_COUNT.inc()
                 PASSTHROUGH_SESSIONS_ACTIVE.inc()
 
-        return server
+        return record
 
 
 class SessionPurger(Thread):
@@ -280,10 +289,13 @@ def _username(userid):  # pragma: no cover
 def _server_store(req, userid, options, forceReconnect=False):
     try:
         try:
-            server = _server(req, options, forceReconnect=forceReconnect)
+            record = _server(req, options, forceReconnect=forceReconnect)
         except MAPIErrorNotFound:  # no store
             logging.info('no store for user %s for request %s', req.context.userid, req.path, exc_info=True)
             raise falcon.HTTPForbidden('Unauthorized', None)
+
+        server = record.server
+        store = record.store
 
         try:
             if userid and userid != 'delta':
@@ -310,7 +322,8 @@ def _server_store(req, userid, options, forceReconnect=False):
 
                 store = user.store
             else:
-                store = kopano.Store(server=server, mapiobj=GetDefaultStore(server.mapisession))
+                # Ensure that the store can access its user.
+                store.user
         except MAPIErrorUnconfigured:
             if forceReconnect:
                 raise
