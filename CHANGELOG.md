@@ -2,10 +2,44 @@
 
 ## Unreleased
 
+- Add support for falcon 2.0.0
+- Improve direct control on listener sockets
+- Refactor and optimize store loading with per request profiler
+- Implement store cache for Kopano backend
+- Improve URL routing hot path and add heartbeat handler
+- Log warning when ujson is not available
+- Route warnings to logging
+- Set name of master thread for logging purposes
+- Improve clean and abnormal shutdown behavior
+- Initialize log level for pyko
+- Pass empty config when opening kopano server, to avoid potential implicit config
+- Add validations and limits to webhook callback subscriptions
+- Implement sane logging
+- Improve operational logging
+- Only log socket unlink errors when they are relevant
+- scripts: add test script to generate events
+- Define container versions and runtime parameters explicitly
+- Run CI integration tests as Jenkins user
+- Ensure that tests have python wheel support installed
+- Ensure to run chown in Jenkins
+- Implement profiling with yappi
+- Refactor CI invocation to be more rebust and less duplicates
+- Define compose project name in Makefile
+- Remove kopano-utils from test environment
+- Move CI clean target to always chain
+- Remove fixed names in CI environment
+- Use dedicated thread to expire cached logon sessions
+- Add debounce and duplicate filter to subscription webhook trigger
+- Start multiple notify API processes, similar to rest
+- Add support for flexible LDAP attribute mapping
+- Use default LDAP settings even when env variable is empty
+- Allow customization of LDAP filters
+- grapi: validate if socket-path is an actual directory
 
 
 ## v10.1.0 (2019-10-31)
 
+- Add v10.1.0 to chagnelog
 - kopano: Add proper format for event location get and set
 - Log when mfr runs with experimental endpoints enabled
 - Keep mfr args in process list
