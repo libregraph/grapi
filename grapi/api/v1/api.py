@@ -15,33 +15,37 @@ class API(falcon.API):
 
 class APIResource:
     def __init__(self, resource):
-        self.resource = resource
+        self._resource = resource
+
+    def getResource(self, req):
+        return self._resource
 
     def exceptionHandler(self, ex, req, resp, **params):
-        if self.resource and hasattr(self.resource, 'exceptionHandler'):
-            self.resource.exceptionHandler(ex, req, resp, **params)
+        resource = self.getResource(req)
+        if resource and hasattr(resource, 'exceptionHandler'):
+            resource.exceptionHandler(ex, req, resp, **params)
 
     @resourceException(handler=exceptionHandler)
     @requireResourceHandler
-    def on_get(self, *args, **kwargs):
-        return self.resource.on_get(*args, **kwargs)
+    def on_get(self, req, resp, *args, **kwargs):
+        return self.getResource(req).on_get(req, resp, *args, **kwargs)
 
     @resourceException(handler=exceptionHandler)
     @requireResourceHandler
-    def on_post(self, *args, **kwargs):
-        return self.resource.on_post(*args, **kwargs)
+    def on_post(self, req, resp, *args, **kwargs):
+        return self.getResource(req).on_post(req, resp, *args, **kwargs)
 
     @resourceException(handler=exceptionHandler)
     @requireResourceHandler
-    def on_patch(self, *args, **kwargs):
-        return self.resource.on_patch(*args, **kwargs)
+    def on_patch(self, req, resp, *args, **kwargs):
+        return self.getResource(req).on_patch(req, resp, *args, **kwargs)
 
     @resourceException(handler=exceptionHandler)
     @requireResourceHandler
-    def on_put(self, *args, **kwargs):
-        return self.resource.on_put(*args, **kwargs)
+    def on_put(self, req, resp, *args, **kwargs):
+        return self.getResource(req).on_put(req, resp, *args, **kwargs)
 
     @resourceException(handler=exceptionHandler)
     @requireResourceHandler
-    def on_delete(self, *args, **kwargs):
-        return self.resource.on_delete(*args, **kwargs)
+    def on_delete(self, req, resp, *args, **kwargs):
+        return self.getResource(req).on_delete(req, resp, *args, **kwargs)

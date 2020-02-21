@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 from .api import API, APIResource
 from .config import PREFIX
+from .healthcheck import HealthCheckResource
 
 
 class NotifyAPI(API):
@@ -17,6 +18,9 @@ class NotifyAPI(API):
                 self.add_routes(backend, options)
 
     def add_routes(self, backend_name, options):
+        healthCheck = HealthCheckResource()
+        self.add_route('/health-check', healthCheck)
+
         backend = self.import_backend(backend_name, options)
         subscriptions = APIResource(backend.SubscriptionResource(options))
 

@@ -27,7 +27,7 @@ class HTTPBadRequest(falcon.HTTPBadRequest):
         super().__init__(None, msg)
 
 
-class Resource(object):
+class Resource:
     def __init__(self, options):
         self.options = options
 

@@ -25,8 +25,8 @@ fi
 
 failed=0
 for socket in $SOCKETS; do
-	code=$(curl -o /dev/null -s -m 5 -w "%{http_code}" --unix-socket "$socket" http://localhost/healthcheck)
-	if [ "$code" -ne 200 -a "$code" -ne 404 ]; then
+	code=$(curl -o /dev/null -s -m 5 -w "%{http_code}" --unix-socket "$socket" http://localhost/health-check)
+	if [ "$code" -ne 200 ]; then
 		>&2 echo "Socket $socket failed with status $code"
 		failed=1
 	fi

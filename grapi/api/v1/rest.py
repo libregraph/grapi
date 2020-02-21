@@ -2,6 +2,7 @@
 from .api import API, APIResource
 from .config import PREFIX
 from .request import Request
+from .healthcheck import HealthCheckResource
 
 
 class BackendMiddleware:
@@ -11,7 +12,8 @@ class BackendMiddleware:
         self.options = options
 
     def process_resource(self, req, resp, resource, params):
-        # redirects resource to correct backend
+        if not isinstance(resource, BackendResource):
+            return
 
         backend = None
 
@@ -27,7 +29,7 @@ class BackendMiddleware:
 
         # userresource method determines backend type # TODO solve nicer in routing? (fight the falcon)
         method = params.get('method')
-        if not backend and resource.name == 'UserResource' and method:
+        if method and not backend and resource.name == 'UserResource':
             if method in (
                 'messages',
                 'mailFolders'
@@ -48,16 +50,19 @@ class BackendMiddleware:
             backend = resource.default_backend
 
         # result: eg ldap.UserResource() or kopano.MessageResource()
-        resource.resource = getattr(backend, resource.name)(self.options)
+        req.context.resource = getattr(backend, resource.name)(self.options)
 
 
 class BackendResource(APIResource):
     def __init__(self, default_backend, resource_name):
-        # self.resource is set by BackendMiddleware
         super().__init__(resource=None)
 
         self.default_backend = default_backend
         self.name = resource_name
+
+    def getResource(self, req):
+        # Resource is per request, injected by BackendMiddleware.
+        return req.context.resource
 
 
 class RestAPI(API):
@@ -97,6 +102,9 @@ class RestAPI(API):
             self.add_route(path+'/{method}', resource)
 
     def add_routes(self, default_backend, options):
+        healthCheck = HealthCheckResource()
+        self.add_route('/health-check', healthCheck)
+
         directory = default_backend.get('directory')
         if directory:
             users = BackendResource(directory, 'UserResource')

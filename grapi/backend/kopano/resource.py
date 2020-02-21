@@ -7,16 +7,11 @@ except ImportError:  # pragma: no cover
     import json
 import time
 
-try:
-    import urlparse
-except ImportError:
-    import urllib.parse as urlparse
-
 import pytz
 import tzlocal
 from jsonschema import ValidationError
 
-from grapi.api.v1.resource import HTTPBadRequest
+from grapi.api.v1.resource import HTTPBadRequest, Resource as BaseResource, _parse_qs
 from grapi.api.v1.timezone import to_timezone
 
 import dateutil.parser
@@ -113,21 +108,6 @@ def set_date(item, field, arg):
     setattr(item, field, d)
 
 
-def _parse_qs(req):
-    args = urlparse.parse_qs(req.query_string)
-    for arg, values in args.items():
-        if len(values) > 1:
-            raise HTTPBadRequest("Query option '%s' was specified more than once, but it must be specified at most once." % arg)
-
-    for key in ('$top', '$skip'):
-        if key in args:
-            value = args[key][0]
-            if not value.isdigit():
-                raise HTTPBadRequest("Invalid value '%s' for %s query option found. The %s query option requires a non-negative integer value." % (value, key, key))
-
-    return args
-
-
 def _parse_date(args, key):
     try:
         value = args[key][0]
@@ -144,10 +124,7 @@ def _start_end(req):
     return _parse_date(args, 'startDateTime'), _parse_date(args, 'endDateTime')
 
 
-class Resource(object):
-    def __init__(self, options):
-        self.options = options
-
+class Resource(BaseResource):
     def exceptionHandler(self, ex, req, resp, **params):
         _handle_exception(ex, req)
 

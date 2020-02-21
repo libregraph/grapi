@@ -34,7 +34,8 @@ def resourceException(_func=None, *, handler=None):
 def requireResourceHandler(f):
     @functools.wraps(f)
     def wrapperRequireResourceHandler(resource, req, resp, **params):
-        if not hasattr(resource.resource, f.__name__):
+        r = resource.getResource(req)
+        if not hasattr(r, f.__name__):
             raise falcon.HTTPNotFound()
         return f(resource, req, resp, **params)
     return wrapperRequireResourceHandler
