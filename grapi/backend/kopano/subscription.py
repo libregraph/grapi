@@ -20,11 +20,6 @@ from urllib.parse import urlparse
 from . import utils
 
 try:
-    import ujson as json
-except ImportError:  # pragma: no cover
-    import json
-
-try:
     from prometheus_client import Counter, Gauge, Histogram
     PROMETHEUS = True
 except ImportError:  # pragma: no cover
@@ -34,11 +29,7 @@ from MAPI.Struct import (
     MAPIErrorNoSupport
 )
 
-INDENT = True
-try:
-    json.dumps({}, indent=True)  # ujson 1.33 doesn't support 'indent'
-except TypeError:  # pragma: no cover
-    INDENT = False
+from grapi.api.v1.resource import _dumpb_json, _loadb_json
 
 # TODO don't block on sending updates
 # TODO async subscription validation
@@ -414,7 +405,7 @@ class SubscriptionResource:
         server = record.server
         user = record.user
         store = record.store
-        fields = json.loads(req.stream.read().decode('utf-8'))
+        fields = _loadb_json(req.stream.read())
 
         id_ = str(uuid.uuid4())
 
@@ -483,10 +474,7 @@ class SubscriptionResource:
         )
 
         resp.content_type = "application/json"
-        if INDENT:
-            resp.body = json.dumps(_export_subscription(subscription), indent=2, ensure_ascii=False).encode('utf-8')
-        else:
-            resp.body = json.dumps(_export_subscription(subscription), ensure_ascii=False).encode('utf-8')
+        resp.body = _dumpb_json(_export_subscription(subscription))
         resp.status = falcon.HTTP_201
 
         if self.options and self.options.with_metrics:
@@ -512,10 +500,7 @@ class SubscriptionResource:
             }
 
         resp.content_type = "application/json"
-        if INDENT:
-            resp.body = json.dumps(data, indent=2, ensure_ascii=False).encode('utf-8')
-        else:
-            resp.body = json.dumps(data, ensure_ascii=False).encode('utf-8')
+        resp.body = _dumpb_json(data)
 
     def on_patch(self, req, resp, subscriptionid):
         record = _record(req, self.options)
@@ -526,7 +511,7 @@ class SubscriptionResource:
             resp.status = falcon.HTTP_404
             return
 
-        fields = json.loads(req.stream.read().decode('utf-8'))
+        fields = _loadb_json(req.stream.read())
 
         for k, v in fields.items():
             if v and k == 'expirationDateTime':
@@ -540,10 +525,7 @@ class SubscriptionResource:
         data = _export_subscription(subscription)
 
         resp.content_type = "application/json"
-        if INDENT:
-            resp.body = json.dumps(data, indent=2, ensure_ascii=False).encode('utf-8')
-        else:
-            resp.body = json.dumps(data, ensure_ascii=False).encode('utf-8')
+        resp.body = _dumpb_json(data)
 
     def on_delete(self, req, resp, subscriptionid):
         record = _record(req, self.options)

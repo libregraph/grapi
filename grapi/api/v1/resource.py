@@ -1,9 +1,22 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlencode, quote
 import html
 
 import falcon
+
+try:
+    import ujson as json
+    UJSON = True
+except ImportError:  # pragma: no cover
+    UJSON = False
+    import json
+
+INDENT = True
+try:
+    json.dumps({}, indent=True)  # ujson 1.33 doesn't support 'indent'
+except TypeError:  # pragma: no cover
+    INDENT = False
 
 
 def _parse_qs(req):
@@ -19,6 +32,26 @@ def _parse_qs(req):
                 raise HTTPBadRequest("Invalid value '%s' for %s query option found. The %s query option requires a non-negative integer value." % (value, key, key))
 
     return args
+
+
+def _encode_qs(query):
+    return urlencode(query, doseq=True, encoding='utf-8', safe='$', quote_via=quote)
+
+
+def _loadb_json(b, *args, **kwargs):
+    return json.loads(b.decode('utf-8'), *args, **kwargs)
+
+
+def _dumpb_json(obj, *args, **kwargs):
+    if INDENT:
+        kwargs.setdefault('indent', 2)
+    else:
+        kwargs.pop('indent', None)
+    if UJSON:
+        kwargs.setdefault('escape_forward_slashes', False)
+    kwargs.setdefault('ensure_ascii', False)
+
+    return json.dumps(obj, *args, **kwargs).encode('utf-8')
 
 
 class HTTPBadRequest(falcon.HTTPBadRequest):

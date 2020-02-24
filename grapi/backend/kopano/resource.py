@@ -1,17 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import datetime
 import logging
-try:
-    import ujson as json
-except ImportError:  # pragma: no cover
-    import json
 import time
 
 import pytz
 import tzlocal
 from jsonschema import ValidationError
 
-from grapi.api.v1.resource import HTTPBadRequest, Resource as BaseResource, _parse_qs
+from grapi.api.v1.resource import HTTPBadRequest, Resource as BaseResource, _parse_qs, _encode_qs, _dumpb_json, _loadb_json
 from grapi.api.v1.timezone import to_timezone
 
 import dateutil.parser
@@ -21,13 +17,6 @@ from .utils import _handle_exception
 
 UTC = pytz.utc
 LOCAL = tzlocal.get_localzone()
-
-INDENT = True
-try:
-    json.dumps({}, indent=True)  # ujson 1.33 doesn't support 'indent'
-except TypeError:  # pragma: no cover
-    INDENT = False
-
 
 DEFAULT_TOP = 10
 
@@ -149,10 +138,7 @@ class Resource(BaseResource):
             data['@odata.context'] = req.path
         if expand:
             data.update(expand)
-        if INDENT:
-            return json.dumps(data, indent=2, ensure_ascii=False).encode('utf-8')
-        else:
-            return json.dumps(data, ensure_ascii=False).encode('utf-8')
+        return _dumpb_json(data)
 
     def json_multi(self, req, obj, fields, all_fields, top, skip, count, deltalink, add_count=False):
         header = b'{\n'
@@ -167,8 +153,11 @@ class Resource(BaseResource):
                 args = _parse_qs(req)
                 if '$skip' in args:
                     del args['$skip']
-                path += '?'+'&'.join(a+'='+','.join(b) for (a, b) in args.items())
-            header += b'  "@odata.nextLink": "%s?$skip=%d",\n' % (json.dumps(path).encode('utf-8')[1:-1], skip+top)
+            else:
+                args = {}
+            args['$skip'] = skip+top
+            nextLink = path + '?' + _encode_qs(list(args.items()))
+            header += b'  "@odata.nextLink": "%s",\n' % (_dumpb_json(nextLink)[1:-1])
         header += b'  "value": [\n'
         yield header
         first = True
@@ -267,7 +256,7 @@ class Resource(BaseResource):
 
     def load_json(self, req):
         try:
-            return json.loads(req.stream.read().decode('utf-8'))
+            return _loadb_json(req.stream.read())
         except ValueError:
             raise HTTPBadRequest("Invalid JSON")
 

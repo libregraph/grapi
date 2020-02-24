@@ -12,11 +12,18 @@ import socket
 import sys
 import threading
 import time
+import warnings
 
 import grapi.api.v1 as grapi
 
 import bjoern
 import falcon
+
+try:
+    import ujson  # noqa: F401
+    UJSON = True
+except ImportError:
+    UJSON = False
 
 try:
     from prometheus_client import multiprocess as prometheus_multiprocess
@@ -386,6 +393,9 @@ def main():
     init_logging(args.log_level)
     logging.info('starting kopano-mfr')
 
+    if not UJSON:
+        warnings.warn('ujson module is not available, falling back to slower stdlib json implementation')
+
     # Fake exit queue.
     queue = multiprocessing.JoinableQueue(1)
     queue.put(True)
@@ -481,7 +491,7 @@ def main():
         sockets.append('rest%d.sock' % n)
     for n in range(args.workers):
         sockets.append('notify%d.sock' % n)
-    for socket in sockets:
+    for socket in sockets:  # noqa: F402
         try:
             unix_socket = os.path.join(args.socket_path, socket)
             os.unlink(unix_socket)
