@@ -19,7 +19,7 @@ import bjoern
 import falcon
 
 try:
-    from prometheus_client import multiprocess
+    from prometheus_client import multiprocess as prometheus_multiprocess
     from prometheus_client import generate_latest, CollectorRegistry, CONTENT_TYPE_LATEST, Summary, Counter, Gauge
     PROMETHEUS = True
 except ImportError:
@@ -233,7 +233,7 @@ def collect_worker_metrics(workers):
 def metrics_app(workers, environ, start_response):
     collect_worker_metrics(workers)
     registry = CollectorRegistry()
-    multiprocess.MultiProcessCollector(registry)
+    prometheus_multiprocess.MultiProcessCollector(registry)
     data = generate_latest(registry)
     status = '200 OK'
     response_headers = [
@@ -404,7 +404,7 @@ def main():
         worker.start()
 
     if args.insecure:
-        logging.warn('insecure mode - TLS client connections are are susceptible to man-in-the-middle attacks and safety checks are off - this is not suitable for production use')
+        logging.warn('insecure mode - TLS client connections are susceptible to man-in-the-middle attacks and safety checks are off - this is not suitable for production use')
 
     if args.with_experimental:
         logging.warn('experimental endpoints are enabled')
@@ -471,7 +471,8 @@ def main():
             else:
                 logging.warn('terminating worker: %d', worker.pid)
                 worker.terminate()
-        multiprocess.mark_process_dead(worker.pid)
+        if args.with_metrics and PROMETHEUS:
+            prometheus_multiprocess.mark_process_dead(worker.pid)
         worker.join()
 
     # Cleanup potentially left over sockets.
