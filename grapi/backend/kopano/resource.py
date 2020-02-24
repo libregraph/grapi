@@ -21,22 +21,6 @@ LOCAL = tzlocal.get_localzone()
 DEFAULT_TOP = 10
 
 
-def _header_args(req, name):  # TODO use urlparse.parse_qs or similar..?
-    d = {}
-    header = req.get_header(name)
-    if header:
-        for arg in header.split(';'):
-            k, v = arg.split('=')
-            d[k] = v
-    return d
-
-
-def _header_sub_arg(req, name, arg):
-    args = _header_args(req, name)
-    if arg in args:
-        return args[arg].strip('"')
-
-
 def _date(d, local=False, show_time=True):
     if d is None:
         return '0001-01-01T00:00:00Z'
@@ -63,21 +47,18 @@ def _tzdate(d, tzinfo, req):
         # NOTE(longsleep): pyko uses naive localtime..
         d = LOCAL.localize(d)
 
-    # apply timezone preference header
-    pref_timezone = _header_sub_arg(req, 'Prefer', 'outlook.timezone')
-    if pref_timezone:
-        try:
-            tzinfo = to_timezone(pref_timezone)
-        except Exception:
-            raise HTTPBadRequest("A valid TimeZone value must be specified. The following TimeZone value is not supported: '%s'." % pref_timezone)
-        d = d.astimezone(tzinfo).replace(tzinfo=None)
+    # Apply timezone preference when set in request context.
+    prefer_tz = req.context.prefer.get('outlook.timezone')
+    if prefer_tz and prefer_tz[0]:
+        d = d.astimezone(prefer_tz[0]).replace(tzinfo=None)
+        prefer_timeZone = prefer_tz[1]
     else:
-        pref_timezone = 'UTC'
+        prefer_timeZone = 'UTC'
         d = d.astimezone(UTC).replace(tzinfo=None)
 
     return {
         'dateTime': d.strftime(fmt),
-        'timeZone': pref_timezone,  # TODO error
+        'timeZone': prefer_timeZone,  # TODO error
     }
 
 
@@ -89,8 +70,16 @@ def _naive_local(d):  # TODO make pyko not assume naive localtime..
 
 
 def set_date(item, field, arg):
-    tz = to_timezone(arg.get('timeZone', 'UTC'))
-    d = dateutil.parser.parse(arg['dateTime'], ignoretz=True)
+    try:
+        tz = to_timezone(arg.get('timeZone', 'UTC'))
+    except Exception:
+        logging.debug('failed to parse timezone value when setting date to \'%s\'', field)
+        raise HTTPBadRequest('The timeZone value of field \'%s\' is not supported.' % field)
+    try:
+        d = dateutil.parser.parse(arg['dateTime'], ignoretz=True)
+    except ValueError:
+        logging.debug('failed to parse date when setting to \'%s\'', exc_info=True)
+        raise HTTPBadRequest('The date value of field \'%s\' is invalid.' % field)
 
     # Set timezone as provided and convert to naive LOCAL time since that is what pyko uses internally.
     d = tz.localize(d).astimezone(LOCAL).replace(tzinfo=None)
@@ -105,7 +94,8 @@ def _parse_date(args, key):
     try:
         return _naive_local(dateutil.parser.parse(value))
     except ValueError:
-        raise HTTPBadRequest("The value '%s' of parameter '%s' is invalid." % (value, key))
+        logging.debug('failed to parse date in parameter \'%s\', key', exc_info=True)
+        raise HTTPBadRequest('The date value of parameter \'%s\' is invalid.' % key)
 
 
 def _start_end(req):
@@ -121,11 +111,13 @@ class Resource(BaseResource):
         fields = fields or all_fields or self.fields
         result = {}
         for f in fields:
-            if f in all_fields:
-                if all_fields[f].__code__.co_argcount == 1:
-                    result[f] = all_fields[f](obj)
+            accessor = all_fields.get(f, None)
+            if accessor is not None:
+                if accessor.__code__.co_argcount == 1:
+                    # TODO(longsleep): Remove this mode of operation.
+                    result[f] = accessor(obj)
                 else:
-                    result[f] = all_fields[f](req, obj)
+                    result[f] = accessor(req, obj)
 
         # TODO do not handle here
         if '@odata.type' in result and not result['@odata.type']:
@@ -150,7 +142,7 @@ class Resource(BaseResource):
         else:
             path = req.path
             if req.query_string:
-                args = _parse_qs(req)
+                args = self.parse_qs(req)
                 if '$skip' in args:
                     del args['$skip']
             else:
@@ -177,18 +169,16 @@ class Resource(BaseResource):
 
     def respond(self, req, resp, obj, all_fields=None, deltalink=None):
         # determine fields
-        args = _parse_qs(req)
+        args = self.parse_qs(req)
         if '$select' in args:
             fields = set(args['$select'][0].split(',') + ['@odata.type', '@odata.etag', 'id'])
         else:
             fields = None
 
         resp.content_type = "application/json"
-
-        pref_body_type = _header_sub_arg(req, 'Prefer', 'outlook.body-content-type')
-        if pref_body_type in ('text', 'html'):
-            resp.set_header('Preference-Applied', 'outlook.body-content-type='+pref_body_type)  # TODO graph doesn't do this actually?
-        # TODO add outlook.timezone
+        prefer_body_content_type = req.context.prefer.get('outlook.body-content-type', raw=True)
+        if prefer_body_content_type in ('text', 'html'):
+            req.context.prefer.update('outlook.body-content-type', prefer_body_content_type)
 
         # multiple objects: stream
         if isinstance(obj, tuple):
@@ -240,7 +230,7 @@ class Resource(BaseResource):
         return item
 
     def folder_gen(self, req, folder):
-        args = _parse_qs(req)  # TODO generalize
+        args = self.parse_qs(req)  # TODO generalize
         if '$search' in args:
             query = args['$search'][0]
 
@@ -250,9 +240,6 @@ class Resource(BaseResource):
             return self.generator(req, yielder, 0)
         else:
             return self.generator(req, folder.items, folder.count)
-
-    def parse_qs(self, req):
-        return _parse_qs(req)
 
     def load_json(self, req):
         try:

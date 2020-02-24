@@ -8,14 +8,14 @@ from .utils import (
     db_get, db_put, experimental
 )
 from .resource import (
-    DEFAULT_TOP, Resource, _header_sub_arg, _date
+    DEFAULT_TOP, Resource, _date
 )
 
 
 def get_body(req, item):
-    type_ = _header_sub_arg(req, 'Prefer', 'outlook.body-content-type') or item.body_type
+    prefer_body_content_type = req.context.prefer.get('outlook.body-content-type')
 
-    if type_ == 'text':
+    if prefer_body_content_type == 'text':
         return {'contentType': 'text', 'content': item.text}
     else:
         return {'contentType': 'html', 'content': codecs.decode(item.html_utf8, 'utf-8')}  # TODO can we use bytes to avoid recoding?

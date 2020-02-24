@@ -1,8 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+import falcon
+import logging
+
 from .api import API, APIResource
 from .config import PREFIX
 from .request import Request
 from .healthcheck import HealthCheckResource
+from .prefer import Prefer
+from .timezone import to_timezone
 
 
 class BackendMiddleware:
@@ -14,6 +19,20 @@ class BackendMiddleware:
     def process_resource(self, req, resp, resource, params):
         if not isinstance(resource, BackendResource):
             return
+
+        prefer = req.context.prefer = Prefer(req)
+
+        # Common request validaton.
+        prefer_timeZone = prefer.get('outlook.timezone', raw=True)
+        if prefer_timeZone:
+            try:
+                prefer_tzinfo = to_timezone(prefer_timeZone)
+            except Exception:
+                logging.debug('unsupported timezone value received in request: %s', prefer_timeZone)
+                raise falcon.HTTPBadRequest("Provided prefer timezone value is not supported.")
+            prefer.update('outlook.timezone', (prefer_tzinfo, prefer_timeZone))
+
+        # Backend selection.
 
         backend = None
 
