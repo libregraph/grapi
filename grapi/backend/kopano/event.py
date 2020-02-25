@@ -240,7 +240,11 @@ class EventResource(ItemResource):
 
     def handle_get_instances(self, req, resp, event):
         start, end = _start_end(req)
-        data = (event.occurrences(start, end), DEFAULT_TOP, 0, 0)
+
+        def yielder(**kwargs):
+            for occ in event.occurrences(start, end, **kwargs):
+                yield occ
+        data = self.generator(req, yielder)
         self.respond(req, resp, data)
 
     def handle_get(self, req, resp, event):
