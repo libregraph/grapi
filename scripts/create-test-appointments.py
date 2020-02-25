@@ -98,8 +98,10 @@ def create_meetingrequest(basedate, user, organiser):
     return event
 
 
-def main(user, organiser, basedate):
-    user.calendar.empty()
+def main(user, organiser, basedate, nuke=False):
+    # Nuke calendar entries if set
+    if nuke:
+        user.calendar.empty()
 
     # Create simple event
     vcal = Calendar()
@@ -146,6 +148,7 @@ if __name__ == "__main__":
     parser.add_argument('--organiser', type=str, help='The Kopano user organiser')
     parser.add_argument('--basedate', type=str, help='The base date for the calendar default({})'.format(BASEDATE),
                         default=BASEDATE)
+    parser.add_argument('--nuke-calendar', dest='nuke', help='If set, all calendar entries from the users calendar will be removed', action='store_true', default=False)
     args = parser.parse_args()
 
     basedate = datetime.strptime(args.basedate, DATEFORMAT)
@@ -158,4 +161,4 @@ if __name__ == "__main__":
     else:
         organiser = OrganiserTuple("Example Organiser", "organiser@example.com")
 
-    main(user, organiser, basedate)
+    main(user, organiser, basedate, nuke=args.nuke)
