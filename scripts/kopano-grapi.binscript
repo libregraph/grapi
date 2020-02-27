@@ -101,7 +101,7 @@ esac
 
 # Setup python with extra path.
 
-if [ -n "${EXTRA_PYTHONPATH}" -a -d "${EXTRA_PYTHONPATH}" ]; then
+if [ -n "${EXTRA_PYTHONPATH}" ]; then
 	export PYTHONPATH="${EXTRA_PYTHONPATH}:${PYTHONPATH}"
 fi
 
