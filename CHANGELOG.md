@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Always set extra PYTHONPATH on startup
+- Update test environment to kopano_core 10.0.1.182.3b0e459
+- Add nuke option to test script (default false)
+- Fix typos in log message
+- Use generator for event instances endpoint
+- Move parsing of prefer header to middleware
+- Unify JSON encode/decode and query functions
+- kopano: correct response to None
+- kopano: use item.replytime for the responsestatus
+- Fix typos and clarify imports
 - Add support for falcon 2.0.0
 - Improve direct control on listener sockets
 - Refactor and optimize store loading with per request profiler
