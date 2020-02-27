@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+
+
+## v10.2.0 (2020-02-27)
+
 - Always set extra PYTHONPATH on startup
 - Update test environment to kopano_core 10.0.1.182.3b0e459
 - Add nuke option to test script (default false)
