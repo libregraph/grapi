@@ -3,6 +3,8 @@ Description=Kopano Groupware REST API
 
 [Service]
 Type=simple
+Restart=on-failure
+RestartSec=1
 PrivateTmp=yes
 User=kapi
 Group=kopano
