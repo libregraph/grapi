@@ -78,6 +78,10 @@ case "${1}" in
 			persistency_path="${DEFAULT_PERSISTENCY_PATH}"
 		fi
 
+		if [ -n "$log_level" ]; then
+			set -- "$@" --log-level="$log_level"
+		fi
+
 		set -- "$@" --socket-path="$socket_path" --workers="$num_workers" --pid-file="$pid_file" --process-name="${PROCESS_NAME}"
 
 		# Environment.
