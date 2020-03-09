@@ -14,6 +14,8 @@ class NotifyAPI(API):
 
         super().__init__(media_type=None, middleware=middleware, request_type=Request)
 
+        self.req_options.strip_url_path_trailing_slash = True
+
         for backend in backends:
             if backend in supported_backends:  # TODO multiple would require prefix selection
                 self.add_routes(backend, options)

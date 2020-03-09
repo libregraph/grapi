@@ -113,6 +113,8 @@ class RestAPI(API):
         middleware = (middleware or []) + [BackendMiddleware(name_backend, default_backend, options)]
         super().__init__(media_type=None, middleware=middleware, request_type=Request)
 
+        self.req_options.strip_url_path_trailing_slash = True
+
         self.add_routes(default_backend, options)
 
     def route(self, path, resource, method=True):
