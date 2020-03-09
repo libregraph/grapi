@@ -414,10 +414,10 @@ def main():
         worker.start()
 
     if args.insecure:
-        logging.warn('insecure mode - TLS client connections are susceptible to man-in-the-middle attacks and safety checks are off - this is not suitable for production use')
+        logging.warning('insecure mode - TLS client connections are susceptible to man-in-the-middle attacks and safety checks are off - this is not suitable for production use')
 
     if args.with_experimental:
-        logging.warn('experimental endpoints are enabled')
+        logging.warning('experimental endpoints are enabled')
 
     if args.with_metrics:
         if PROMETHEUS:
