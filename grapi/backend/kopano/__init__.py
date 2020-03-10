@@ -30,7 +30,7 @@ for handler in logger.handlers:
 
 def initialize(options):
     '''Backend initialize function, should be called only once.'''
-    log_level = options.log_level
+    log_level = options.log_level if options else 'INFO'
     numeric_level = getattr(logging, log_level.upper(), None)
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: %s' % log_level)
