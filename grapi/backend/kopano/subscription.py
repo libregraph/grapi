@@ -100,6 +100,12 @@ def _server(auth_user, auth_pass, oidc=False, reconnect=False):
     return server
 
 
+def _basic_auth(username, password):
+        server = _server(username, password)
+        user = server.user(username)
+        return Record(server=server, user=user, store=user.store, subscriptions={})
+
+
 def _record(req, options):
     """
     Return the record matching the provided request. If no record is found, a
@@ -110,42 +116,36 @@ def _record(req, options):
 
     auth = utils._auth(req, options)
 
-    username = None
-    auth_username = None
     auth_password = None
+    auth_userid = None
     oidc = False
     if auth['method'] == 'bearer':
-        username = auth['user']
-        auth_username = auth['userid']
+        auth_userid = auth['userid']
         auth_password = auth['token']
         oidc = True
-    elif auth['method'] == 'basic':
-        auth_username = codecs.decode(auth['user'], 'utf8')
-        auth_password = auth['password']
     elif auth['method'] == 'passthrough':  # pragma: no cover
-        auth_username = utils._username(auth['userid'])
+        auth_userid = auth['userid']
         auth_password = ''
-
-    if username is None:
-        username = auth_username
+    elif auth['method'] == 'basic':  # basic auth for tests
+        return _basic_auth(codecs.decode(auth['user'], 'utf8'), auth['password'])
 
     with threadLock:
-        record = RECORDS.get(auth_username)
+        record = RECORDS.get(auth_userid)
     if record is not None:
         try:
-            user = record.server.user(username)
+            user = record.server.user(userid=auth_userid)
             return record
         except Exception:  # server restart: try to reconnect TODO check kc_session_restore (incl. notifs!)
             logging.exception('network or session error while getting user from server, reconnect automatically')
             oldRecord = None
             oldSubscriptions = None
             with threadLock:
-                oldRecord = RECORDS.pop(auth_username, None)
+                oldRecord = RECORDS.pop(auth_userid, None)
                 if oldRecord:
                     oldSubscriptions = oldRecord.subscriptions.copy()
                     oldRecord.subscriptions.clear()
                     RECORD_INDEX += 1
-                    RECORDS['{}_dangle_{}'.format(auth_username, RECORD_INDEX)] = oldRecord
+                    RECORDS['{}_dangle_{}'.format(auth_userid, RECORD_INDEX)] = oldRecord
 
             if oldSubscriptions:
                 # Instantly kill of subscriptions.
@@ -158,16 +158,16 @@ def _record(req, options):
             if oldRecord and options and options.with_metrics:
                 DANGLING_COUNT.inc()
 
-    logging.debug('creating subscription session for user %s', auth_username)
-    server = _server(auth_username, auth_password, oidc=oidc)
-    user = server.user(username)
+    logging.debug('creating subscription session for user %s', auth_userid)
+    server = _server(auth_userid, auth_password, oidc=oidc)
+    user = server.user(userid=auth_userid)
     store = user.store
 
     record = Record(server=server, user=user, store=store, subscriptions={})
     with threadLock:
-        RECORDS.update({auth_username: record})
+        RECORDS.update({auth_userid: record})
 
-        return RECORDS.get(auth_username)
+        return RECORDS.get(auth_userid)
 
 
 NotificationRecord = collections.namedtuple('NotificationRecord', [

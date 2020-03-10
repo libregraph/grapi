@@ -271,20 +271,6 @@ class SessionPurger(Thread):
             timeout = 5 if quick else 60
 
 
-# TODO remove
-def _username(userid):  # pragma: no cover
-    global SERVER
-    reconnect = False
-    try:
-        SERVER
-    except NameError:
-        reconnect = True
-
-    if reconnect:
-        SERVER = kopano.Server(parse_args=False, store_cache=False, config={})
-    return SERVER.user(userid=userid).name
-
-
 def _server_store(req, userid, options, forceReconnect=False):
     try:
         try:
