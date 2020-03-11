@@ -203,6 +203,7 @@ class EventResource(ItemResource):
         'iCalUId': lambda item: kopano.hex(kopano.bdec(item.icaluid)) if item.icaluid else None,  # graph uses hex!?
         'organizer': lambda item: get_email(item.from_),
         'isOrganizer': lambda item: item.from_.email == item.sender.email,
+        'isCancelled': lambda item: item.canceled,
         'responseStatus': lambda item: responsestatus_json(item),
         # 8.7.x does not have onlinemeetingurl attribute, so we must check if its there for compatibility
         'onlineMeetingUrl': lambda item: item.onlinemeetingurl if hasattr(item, 'onlinemeetingurl') else ''
