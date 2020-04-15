@@ -86,5 +86,5 @@ class CalendarResource(FolderResource):
             raise HTTPBadRequest("Unsupported in calendar")
 
         server, store, userid = _server_store(req, userid, self.options)
-        folder = store.calendar  # TODO
+        folder = store.calendar  # TODO(jelle): lookup folder using the folderid
         handler(req, resp, folder=folder)
