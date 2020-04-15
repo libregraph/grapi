@@ -65,10 +65,10 @@ def recurrence_json(item):
             },
             'range': {
                 'type': range_end_map[recurrence.range_type],
-                'startDate': _date(recurrence.start, False, False),  # TODO hidden
+                'startDate': _date(recurrence.start, False, False),
                 'endDate': _date(recurrence.end, False, False) if recurrence.range_type != 'no_end' else '0001-01-01',
                 'numberOfOccurrences': recurrence.count if recurrence.range_type == 'occurrence_count' else 0,
-                'recurrenceTimeZone': "",  # TODO
+                'recurrenceTimeZone': "",  # TODO: get recurrence timezone from recurrence blob (PidLidAppointmentTimeZoneDefinitionRecur)
             },
         }
         if recurrence.weekdays:
