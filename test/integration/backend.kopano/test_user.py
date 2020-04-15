@@ -101,14 +101,14 @@ def test_list_contacts(client, user):
 def test_calendar(client, user):
     result = client.simulate_get('/api/gc/v1/me/calendar', headers=user.auth_header)
     assert result.status_code == 200
-    assert result.json['displayName'] == 'Calendar'
+    assert result.json['name'] == 'Calendar'
 
 
 def test_list_calendars(client, user):
     result = client.simulate_get('/api/gc/v1/me/calendars', headers=user.auth_header)
     assert result.status_code == 200
     assert len(result.json['value']) == 1
-    assert result.json['value'][0]['displayName'] == 'Calendar'
+    assert result.json['value'][0]['name'] == 'Calendar'
 
 
 def test_list_calendarview(client, user):

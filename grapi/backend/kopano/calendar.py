@@ -20,7 +20,7 @@ from .schema import event_schema
 class CalendarResource(FolderResource):
     fields = FolderResource.fields.copy()
     fields.update({
-        'displayName': lambda folder: folder.name,
+        'name': lambda folder: folder.name,
     })
 
     def handle_get_calendarView(self, req, resp, folder):
