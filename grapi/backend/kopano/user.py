@@ -124,7 +124,6 @@ class UserResource(Resource):
         data = self.folder_gen(req, store.contacts)
         self.respond(req, resp, data, ContactResource.fields)
 
-    @experimental
     def handle_get_calendars(self, req, resp, store, server, userid):
         data = self.generator(req, store.calendars, 0)
         self.respond(req, resp, data, CalendarResource.fields)
