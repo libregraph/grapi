@@ -1,7 +1,7 @@
 {
     "recurrence": null,
     "importance": "normal",
-    "sensitivity": "Normal",
+    "sensitivity": "normal",
     "categories": [],
     "isReminderOn": true,
     "iCalUId": null,

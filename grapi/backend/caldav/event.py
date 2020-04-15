@@ -14,7 +14,7 @@ class EventResource(Resource):
         'end': lambda req, item: _tzdate(item.end, req),
         'location': lambda item: {'displayName': item.location, 'address': {}}, # TODO
         'importance': lambda item: item.urgency,
-        'sensitivity': lambda item: sensitivity_map[item.sensitivity],
+        'sensitivity': lambda item: item.sensitivity,
         'hasAttachments': lambda item: item.has_attachments,
         'body': lambda req, item: get_body(req, item),
         'isReminderOn': lambda item: item.reminder,

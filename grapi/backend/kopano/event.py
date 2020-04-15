@@ -40,13 +40,6 @@ range_end_map = {
 }
 range_end_map_rev = dict((b, a) for (a, b) in range_end_map.items())
 
-sensitivity_map = {
-    'normal': 'Normal',
-    'personal': 'Personal',
-    'private': 'Private',
-    'confidential': 'Confidential',
-}
-
 show_as_map = {
     'free': 'Free',
     'tentative': 'Tentative',
@@ -188,7 +181,7 @@ class EventResource(ItemResource):
         'end': lambda req, item: _tzdate(item.end, item.tzinfo, req),
         'location': location_json,
         'importance': lambda item: item.urgency,
-        'sensitivity': lambda item: sensitivity_map[item.sensitivity],
+        'sensitivity': lambda item: item.sensitivity,
         'hasAttachments': lambda item: item.has_attachments,
         'body': lambda req, item: get_body(req, item),
         'isReminderOn': lambda item: item.reminder,

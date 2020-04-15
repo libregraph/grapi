@@ -23,6 +23,10 @@ _event_schema = {
         "start": _dateTimeTimeZone,
         "end": _dateTimeTimeZone,
         "isAllDay": {"type": "boolean"},
+        "sensitivity": {
+            "type": "string",
+            "enum": ["normal", "personal", "private", "confidential"]
+        },
     },
     "required": ["subject", "start", "end"],
 }
