@@ -13,6 +13,8 @@ from .resource import (
     _start_end
 )
 
+from .schema import event_schema
+
 
 @experimental
 class CalendarResource(FolderResource):
@@ -63,6 +65,7 @@ class CalendarResource(FolderResource):
 
     def handle_post_events(self, req, resp, folder):
         fields = self.load_json(req)
+        self.validate_json(event_schema, fields)
 
         item = self.create_message(folder, fields, EventResource.set_fields)
         if fields.get('attendees', None):
