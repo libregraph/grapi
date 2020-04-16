@@ -41,12 +41,12 @@ range_end_map = {
 range_end_map_rev = dict((b, a) for (a, b) in range_end_map.items())
 
 show_as_map = {
-    'free': 'Free',
-    'tentative': 'Tentative',
-    'busy': 'Busy',
-    'out_of_office': 'Oof',
-    'working_elsewhere': 'WorkingElsewhere',
-    'unknown': 'Unknown',
+    'free': 'free',
+    'tentative': 'tentative',
+    'busy': 'busy',
+    'out_of_office': 'oof',
+    'working_elsewhere': 'workingElsewhere',
+    'unknown': 'unknown',
 }
 
 

@@ -27,6 +27,9 @@ _event_schema = {
             "type": "string",
             "enum": ["normal", "personal", "private", "confidential"]
         },
+        "showAs": {
+            "enum": ["free", "tentative", "busy", "oof", "workingElsewhere", "unknown"]
+        },
     },
     "required": ["subject", "start", "end"],
 }

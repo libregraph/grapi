@@ -39,7 +39,7 @@
             "address": "jdoe@domain.com"
         }
     },
-    "showAs": "Busy",
+    "showAs": "busy",
     "responseRequested": false,
     "attendees": [
         {
