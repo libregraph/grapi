@@ -502,7 +502,10 @@ class SubscriptionResource:
         resp.content_type = "application/json"
         resp.body = _dumpb_json(data)
 
-    def on_patch(self, req, resp, subscriptionid):
+    def on_patch(self, req, resp, subscriptionid=None):
+        if not subscriptionid:
+            raise utils.HTTPBadRequest('missing required subscriptionid')
+
         record = _record(req, self.options)
 
         try:
