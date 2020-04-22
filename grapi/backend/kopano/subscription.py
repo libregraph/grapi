@@ -514,7 +514,10 @@ class SubscriptionResource:
             resp.status = falcon.HTTP_404
             return
 
-        fields = _loadb_json(req.stream.read())
+        try:
+            fields = _loadb_json(req.stream.read())
+        except ValueError:
+            raise utils.HTTPBadRequest("Invalid JSON")
 
         for k, v in fields.items():
             if v and k == 'expirationDateTime':
