@@ -134,7 +134,6 @@ class UserResource(Resource):
         data = self.generator(req, calendar.items, calendar.count)
         self.respond(req, resp, data, EventResource.fields)
 
-    @experimental
     def handle_get_calendarView(self, req, resp, store, server, userid):
         start, end = _start_end(req)
 

@@ -16,7 +16,6 @@ from .resource import (
 from .schema import event_schema
 
 
-@experimental
 class CalendarResource(FolderResource):
     fields = FolderResource.fields.copy()
     fields.update({
