@@ -66,3 +66,7 @@ class Resource:
 
     def parse_qs(self, req):
         return _parse_qs(req)
+
+    def respond_204(self, resp):  # TODO integrate with respond, status_code=..?
+        resp.set_header('Content-Length', '0')  # https://github.com/jonashaag/bjoern/issues/139
+        resp.status = falcon.HTTP_204

@@ -550,5 +550,4 @@ class SubscriptionResource(Resource):
         if self.options and self.options.with_metrics:
             SUBSCR_ACTIVE.dec(1)
 
-        resp.set_header('Content-Length', '0')  # https://github.com/jonashaag/bjoern/issues/139
-        resp.status = falcon.HTTP_204
+        self.respond_204(resp)
