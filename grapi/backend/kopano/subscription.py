@@ -29,7 +29,7 @@ from MAPI.Struct import (
     MAPIErrorNoSupport
 )
 
-from grapi.api.v1.resource import Resource, _dumpb_json, _loadb_json
+from grapi.api.v1.resource import Resource, _dumpb_json
 
 # TODO don't block on sending updates
 # TODO async subscription validation
@@ -405,7 +405,7 @@ class SubscriptionResource(Resource):
         server = record.server
         user = record.user
         store = record.store
-        fields = _loadb_json(req.stream.read())
+        fields = self.load_json(req)
 
         id_ = str(uuid.uuid4())
 
@@ -514,10 +514,7 @@ class SubscriptionResource(Resource):
             resp.status = falcon.HTTP_404
             return
 
-        try:
-            fields = _loadb_json(req.stream.read())
-        except ValueError:
-            raise utils.HTTPBadRequest("Invalid JSON")
+        fields = self.load_json(req)
 
         for k, v in fields.items():
             if v and k == 'expirationDateTime':

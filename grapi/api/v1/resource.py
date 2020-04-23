@@ -70,3 +70,9 @@ class Resource:
     def respond_204(self, resp):  # TODO integrate with respond, status_code=..?
         resp.set_header('Content-Length', '0')  # https://github.com/jonashaag/bjoern/issues/139
         resp.status = falcon.HTTP_204
+
+    def load_json(self, req):
+        try:
+            return _loadb_json(req.stream.read())
+        except ValueError:
+            raise HTTPBadRequest("Invalid JSON")

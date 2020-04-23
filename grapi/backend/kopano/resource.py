@@ -237,12 +237,6 @@ class Resource(BaseResource):
         else:
             return self.generator(req, folder.items, folder.count)
 
-    def load_json(self, req):
-        try:
-            return _loadb_json(req.stream.read())
-        except ValueError:
-            raise HTTPBadRequest("Invalid JSON")
-
     def validate_json(self, schema, fields):
         try:
             schema.validate(fields)
