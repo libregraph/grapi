@@ -30,7 +30,7 @@ from MAPI.Struct import (
 )
 
 from grapi.api.v1.resource import Resource, _dumpb_json
-from .schema import subscription_schema
+from .schema import subscription_schema, update_subscription_schema
 
 # TODO don't block on sending updates
 # TODO async subscription validation
@@ -517,7 +517,7 @@ class SubscriptionResource(Resource):
             return
 
         fields = self.load_json(req)
-        self.validate_json(subscription_schema, fields)
+        self.validate_json(update_subscription_schema, fields)
 
         for k, v in fields.items():
             if v and k == 'expirationDateTime':
