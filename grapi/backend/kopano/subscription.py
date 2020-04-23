@@ -29,7 +29,7 @@ from MAPI.Struct import (
     MAPIErrorNoSupport
 )
 
-from grapi.api.v1.resource import _dumpb_json, _loadb_json
+from grapi.api.v1.resource import Resource, _dumpb_json, _loadb_json
 
 # TODO don't block on sending updates
 # TODO async subscription validation
@@ -388,9 +388,9 @@ def _export_subscription(subscription):
     return dict((a, b) for (a, b) in subscription.items() if not a.startswith('_'))
 
 
-class SubscriptionResource:
+class SubscriptionResource(Resource):
     def __init__(self, options):
-        self.options = options
+        super().__init__(options)
 
         global QUEUE
         try:
