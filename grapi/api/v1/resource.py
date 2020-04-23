@@ -3,6 +3,8 @@
 from urllib.parse import parse_qs, urlencode, quote
 import html
 
+from jsonschema import ValidationError
+
 import falcon
 
 try:
@@ -76,3 +78,9 @@ class Resource:
             return _loadb_json(req.stream.read())
         except ValueError:
             raise HTTPBadRequest("Invalid JSON")
+
+    def validate_json(self, schema, fields):
+        try:
+            schema.validate(fields)
+        except ValidationError as e:
+            raise HTTPBadRequest("JSON schema violation: %s " % e.message)

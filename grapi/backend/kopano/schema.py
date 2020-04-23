@@ -44,5 +44,21 @@ _mr_schema = {
     },
 }
 
+
+# POST/PATCH subscriptions
+_subscription_schema = {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {
+        "clientState": {"type": "string"},
+        "expirationDateTime": {"type": "string"},
+        "resource": {"type": "string"},
+        "notificationUrl": {"type:": "string"},
+        "changeType": {"type": "string"},
+    },
+    "required": ["expirationDateTime"],
+}
+
 event_schema = jsonschema.Draft4Validator(_event_schema)
+subscription_schema = jsonschema.Draft4Validator(_subscription_schema)
 mr_schema = jsonschema.Draft4Validator(_mr_schema)

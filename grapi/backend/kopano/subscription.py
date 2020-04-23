@@ -30,6 +30,7 @@ from MAPI.Struct import (
 )
 
 from grapi.api.v1.resource import Resource, _dumpb_json
+from .schema import subscription_schema
 
 # TODO don't block on sending updates
 # TODO async subscription validation
@@ -406,6 +407,7 @@ class SubscriptionResource(Resource):
         user = record.user
         store = record.store
         fields = self.load_json(req)
+        self.validate_json(subscription_schema, fields)
 
         id_ = str(uuid.uuid4())
 
@@ -515,11 +517,16 @@ class SubscriptionResource(Resource):
             return
 
         fields = self.load_json(req)
+        self.validate_json(subscription_schema, fields)
 
         for k, v in fields.items():
             if v and k == 'expirationDateTime':
                 # NOTE(longsleep): Setting a dict key which is already there is threadsafe in current CPython implementations.
-                subscription['expirationDateTime'] = v
+                try:
+                    dateutil.parser.parse(v)
+                    subscription['expirationDateTime'] = v
+                except ValueError:
+                    raise utils.HTTPBadRequest('expirationDateTime is not a valid datetime string')
 
         if sink.expired:
             sink.expired = False

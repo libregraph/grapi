@@ -5,9 +5,8 @@ import time
 
 import pytz
 import tzlocal
-from jsonschema import ValidationError
 
-from grapi.api.v1.resource import HTTPBadRequest, Resource as BaseResource, _parse_qs, _encode_qs, _dumpb_json, _loadb_json
+from grapi.api.v1.resource import HTTPBadRequest, Resource as BaseResource, _parse_qs, _encode_qs, _dumpb_json
 from grapi.api.v1.timezone import to_timezone
 
 import dateutil.parser
@@ -236,9 +235,3 @@ class Resource(BaseResource):
             return self.generator(req, yielder, 0)
         else:
             return self.generator(req, folder.items, folder.count)
-
-    def validate_json(self, schema, fields):
-        try:
-            schema.validate(fields)
-        except ValidationError as e:
-            raise HTTPBadRequest("JSON schema violation: %s " % e.message)
