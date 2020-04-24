@@ -84,30 +84,6 @@ if PROMETHEUS:
     MEMORY_GAUGE = Gauge('kopano_mfr_virtual_memory_bytes', 'Virtual memory size in bytes', ['worker'])
     CPUTIME_GAUGE = Gauge('kopano_mfr_cpu_seconds_total', 'Total user and system CPU time spent in seconds', ['worker'])
 
-RUNNING = True
-ABNORMAL_SHUTDOWN = False
-
-
-def sigchld(*args):
-    global RUNNING
-    global ABNORMAL_SHUTDOWN
-    if RUNNING:
-        try:
-            logging.critical('child was terminated unexpectedly, initiating abnormal shutdown')
-        except Exception:
-            pass
-        RUNNING = False
-        ABNORMAL_SHUTDOWN = True
-
-
-def sigterm(*args):
-    global RUNNING
-    try:
-        logging.info('process received shutdown signal')
-    except Exception:
-        pass
-    RUNNING = False
-
 
 # TODO use kopano.Service, for config file, pidfile, logging, restarting etc.
 def create_pidfile(path):
@@ -296,7 +272,8 @@ class Runner:
 
 class Server:
     def __init__(self):
-        pass
+        self.running = True
+        self.abnormal_shutdown = False
 
     def create_socket_and_listen(self, socket_path):
         sock = socket.socket(socket.AF_UNIX)
@@ -373,9 +350,6 @@ class Server:
         logging.captureWarnings(True)
 
     def serve(self, args):
-        global RUNNING
-        global ABNORMAL_SHUTDOWN
-
         threading.currentThread().setName('master')
         if SETPROCTITLE:
             setproctitle.setproctitle(args.process_name + ' master %s' % ' '.join(sys.argv[1:]))
@@ -435,21 +409,21 @@ class Server:
                 logging.error('please install prometheus client python bindings')
                 sys.exit(-1)
 
-        signal.signal(signal.SIGCHLD, sigchld)
-        signal.signal(signal.SIGTERM, sigterm)
+        signal.signal(signal.SIGCHLD, self.sigchld)
+        signal.signal(signal.SIGTERM, self.sigterm)
 
         try:
-            while RUNNING:
+            while self.running:
                 signal.pause()
         except KeyboardInterrupt:
-            RUNNING = False
+            self.running = False
             logging.info('keyboard interrupt')
 
         logging.info('starting shutdown')
 
         signal.signal(signal.SIGCHLD, signal.SIG_IGN)
 
-        if not ABNORMAL_SHUTDOWN:
+        if not self.abnormal_shutdown:
             # Flush queue, to tell workers to cleanly exit.
             queue.get()
             try:
@@ -472,7 +446,7 @@ class Server:
         kill = len(done) != len(workers)
         for worker in workers:
             if kill and worker.is_alive():
-                if ABNORMAL_SHUTDOWN:
+                if self.abnormal_shutdown:
                     logging.critical('killing worker: %d', worker.pid)
                     os.kill(worker.pid, signal.SIGKILL)
                 else:
@@ -497,6 +471,24 @@ class Server:
                     logging.warn('failed to remove socket %s on shutdown, error: %s', unix_socket, err)
 
         logging.info('shutdown complete')
+
+    def sigchld(self, *args):
+        if self.running:
+            try:
+                logging.critical('child was terminated unexpectedly, initiating abnormal shutdown')
+            except Exception:
+                pass
+            self.running = False
+            self.abnormal_shutdown = True
+
+    def sigterm(self, *args):
+        try:
+            logging.info('process received shutdown signal')
+        except Exception:
+            pass
+        self.running = False
+
+
 
 
 if __name__ == '__main__':
