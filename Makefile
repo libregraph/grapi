@@ -49,7 +49,7 @@ test-backend-kopano-ci: test-backend-kopano
 
 .PHONY: start-mfr
 start-mfr:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) grapi/mfr/__init__.py $(ARGS)
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) grapi/mfr $(ARGS)
 
 .PHONY: start-devrunner
 start-devrunner:
