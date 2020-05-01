@@ -16,6 +16,9 @@ import time
 import warnings
 
 import grapi.api.v1 as grapi
+from grapi.mfr.utils import parse_accept_language
+
+# TODO: move to mfr.utils
 from grapi.msgfmt import Msgfmt, PoSyntaxError
 
 import bjoern
@@ -126,43 +129,6 @@ class FalconLabel:
 
         return self.langs[requestlang]
 
-    # TODO: move to utils
-    def parse_accept_language(self, accept_lang):
-        '''returns [('de', 1.0), ('*', 0.5)]'''
-
-        languages = []
-
-        for language in accept_lang.split(','):
-            entry = language.strip().lower().replace('_', '-')
-
-            if not entry:
-                continue
-
-            quality = 1.0
-
-            values = entry.split(';', 2)
-            lang = values[0]
-
-            if len(values) == 2:
-                # Ignore invalid values
-                if not values[1].startswith('q='):
-                    quality = 0
-                else:
-                    parts = values[1].split('=', 2)
-                    if len(parts) != 2:
-                        continue
-                    try:
-                        quality = float(parts[1])
-                    except ValueError:
-                        continue
-
-            languages.append((lang, quality))
-
-        languages.sort(key=lambda x: x[1])
-        languages.reverse()
-
-        return languages
-
     def process_resource(self, req, resp, resource, params):
         label = req.uri_template.replace('method', params.get('method', ''))
         label = label.replace('/', '_')
@@ -186,7 +152,7 @@ class FalconLabel:
         # HTTP ACCEPT-LANGUAGE
         accept_lang = req.headers.get('ACCEPT-LANGUAGE')
         if accept_lang:
-            lang = self.parse_accept_language(accept_lang)
+            lang = parse_accept_language(accept_lang)
         req.context._ = lang
 
 
