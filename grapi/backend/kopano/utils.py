@@ -276,7 +276,7 @@ def _server_store(req, userid, options, forceReconnect=False):
         try:
             record = _server(req, options, forceReconnect=forceReconnect)
         except MAPIErrorNotFound:  # no store
-            logging.info('no store for user %s for request %s', req.context.userid, req.path, exc_info=True)
+            logging.info('no store for user %s for request %s', req.context.userid, req.path)
             raise falcon.HTTPForbidden('Unauthorized', None)
 
         server = record.server
