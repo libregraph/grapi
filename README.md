@@ -218,6 +218,20 @@ Visualizing profiling can be done by installing `pyprof2calltree` and running
 PROFILE_DIR=/path/to/profiledir/ make start-mfr
 ```
 
+## Translations
+
+To add a new translation, create or update the pot file.
+
+```
+make -C i18n pot
+```
+
+Then initialize new po file with msginit for for example Dutch.
+
+```
+msginit -i i18n/messages.pot -o i18n/nl.po -l nl
+```
+
 ## License
 
 See `LICENSE.txt` for licensing information of this project.
