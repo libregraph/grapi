@@ -8,16 +8,16 @@ def test_empty():
 
 
 def test_one_language():
-    assert parse_accept_language('fr-CA') == [('fr-ca', 1.0)]
+    assert parse_accept_language('fr-CA') == [('fr-ca', 1), ('fr', 0.99)]
 
 
 def test_multiple_languages():
-    assert parse_accept_language('de-AT , de') == [('de-at', 1.0), ('de', 0.99)]
+    assert parse_accept_language('de-AT , de') == [('de-at', 1), ('de', 0.99), ('de', 0.98)]
 
 
 def test_quality():
-    assert parse_accept_language('de-AT , de ; q=0.8') == [('de-at', 1.0), ('de', 0.8)]
+    assert parse_accept_language('de-AT , de ; q=0.8') == [('de-at', 1.0), ('de', 0.99), ('de', 0.8)]
 
 
 def test_normal():
-    assert parse_accept_language('de-DE,ar-TN;q=0.7,de-AT;q=0.3') == [('de-de', 1.0), ('ar-tn', 0.7), ('de-at', 0.3)]
+    assert parse_accept_language('de-DE,ar-TN;q=0.7,de-AT;q=0.3') == [('de-de', 1), ('de', 0.99), ('ar-tn', 0.7), ('ar', 0.68), ('de-at', 0.3), ('de', 0.27)]

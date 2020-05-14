@@ -17,9 +17,7 @@ import warnings
 
 import grapi.api.v1 as grapi
 from grapi.mfr.utils import parse_accept_language
-
-# TODO: move to mfr.utils
-from grapi.msgfmt import Msgfmt, PoSyntaxError
+from grapi.mfr.msgfmt import Msgfmt, PoSyntaxError
 
 import bjoern
 import falcon
@@ -120,22 +118,19 @@ nullTranslations = gettext.NullTranslations(None)
 
 
 class FalconLabel:
-    def __init__(self, langs=None):
-        self.langs = langs
+    def __init__(self, translations=None):
+        self.translations = translations
 
-    def get_language(self, requestlang):
-        if requestlang not in self.langs:
-            return nullTranslations.gettext
-
-        return self.langs[requestlang]
+    def get_language(self, lang):
+        return self.translations.get(lang, nullTranslations.gettext)
 
     def process_resource(self, req, resp, resource, params):
         label = req.uri_template.replace('method', params.get('method', ''))
         label = label.replace('/', '_')
         req.context.label = label
 
-        if not self.langs:
-            req.context._ = nullTranslations.gettext
+        if not self.translations:
+            req.context.i18n = nullTranslations
             return
 
         # Set language based on three settings in order:
@@ -147,13 +142,18 @@ class FalconLabel:
         # - when de-at is requested and not available, pick de (if available)
         # - auto fallback to en-gb
 
-        # TODO: implement mailboxsettings
-
         # HTTP ACCEPT-LANGUAGE
         accept_lang = req.headers.get('ACCEPT-LANGUAGE')
+        logging.debug("requesting accept-lang '%s'", accept_lang)
         if accept_lang:
-            lang = parse_accept_language(accept_lang)
-        req.context._ = lang
+            for lang, _ in parse_accept_language(accept_lang):
+                translation = self.translations.get(lang)
+                if translation:
+                    req.context.i18n = translation
+                    logging.debug("using translation '%s'", lang)
+                    return
+
+        req.context.i18n = nullTranslations
 
 
 class FalconMetrics:
@@ -341,7 +341,7 @@ class Server:
         logging.captureWarnings(True)
 
     def get_translations(self, translation_dir):
-        langs = {}
+        translations = {}
         for entry in os.scandir(translation_dir):
             if not entry.name.endswith('.po'):
                 continue
@@ -364,9 +364,9 @@ class Server:
             except PoSyntaxError:
                 logging.warning("unable to parse po file '%s'", pofile)
 
-            langs[language] = gnutranslation
+            translations[language] = gnutranslation
 
-        return langs
+        return translations
 
     def serve(self, args):
         threading.currentThread().setName('master')

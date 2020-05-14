@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
-def parse_accept_language(accept_lang):
+def parse_accept_language(accept_language):
     '''Parses HTTP Accept-Language header
 
        https://tools.ietf.org/html/rfc7231#section-5.3.5
@@ -12,9 +12,10 @@ def parse_accept_language(accept_lang):
     '''
 
     languages = []
-    accept_langs = accept_lang.split(',')
+    accept_languages = accept_language.split(',')
 
-    for index, language in enumerate(accept_langs):
+    index = 0
+    for language in accept_languages:
         entry = language.strip().lower().replace('_', '-')
 
         if not entry:
@@ -37,11 +38,18 @@ def parse_accept_language(accept_lang):
                     quality = float(parts[1])
                 except ValueError:
                     continue
-        # Multiple languages are given without a value, use precende as quality determinator
-        elif index > 0:
+        # Multiple languages might be given without a value, use precedence as quality indicator
+        else:
             quality -= index / 100
+            index += 1
 
         languages.append((lang, quality))
+
+        # Expand the languages with the "base" language if it consists out of two parts
+        if '-' in lang:
+            quality -= index / 100
+            index += 1
+            languages.append((lang.split('-')[0], round(quality, 2)))
 
     languages.sort(key=lambda x: x[1])
     languages.reverse()

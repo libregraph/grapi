@@ -265,19 +265,19 @@ class EventResource(ItemResource):
         handler(req, resp, event=event)
 
     def handle_post_accept(self, req, resp, fields, item):
-        _ = req.context._
+        _ = req.context.i18n.gettext
         self.validate_json(mr_schema, fields)
         item.accept(comment=fields.get('comment'), respond=(fields.get('sendResponse', True)), subject_prefix=_("Accepted"))
         resp.status = falcon.HTTP_202
 
     def handle_post_tentativelyAccept(self, req, resp, fields, item):
-        _ = req.context._
+        _ = req.context.i18n.gettext
         self.validate_json(mr_schema, fields)
         item.accept(comment=fields.get('comment'), tentative=True, respond=(fields.get('sendResponse', True)), subject_prefix=_("Tentatively accepted"))
         resp.status = falcon.HTTP_202
 
     def handle_post_decline(self, req, resp, fields, item):
-        _ = req.context._
+        _ = req.context.i18n.gettext
         self.validate_json(mr_schema, fields)
         item.decline(comment=fields.get('comment'), respond=(fields.get('sendResponse', True)), subject_prefix=_("Declined"))
         resp.status = falcon.HTTP_202
