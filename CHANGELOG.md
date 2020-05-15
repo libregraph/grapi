@@ -4,6 +4,37 @@
 
 
 
+## v10.3.0 (2020-04-23)
+
+- Make the Kopano calendar endpoints not experimental
+- Validate subscription object when posting
+- Add validate_json to grapi.v1.Resource for reuse
+- Move load_json to grapi.v1.resource for reusability
+- Move respond_204 to the common Resource class
+- Inherit SubscriptionResource from grapi's Resource
+- Handle invalid JSON on a subscription PATCH request
+- Do not throw a 500 when subscriptionid is missing
+- correct showAs not starting lowercase
+- Update TODO's in kopano's event resource
+- Support POST to /me/calendars/$id/events
+- Correct field name for CalendarResource
+- Add useful information to the TODO for calendar post endpoint
+- Make /me/calendars endpoint non-experimental
+- Add basic jsonschema validation for event creation
+- sensitivity should be all lowercase according to grapi docs
+- Add script to print the user information of a userid
+- Add missing SPDX identifier to create-test-appointments.py
+- Skip logging a backtrace when no store is found
+- Add missing space to devrunner.py in scripts
+- Set default log_level if not set in kopano backend
+- Resolve user in subscriptions endpoints with userid
+- Add support for isCancelled to events in kopano backend
+- Strip trailing slash from URLs before routing
+- grapi: mfr: logging.warn is deprecated
+- Allow to configure log level via configuration file
+- Restart GRAPI service automatically on failures
+
+
 ## v10.2.0 (2020-02-27)
 
 - Always set extra PYTHONPATH on startup
