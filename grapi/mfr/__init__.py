@@ -294,213 +294,211 @@ class Runner:
             logging.info("dumped profile of %s %d worker", self.name, self.n)
 
 
-def create_socket_and_listen(socket_path):
-    sock = socket.socket(socket.AF_UNIX)
-    sock.bind(socket_path)
-    sock.setblocking(False)
-    sock.listen(socket.SOMAXCONN)
+class Server:
+    def __init__(self):
+        pass
 
-    return sock
+    def create_socket_and_listen(self, socket_path):
+        sock = socket.socket(socket.AF_UNIX)
+        sock.bind(socket_path)
+        sock.setblocking(False)
+        sock.listen(socket.SOMAXCONN)
 
+        return sock
 
-def run_rest(socket_path, n, options):
-    middleware = [FalconLabel()]
-    if options.with_metrics:
-        middleware.append(FalconMetrics())
-    if WITH_CPROFILE and PROFILE_DIR:
-        middleware.append(FalconRequestProfiler())
-    backends = options.backends.split(',')
-    app = grapi.RestAPI(options=options, middleware=middleware, backends=backends)
-    handler = partial(error_handler, with_metrics=options.with_metrics)
-    app.add_error_handler(Exception, handler)
-    unix_socket_path = os.path.join(socket_path, 'rest%d.sock' % n)
+    def run_rest(self, socket_path, n, options):
+        middleware = [FalconLabel()]
+        if options.with_metrics:
+            middleware.append(FalconMetrics())
+        if WITH_CPROFILE and PROFILE_DIR:
+            middleware.append(FalconRequestProfiler())
+        backends = options.backends.split(',')
+        app = grapi.RestAPI(options=options, middleware=middleware, backends=backends)
+        handler = partial(error_handler, with_metrics=options.with_metrics)
+        app.add_error_handler(Exception, handler)
+        unix_socket_path = os.path.join(socket_path, 'rest%d.sock' % n)
 
-    # Run server, this blocks.
-    logging.debug('starting rest %d worker (unix:%s) with pid %d', n, unix_socket_path, os.getpid())
-    bjoern.server_run(create_socket_and_listen(unix_socket_path), app)
+        # Run server, this blocks.
+        logging.debug('starting rest %d worker (unix:%s) with pid %d', n, unix_socket_path, os.getpid())
+        bjoern.server_run(self.create_socket_and_listen(unix_socket_path), app)
 
+    def run_notify(self, socket_path, n, options):
+        middleware = [FalconLabel()]
+        if options.with_metrics:
+            middleware.append(FalconMetrics())
+        if PROFILE_DIR and PROFILE_MODE == 'request':
+            middleware.append(FalconRequestProfiler())
+        backends = options.backends.split(',')
+        app = grapi.NotifyAPI(options=options, middleware=middleware, backends=backends)
+        handler = partial(error_handler, with_metrics=options.with_metrics)
+        app.add_error_handler(Exception, handler)
+        unix_socket_path = os.path.join(socket_path, 'notify%d.sock' % n)
 
-def run_notify(socket_path, n, options):
-    middleware = [FalconLabel()]
-    if options.with_metrics:
-        middleware.append(FalconMetrics())
-    if PROFILE_DIR and PROFILE_MODE == 'request':
-        middleware.append(FalconRequestProfiler())
-    backends = options.backends.split(',')
-    app = grapi.NotifyAPI(options=options, middleware=middleware, backends=backends)
-    handler = partial(error_handler, with_metrics=options.with_metrics)
-    app.add_error_handler(Exception, handler)
-    unix_socket_path = os.path.join(socket_path, 'notify%d.sock' % n)
+        # Run server, this blocks.
+        logging.debug('starting notify %d worker (unix:%s) with pid %d', n, unix_socket_path, os.getpid())
+        bjoern.server_run(self.create_socket_and_listen(unix_socket_path), app)
 
-    # Run server, this blocks.
-    logging.debug('starting notify %d worker (unix:%s) with pid %d', n, unix_socket_path, os.getpid())
-    bjoern.server_run(create_socket_and_listen(unix_socket_path), app)
+    def run_metrics(self, socket_path, options, workers):
+        address = options.metrics_listen
 
+        address_parts = address.split(':')
 
-def run_metrics(socket_path, options, workers):
-    address = options.metrics_listen
+        # Run server, this blocks.
+        logging.debug('starting metrics worker (%s) with pid %d', address, os.getpid())
+        bjoern.run(partial(metrics_app, workers), address_parts[0], int(address_parts[1]))
 
-    address_parts = address.split(':')
+    def init_logging(self, log_level, log_timestamp=True):
+        numeric_level = getattr(logging, log_level.upper(), None)
+        if not isinstance(numeric_level, int):
+            raise ValueError('Invalid log level: %s' % log_level)
 
-    # Run server, this blocks.
-    logging.debug('starting metrics worker (%s) with pid %d', address, os.getpid())
-    bjoern.run(partial(metrics_app, workers), address_parts[0], int(address_parts[1]))
+        fmt = '%(threadName)-10s[%(process)5d] %(levelname)-8s %(message)s'
+        if log_timestamp:
+            fmt = '%(asctime)s ' + fmt
 
+        # This is the handler for all log records.
+        if COLORLOG:
+            handler = colorlog.StreamHandler()
+            handler.setFormatter(colorlog.ColoredFormatter('%(log_color)s' + fmt))
+        else:
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter(fmt))
 
-def init_logging(log_level, log_timestamp=True):
-    numeric_level = getattr(logging, log_level.upper(), None)
-    if not isinstance(numeric_level, int):
-        raise ValueError('Invalid log level: %s' % log_level)
+        root = logging.getLogger()
+        root.setLevel(numeric_level)
+        # Add the handler to the logger so records from this process are handled.
+        root.addHandler(handler)
 
-    fmt = '%(threadName)-10s[%(process)5d] %(levelname)-8s %(message)s'
-    if log_timestamp:
-        fmt = '%(asctime)s ' + fmt
+        # Send all warnings to logging.
+        logging.captureWarnings(True)
 
-    # This is the handler for all log records.
-    if COLORLOG:
-        handler = colorlog.StreamHandler()
-        handler.setFormatter(colorlog.ColoredFormatter('%(log_color)s' + fmt))
-    else:
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter(fmt))
+    def serve(self, args):
+        global RUNNING
+        global ABNORMAL_SHUTDOWN
 
-    root = logging.getLogger()
-    root.setLevel(numeric_level)
-    # Add the handler to the logger so records from this process are handled.
-    root.addHandler(handler)
+        threading.currentThread().setName('master')
+        if SETPROCTITLE:
+            setproctitle.setproctitle(args.process_name + ' master %s' % ' '.join(sys.argv[1:]))
 
-    # Send all warnings to logging.
-    logging.captureWarnings(True)
+        create_pidfile(args.pid_file)
 
+        for f in glob.glob(os.path.join(args.socket_path, 'rest*.sock')):
+            os.unlink(f)
+        for f in glob.glob(os.path.join(args.socket_path, 'notify*.sock')):
+            os.unlink(f)
 
-def main():
-    global RUNNING
-    global ABNORMAL_SHUTDOWN
+        self.init_logging(args.log_level)
+        logging.info('starting kopano-mfr')
 
-    args = opt_args()
+        if not UJSON:
+            warnings.warn('ujson module is not available, falling back to slower stdlib json implementation')
 
-    threading.currentThread().setName('master')
-    if SETPROCTITLE:
-        setproctitle.setproctitle(args.process_name + ' master %s' % ' '.join(sys.argv[1:]))
+        # Fake exit queue.
+        queue = multiprocessing.JoinableQueue(1)
+        queue.put(True)
 
-    create_pidfile(args.pid_file)
+        workers = []
+        for n in range(args.workers):
+            rest_runner = Runner(queue, self.run_rest, 'rest', args.process_name, n)
+            rest_process = multiprocessing.Process(target=rest_runner.run, name='rest{}'.format(n), args=(args.socket_path, n, args))
+            workers.append(rest_process)
+            notify_runner = Runner(queue, self.run_notify, 'notify', args.process_name, n)
+            notify_process = multiprocessing.Process(target=notify_runner.run, name='notify{}'.format(n), args=(args.socket_path, n, args))
+            workers.append(notify_process)
 
-    for f in glob.glob(os.path.join(args.socket_path, 'rest*.sock')):
-        os.unlink(f)
-    for f in glob.glob(os.path.join(args.socket_path, 'notify*.sock')):
-        os.unlink(f)
+        for worker in workers:
+            worker.daemon = True
+            worker.start()
 
-    init_logging(args.log_level)
-    logging.info('starting kopano-mfr')
+        if args.insecure:
+            logging.warning('insecure mode - TLS client connections are susceptible to man-in-the-middle attacks and safety checks are off - this is not suitable for production use')
 
-    if not UJSON:
-        warnings.warn('ujson module is not available, falling back to slower stdlib json implementation')
+        if args.with_experimental:
+            logging.warning('experimental endpoints are enabled')
 
-    # Fake exit queue.
-    queue = multiprocessing.JoinableQueue(1)
-    queue.put(True)
+        if args.with_metrics:
+            if PROMETHEUS:
+                if not os.environ.get('prometheus_multiproc_dir'):
+                    logging.error('please export "prometheus_multiproc_dir"')
+                    sys.exit(-1)
 
-    workers = []
-    for n in range(args.workers):
-        rest_runner = Runner(queue, run_rest, 'rest', args.process_name, n)
-        rest_process = multiprocessing.Process(target=rest_runner.run, name='rest{}'.format(n), args=(args.socket_path, n, args))
-        workers.append(rest_process)
-        notify_runner = Runner(queue, run_notify, 'notify', args.process_name, n)
-        notify_process = multiprocessing.Process(target=notify_runner.run, name='notify{}'.format(n), args=(args.socket_path, n, args))
-        workers.append(notify_process)
-
-    for worker in workers:
-        worker.daemon = True
-        worker.start()
-
-    if args.insecure:
-        logging.warning('insecure mode - TLS client connections are susceptible to man-in-the-middle attacks and safety checks are off - this is not suitable for production use')
-
-    if args.with_experimental:
-        logging.warning('experimental endpoints are enabled')
-
-    if args.with_metrics:
-        if PROMETHEUS:
-            if not os.environ.get('prometheus_multiproc_dir'):
-                logging.error('please export "prometheus_multiproc_dir"')
+                # Spawn the metrics process later, so we can pass along worker name and pids.
+                monitor_workers = [(worker.name, worker.pid) for worker in workers]
+                # Include master process.
+                monitor_workers.append(('master', os.getpid()))
+                metrics_runner = Runner(queue, self.run_metrics, 'metrics', args.process_name, 0)
+                metrics_process = multiprocessing.Process(target=metrics_runner.run, args=(args.socket_path, args, monitor_workers))
+                metrics_process.daemon = True
+                metrics_process.start()
+                workers.append(metrics_process)
+            else:
+                logging.error('please install prometheus client python bindings')
                 sys.exit(-1)
 
-            # Spawn the metrics process later, so we can pass along worker name and pids.
-            monitor_workers = [(worker.name, worker.pid) for worker in workers]
-            # Include master process.
-            monitor_workers.append(('master', os.getpid()))
-            metrics_runner = Runner(queue, run_metrics, 'metrics', args.process_name, 0)
-            metrics_process = multiprocessing.Process(target=metrics_runner.run, args=(args.socket_path, args, monitor_workers))
-            metrics_process.daemon = True
-            metrics_process.start()
-            workers.append(metrics_process)
-        else:
-            logging.error('please install prometheus client python bindings')
-            sys.exit(-1)
+        signal.signal(signal.SIGCHLD, sigchld)
+        signal.signal(signal.SIGTERM, sigterm)
 
-    signal.signal(signal.SIGCHLD, sigchld)
-    signal.signal(signal.SIGTERM, sigterm)
-
-    try:
-        while RUNNING:
-            signal.pause()
-    except KeyboardInterrupt:
-        RUNNING = False
-        logging.info('keyboard interrupt')
-
-    logging.info('starting shutdown')
-
-    signal.signal(signal.SIGCHLD, signal.SIG_IGN)
-
-    if not ABNORMAL_SHUTDOWN:
-        # Flush queue, to tell workers to cleanly exit.
-        queue.get()
         try:
-            queue.task_done()
-        except ValueError:
-            # NOTE(longsleep): If a process encountered an error taks_done() was
-            # already called, thus it errors which is ok and can be ignored.
-            pass
+            while RUNNING:
+                signal.pause()
+        except KeyboardInterrupt:
+            RUNNING = False
+            logging.info('keyboard interrupt')
 
-    # Wait for workers to exit.
-    deadline = time.monotonic() + 5
-    done = []
-    while deadline > time.monotonic():
-        ready = multiprocessing.connection.wait([worker.sentinel for worker in workers if worker.sentinel not in done], timeout=1)
-        done.extend(ready)
-        if len(done) == len(workers):
-            break
+        logging.info('starting shutdown')
 
-    # Kill off workers which did not exit.
-    kill = len(done) != len(workers)
-    for worker in workers:
-        if kill and worker.is_alive():
-            if ABNORMAL_SHUTDOWN:
-                logging.critical('killing worker: %d', worker.pid)
-                os.kill(worker.pid, signal.SIGKILL)
-            else:
-                logging.warn('terminating worker: %d', worker.pid)
-                worker.terminate()
-        if args.with_metrics and PROMETHEUS:
-            prometheus_multiprocess.mark_process_dead(worker.pid)
-        worker.join()
+        signal.signal(signal.SIGCHLD, signal.SIG_IGN)
 
-    # Cleanup potentially left over sockets.
-    sockets = []
-    for n in range(args.workers):
-        sockets.append('rest%d.sock' % n)
-    for n in range(args.workers):
-        sockets.append('notify%d.sock' % n)
-    for socket in sockets:  # noqa: F402
-        try:
-            unix_socket = os.path.join(args.socket_path, socket)
-            os.unlink(unix_socket)
-        except OSError as err:
-            if err.errno != errno.ENOENT:
-                logging.warn('failed to remove socket %s on shutdown, error: %s', unix_socket, err)
+        if not ABNORMAL_SHUTDOWN:
+            # Flush queue, to tell workers to cleanly exit.
+            queue.get()
+            try:
+                queue.task_done()
+            except ValueError:
+                # NOTE(longsleep): If a process encountered an error taks_done() was
+                # already called, thus it errors which is ok and can be ignored.
+                pass
 
-    logging.info('shutdown complete')
+        # Wait for workers to exit.
+        deadline = time.monotonic() + 5
+        done = []
+        while deadline > time.monotonic():
+            ready = multiprocessing.connection.wait([worker.sentinel for worker in workers if worker.sentinel not in done], timeout=1)
+            done.extend(ready)
+            if len(done) == len(workers):
+                break
+
+        # Kill off workers which did not exit.
+        kill = len(done) != len(workers)
+        for worker in workers:
+            if kill and worker.is_alive():
+                if ABNORMAL_SHUTDOWN:
+                    logging.critical('killing worker: %d', worker.pid)
+                    os.kill(worker.pid, signal.SIGKILL)
+                else:
+                    logging.warn('terminating worker: %d', worker.pid)
+                    worker.terminate()
+            if args.with_metrics and PROMETHEUS:
+                prometheus_multiprocess.mark_process_dead(worker.pid)
+            worker.join()
+
+        # Cleanup potentially left over sockets.
+        sockets = []
+        for n in range(args.workers):
+            sockets.append('rest%d.sock' % n)
+        for n in range(args.workers):
+            sockets.append('notify%d.sock' % n)
+        for socket in sockets:  # noqa: F402
+            try:
+                unix_socket = os.path.join(args.socket_path, socket)
+                os.unlink(unix_socket)
+            except OSError as err:
+                if err.errno != errno.ENOENT:
+                    logging.warn('failed to remove socket %s on shutdown, error: %s', unix_socket, err)
+
+        logging.info('shutdown complete')
 
 
 if __name__ == '__main__':
-    main()
+    server = Server()
+    server.serve(opt_args())
