@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+import gettext
 import glob
 import logging
 from functools import partial
 import multiprocessing
 import argparse
 import errno
+import io
 import os
 import os.path
 import signal
@@ -15,6 +17,7 @@ import time
 import warnings
 
 import grapi.api.v1 as grapi
+from grapi.msgfmt import Msgfmt, PoSyntaxError
 
 import bjoern
 import falcon
@@ -76,6 +79,7 @@ PROCESS_NAME = 'kopano-mfr'
 SOCKET_PATH = '/var/run/kopano'
 WORKERS = 8
 METRICS_LISTEN = 'localhost:6060'
+TRANSLATION_DIR = '/usr/share/kopano-grapi/i18n'
 
 # metrics
 if PROMETHEUS:
@@ -136,6 +140,8 @@ def opt_args():
     parser.add_argument("--backends", dest='backends', default='kopano',
                         help="backends to enable (comma-separated)", metavar="LIST")
     parser.add_argument("--enable-experimental-endpoints", dest='with_experimental', action='store_true', default=False, help="enable API endpoints which are considered experimental")
+    parser.add_argument("--translations-dir", dest='translation_dir', default=TRANSLATION_DIR, type=is_path,
+                        help="the directory where translations are (default: {}".format(TRANSLATION_DIR))
 
     return parser.parse_args()
 
@@ -158,11 +164,81 @@ def error_handler(ex, req, resp, params, with_metrics):
     raise ex
 
 
+nullTranslations = gettext.NullTranslations(None)
+
+
 class FalconLabel:
+    def __init__(self, langs=None):
+        self.langs = langs
+
+    def get_language(self, requestlang):
+        if requestlang not in self.langs:
+            return nullTranslations.gettext
+
+        return self.langs[requestlang]
+
+    # TODO: move to utils
+    def parse_accept_language(self, accept_lang):
+        '''returns [('de', 1.0), ('*', 0.5)]'''
+
+        languages = []
+
+        for language in accept_lang.split(','):
+            entry = language.strip().lower().replace('_', '-')
+
+            if not entry:
+                continue
+
+            quality = 1.0
+
+            values = entry.split(';', 2)
+            lang = values[0]
+
+            if len(values) == 2:
+                # Ignore invalid values
+                if not values[1].startswith('q='):
+                    quality = 0
+                else:
+                    parts = values[1].split('=', 2)
+                    if len(parts) != 2:
+                        continue
+                    try:
+                        quality = float(parts[1])
+                    except ValueError:
+                        continue
+
+            languages.append((lang, quality))
+
+        languages.sort(key=lambda x: x[1])
+        languages.reverse()
+
+        return languages
+
     def process_resource(self, req, resp, resource, params):
         label = req.uri_template.replace('method', params.get('method', ''))
         label = label.replace('/', '_')
         req.context.label = label
+
+        if not self.langs:
+            req.context._ = nullTranslations.gettext
+            return
+
+        # Set language based on three settings in order:
+        # - MailboxSettings
+        # - HTTP ACCEPT-LANGUAGE Headers
+        # - ?ui_locales parameter
+
+        # The language is selected based on the three options and what languages are available,
+        # - when de-at is requested and not available, pick de (if available)
+        # - auto fallback to en-gb
+
+        # TODO: implement mailboxsettings
+
+        # HTTP ACCEPT-LANGUAGE
+        accept_lang = req.headers.get('ACCEPT-LANGUAGE')
+        if accept_lang:
+            lang = self.parse_accept_language(accept_lang)
+        req.context._ = lang
 
 
 class FalconMetrics:
@@ -284,7 +360,7 @@ class Server:
         return sock
 
     def run_rest(self, socket_path, n, options):
-        middleware = [FalconLabel()]
+        middleware = [FalconLabel(self.translations)]
         if options.with_metrics:
             middleware.append(FalconMetrics())
         if WITH_CPROFILE and PROFILE_DIR:
@@ -300,7 +376,7 @@ class Server:
         bjoern.server_run(self.create_socket_and_listen(unix_socket_path), app)
 
     def run_notify(self, socket_path, n, options):
-        middleware = [FalconLabel()]
+        middleware = [FalconLabel(self.translations)]
         if options.with_metrics:
             middleware.append(FalconMetrics())
         if PROFILE_DIR and PROFILE_MODE == 'request':
@@ -349,6 +425,34 @@ class Server:
         # Send all warnings to logging.
         logging.captureWarnings(True)
 
+    def get_translations(self, translation_dir):
+        langs = {}
+        for entry in os.scandir(translation_dir):
+            if not entry.name.endswith('.po'):
+                continue
+
+            pofile = os.path.join(translation_dir, entry.name)
+            language = os.path.basename(pofile).replace('.po', '')
+
+            # Verify that the language is valid 'de' or 'de-DE'
+            if len(language) != 2 and len(language) != 5:
+                logging.error("invalid po file with unsupported language '%s' found, skipping", language)
+                continue
+
+            try:
+                msgfmt = Msgfmt(open(pofile, 'rb'))
+            except IOError:
+                logging.warn("error when opening po file '%s'", pofile)
+
+            try:
+                gnutranslation = gettext.GNUTranslations(io.BytesIO(msgfmt.get()))
+            except PoSyntaxError:
+                logging.warning("unable to parse po file '%s'", pofile)
+
+            langs[language] = gnutranslation
+
+        return langs
+
     def serve(self, args):
         threading.currentThread().setName('master')
         if SETPROCTITLE:
@@ -361,8 +465,17 @@ class Server:
         for f in glob.glob(os.path.join(args.socket_path, 'notify*.sock')):
             os.unlink(f)
 
+        # Initialize translations
+        self.translations = self.get_translations(args.translation_dir)
+
         self.init_logging(args.log_level)
         logging.info('starting kopano-mfr')
+
+        if not self.translations:
+            logging.warn('no po files found, no translations will be available')
+        else:
+            # TODO: lazy-logging, info message?
+            logging.debug("translations available for '%s'", ','.join(self.translations.keys()))
 
         if not UJSON:
             warnings.warn('ujson module is not available, falling back to slower stdlib json implementation')
