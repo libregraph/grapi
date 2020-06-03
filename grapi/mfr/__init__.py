@@ -340,13 +340,14 @@ class Server:
         # Send all warnings to logging.
         logging.captureWarnings(True)
 
-    def get_translations(self, translation_dir):
+    def get_translations(self, translations_path):
         translations = {}
-        for entry in os.scandir(translation_dir):
+
+        for entry in os.scandir(translations_path):
             if not entry.name.endswith('.po'):
                 continue
 
-            pofile = os.path.join(translation_dir, entry.name)
+            pofile = os.path.join(translations_path, entry.name)
             language = os.path.basename(pofile).replace('.po', '')
 
             # Verify that the language is valid 'de' or 'de-DE'
@@ -375,25 +376,27 @@ class Server:
 
         create_pidfile(args.pid_file)
 
+        # Initialize logging, keep this at the beginning!
+        self.init_logging(args.log_level)
+
         for f in glob.glob(os.path.join(args.socket_path, 'rest*.sock')):
             os.unlink(f)
         for f in glob.glob(os.path.join(args.socket_path, 'notify*.sock')):
             os.unlink(f)
 
         # Initialize translations
-        self.translations = self.get_translations(args.translation_dir)
-
-        self.init_logging(args.log_level)
-        logging.info('starting kopano-mfr')
+        self.translations = self.get_translations(args.translations_path)
 
         if not self.translations:
             logging.warn('no po files found, no translations will be available')
         else:
             # TODO: lazy-logging, info message?
-            logging.debug("translations available for '%s'", ','.join(self.translations.keys()))
+            logging.debug("translations available for: '%s'", ', '.join(self.translations.keys()))
 
         if not UJSON:
             warnings.warn('ujson module is not available, falling back to slower stdlib json implementation')
+
+        logging.info('starting kopano-mfr')
 
         # Fake exit queue.
         queue = multiprocessing.JoinableQueue(1)

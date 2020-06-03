@@ -12,7 +12,7 @@ PROCESS_NAME = 'kopano-mfr'
 SOCKET_PATH = '/var/run/kopano'
 WORKERS = 8
 METRICS_LISTEN = 'localhost:6060'
-TRANSLATION_DIR = '/usr/share/kopano-grapi/i18n'
+TRANSLATIONS_PATH = '/usr/share/kopano-grapi/i18n'
 
 
 def opt_args():
@@ -44,8 +44,8 @@ def opt_args():
     parser.add_argument("--backends", dest='backends', default='kopano',
                         help="backends to enable (comma-separated)", metavar="LIST")
     parser.add_argument("--enable-experimental-endpoints", dest='with_experimental', action='store_true', default=False, help="enable API endpoints which are considered experimental")
-    parser.add_argument("--translations-dir", dest='translation_dir', default=TRANSLATION_DIR, type=is_path,
-                        help="the directory where translations are (default: {}".format(TRANSLATION_DIR))
+    parser.add_argument("--translations-path", dest='translations_path', default=TRANSLATIONS_PATH, type=is_path,
+                        help="path to translations base folder (default: {}".format(TRANSLATIONS_PATH))
 
     return parser.parse_args()
 
