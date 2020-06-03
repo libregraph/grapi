@@ -144,13 +144,13 @@ class FalconLabel:
 
         # HTTP ACCEPT-LANGUAGE
         accept_lang = req.headers.get('ACCEPT-LANGUAGE')
-        logging.debug("requesting accept-lang '%s'", accept_lang)
+        #logging.debug("requesting accept-lang '%s'", accept_lang)
         if accept_lang:
             for lang, _ in parse_accept_language(accept_lang):
                 translation = self.translations.get(lang)
                 if translation:
                     req.context.i18n = translation
-                    logging.debug("using translation '%s'", lang)
+                    #logging.debug("using translation '%s'", lang)
                     return
 
         req.context.i18n = nullTranslations
