@@ -341,7 +341,9 @@ class Server:
         logging.captureWarnings(True)
 
     def get_translations(self, translations_path):
-        translations = {}
+        translations = {
+            'en': gettext.NullTranslations(None), # Always add default (built-in language en).
+        }
 
         for entry in os.scandir(translations_path):
             if not entry.name.endswith('.po'):
