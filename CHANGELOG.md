@@ -2,9 +2,22 @@
 
 ## Unreleased
 
+- Update German translation
+- Disable per request verbose debug i18n logging
+- Add translations_path to binscript and config
+- Always add English translations
+- Use consistent commandline arguments and logging
+- Implement setting the language based on HTTP Accept Language
+- Move HTTP Accept Language parsing to a seperate module
+- Move mfr main() to a seperate file
+- Compile po to mo files in memory when starting mfr
+- Add documentation about adding a new translation
+- Refactor out globals RUNNING and ABNORMAL_SHUTDOWN
+- Restructure the mfr initialization with a Server class
+- Add i18n via gettext
 
 
-## v10.3.0 (2020-04-23)
+## v10.3.0 (2020-05-15)
 
 - Make the Kopano calendar endpoints not experimental
 - Validate subscription object when posting
