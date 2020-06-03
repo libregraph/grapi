@@ -18,6 +18,7 @@ DEFAULT_NUM_WORKERS=8
 DEFAULT_PID_FILE=${DEFAULT_SOCKET_PATH}/grapi.pid
 DEFAULT_STORAGE_SERVER_SOCKET=file:///var/run/kopano/server.sock
 DEFAULT_PERSISTENCY_PATH=
+DEFAULT_TRANSLATIONS_PATH=/usr/share/kopano-grapi/i18n
 
 # Handle parameters for configuration.
 
@@ -78,11 +79,15 @@ case "${1}" in
 			persistency_path="${DEFAULT_PERSISTENCY_PATH}"
 		fi
 
+		if [ -z "$translations_path" ]; then
+			translations_path="${DEFAULT_TRANSLATIONS_PATH}"
+		fi
+
 		if [ -n "$log_level" ]; then
 			set -- "$@" --log-level="$log_level"
 		fi
 
-		set -- "$@" --socket-path="$socket_path" --workers="$num_workers" --pid-file="$pid_file" --process-name="${PROCESS_NAME}"
+		set -- "$@" --socket-path="$socket_path" --workers="$num_workers" --pid-file="$pid_file" --process-name="${PROCESS_NAME}" --translations-path="$translations_path"
 
 		# Environment.
 
