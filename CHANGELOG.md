@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+
+
+## v10.4.0 (2020-06-03)
+
 - Update German translation
 - Disable per request verbose debug i18n logging
 - Add translations_path to binscript and config
