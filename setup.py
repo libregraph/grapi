@@ -49,7 +49,7 @@ setup(
 
     entry_points={
         'console_scripts': [
-            'kopano-grapi-mfr = grapi.mfr:main'
+            'kopano-grapi-mfr = grapi.mfr.__main__:main'
         ]
     }
 )

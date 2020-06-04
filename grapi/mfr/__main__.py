@@ -58,6 +58,14 @@ def is_path(path):
     return path
 
 
-if __name__ == '__main__':
+def main(args=None):
+    """The main routine."""
+    if args is None:
+        args=opt_args()
+
     server = Server()
-    server.serve(opt_args())
+    server.serve(args)
+
+
+if __name__ == '__main__':
+    main()
