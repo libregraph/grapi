@@ -4,7 +4,12 @@
 
 
 
-## v10.4.0 (2020-06-03)
+## v10.4.1 (2020-06-04)
+
+- Fix invalid entry point after script refactoring
+
+
+## v10.4.0 (2020-06-04)
 
 - Update German translation
 - Disable per request verbose debug i18n logging
