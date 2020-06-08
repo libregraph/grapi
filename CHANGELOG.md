@@ -4,6 +4,11 @@
 
 
 
+## v10.4.2 (2020-06-08)
+
+- Fix check for translations path to allow non-writable paths
+
+
 ## v10.4.1 (2020-06-04)
 
 - Fix invalid entry point after script refactoring
