@@ -82,28 +82,6 @@ if PROMETHEUS:
     CPUTIME_GAUGE = Gauge('kopano_mfr_cpu_seconds_total', 'Total user and system CPU time spent in seconds', ['worker'])
 
 
-# TODO use kopano.Service, for config file, pidfile, logging, restarting etc.
-def create_pidfile(path):
-    try:
-        with open(path, 'r') as _file:
-            last_pid = int(_file.read())
-
-        # check if pid/name match
-        last_process_cmdline = '/proc/%d/cmdline' % last_pid
-        with open(last_process_cmdline, 'r') as _file:
-            cmdline = _file.read()
-            if 'kopano-mfr' in cmdline:
-                print('Kopano-mfr is already running..', file=sys.stderr)
-                sys.exit(-1)
-
-    except FileNotFoundError:
-        pass
-
-    with open(path, 'w') as _file:
-        pid = str(os.getpid())
-        _file.write(pid)
-
-
 def error_handler(ex, req, resp, params, with_metrics):
     if not isinstance(ex, (falcon.HTTPError, falcon.HTTPStatus)):
         if with_metrics:
@@ -375,8 +353,6 @@ class Server:
         threading.currentThread().setName('master')
         if SETPROCTITLE:
             setproctitle.setproctitle(args.process_name + ' master %s' % ' '.join(sys.argv[1:]))
-
-        create_pidfile(args.pid_file)
 
         # Initialize logging, keep this at the beginning!
         self.init_logging(args.log_level)

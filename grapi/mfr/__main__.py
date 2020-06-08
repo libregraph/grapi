@@ -7,7 +7,6 @@ from grapi.mfr import Server
 
 
 # Defaults
-PID_FILE = '/var/run/kopano/mfr.pid'
 PROCESS_NAME = 'kopano-mfr'
 SOCKET_PATH = '/var/run/kopano'
 WORKERS = 8
@@ -21,8 +20,6 @@ def opt_args():
                         help="parent directory for unix sockets (default: {})".format(SOCKET_PATH),
                         type=is_writable_path,
                         default=SOCKET_PATH)
-    parser.add_argument("--pid-file", dest='pid_file', default=PID_FILE,
-                        help="pid file location (default: {})".format(PID_FILE), metavar="PATH")
     parser.add_argument("--log-level", dest='log_level', default='INFO',
                         help="log level (default: INFO)")
     parser.add_argument("-w", "--workers", dest="workers", type=int, default=WORKERS,

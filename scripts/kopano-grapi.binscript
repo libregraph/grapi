@@ -15,7 +15,6 @@ PROCESS_NAME=grapi
 EXTRA_PYTHONPATH=
 DEFAULT_SOCKET_PATH=/var/run/kopano-grapi
 DEFAULT_NUM_WORKERS=8
-DEFAULT_PID_FILE=${DEFAULT_SOCKET_PATH}/grapi.pid
 DEFAULT_STORAGE_SERVER_SOCKET=file:///var/run/kopano/server.sock
 DEFAULT_PERSISTENCY_PATH=
 DEFAULT_TRANSLATIONS_PATH=/usr/share/kopano-grapi/i18n
@@ -59,10 +58,6 @@ case "${1}" in
 			num_workers=${DEFAULT_NUM_WORKERS}
 		fi
 
-		if [ -z "$pid_file" ]; then
-			pid_file="${DEFAULT_PID_FILE}"
-		fi
-
 		if [ -z "$server_socket" ]; then
 			server_socket="${DEFAULT_STORAGE_SERVER_SOCKET}"
 		fi
@@ -87,7 +82,7 @@ case "${1}" in
 			set -- "$@" --log-level="$log_level"
 		fi
 
-		set -- "$@" --socket-path="$socket_path" --workers="$num_workers" --pid-file="$pid_file" --process-name="${PROCESS_NAME}" --translations-path="$translations_path"
+		set -- "$@" --socket-path="$socket_path" --workers="$num_workers" --process-name="${PROCESS_NAME}" --translations-path="$translations_path"
 
 		# Environment.
 
@@ -99,7 +94,6 @@ case "${1}" in
 		# Try to create stuff.
 
 		mkdir -p "$socket_path" || true
-		mkdir -p $(dirname "$pid_file") || true
 		mkdir -p "$persistency_path" || true
 
 		;;
