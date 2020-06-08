@@ -19,7 +19,7 @@ def opt_args():
     parser = argparse.ArgumentParser(prog=PROCESS_NAME, description='Kopano Grapi Master Fleet Runner')
     parser.add_argument("--socket-path", dest="socket_path",
                         help="parent directory for unix sockets (default: {})".format(SOCKET_PATH),
-                        type=is_path,
+                        type=is_writable_path,
                         default=SOCKET_PATH)
     parser.add_argument("--pid-file", dest='pid_file', default=PID_FILE,
                         help="pid file location (default: {})".format(PID_FILE), metavar="PATH")
@@ -50,12 +50,16 @@ def opt_args():
     return parser.parse_args()
 
 
-def is_path(path):
+def is_writable_path(path, checkWriteable=True):
     if not os.path.isdir(path):
         raise argparse.ArgumentTypeError("is_path:{} is not a valid path".format(path))
-    if not os.access(path, os.W_OK):
+    if checkWriteable and not os.access(path, os.W_OK):
         raise argparse.ArgumentTypeError("is_path:{} is not a writeable path".format(path))
     return path
+
+
+def is_path(path):
+    return is_writable_path(path, checkWriteable=False)
 
 
 def main(args=None):
