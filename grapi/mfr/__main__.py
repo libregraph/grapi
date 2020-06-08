@@ -62,7 +62,7 @@ def is_path(path):
 def main(args=None):
     """The main routine."""
     if args is None:
-        args=opt_args()
+        args = opt_args()
 
     server = Server()
     server.serve(args)
