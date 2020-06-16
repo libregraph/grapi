@@ -4,6 +4,7 @@ import logging
 import falcon
 
 from .api import API, APIResource
+from .batch import BatchResource
 from .config import PREFIX
 from .healthcheck import HealthCheckResource
 from .prefer import Prefer
@@ -126,6 +127,9 @@ class RestAPI(API):
     def add_routes(self, default_backend, options):
         healthCheck = HealthCheckResource()
         self.add_route('/health-check', healthCheck)
+
+        batchEndpoint = BatchResource(None, self)
+        self.add_route(PREFIX + '/$batch', batchEndpoint)
 
         directory = default_backend.get('directory')
         if directory:

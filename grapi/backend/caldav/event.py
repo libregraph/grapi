@@ -27,7 +27,7 @@ class EventResource(Resource):
         'seriesMasterId': lambda item: item.item.eventid if isinstance(item, kopano.Occurrence) else None,
         'type': lambda item: event_type(item),
         'responseRequested': lambda item: item.response_requested,
-        'iCalUId': lambda item: kopano.hex(kopano.bdec(item.icaluid)) if item.icaluid else None, # graph uses hex!?
+        'iCalUId': lambda item: kopano.hex(kopano.bdec(item.icaluid)) if item.icaluid else None,  # graph uses hex!?
         'organizer': lambda item: get_email(item.from_),
         'isOrganizer': lambda item: item.from_.email == item.sender.email,
     }
