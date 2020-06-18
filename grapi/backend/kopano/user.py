@@ -3,6 +3,8 @@ import codecs
 import falcon
 import logging
 
+from MAPI.Struct import MAPIErrorInvalidEntryid
+
 import kopano  # TODO remove?
 
 from .utils import (
@@ -215,7 +217,10 @@ class UserResource(Resource):
         else:
             raise HTTPBadRequest("Unsupported in user")
 
-        server, store, userid = _server_store(req, userid, self.options)
+        try:
+            server, store, userid = _server_store(req, userid, self.options)
+        except MAPIErrorInvalidEntryid:
+            raise HTTPBadRequest("Invalid entryid provided")
         if not userid and req.path.split('/')[-1] != 'users':
             userid = kopano.Store(server=server, mapiobj=server.mapistore).user.userid
         handler(req, resp, store=store, server=server, userid=userid)
