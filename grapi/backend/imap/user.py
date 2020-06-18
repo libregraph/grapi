@@ -7,7 +7,7 @@ from . import utils, Resource
 class UserResource(Resource):
 
     def on_get(self, req, resp, userid=None, folderid=None, itemid=None, method=None):
-        if method == 'messages': # TODO store-wide?
+        if method == 'messages':  # TODO store-wide?
             M = utils.login()
             M.select()
             typ, data = M.search(None, 'ALL')
@@ -20,6 +20,7 @@ class UserResource(Resource):
                 if count >= 10:
                     break
             utils.logoff(M)
+            # TODO: hardcoded api prefix
             data = {
                 '@odata.context': '/api/gc/v1/me/messages',
                 '@odata.nextLink': '/api/gc/v1/me/messages?$skip=10',
@@ -27,4 +28,4 @@ class UserResource(Resource):
             }
 
         resp.content_type = 'application/json'
-        resp.body = json.dumps(data, indent=2) # TODO stream
+        resp.body = json.dumps(data, indent=2)  # TODO stream

@@ -9,10 +9,10 @@ class EventResource(Resource):
     fields = {
         'id': lambda item: item.eventid,
         'subject': lambda item: item.subject,
-        'recurrence': None, #recurrence_json,
+        'recurrence': None,  #recurrence_json,
         'start': lambda req, item: _tzdate(item.start, req),
         'end': lambda req, item: _tzdate(item.end, req),
-        'location': lambda item: {'displayName': item.location, 'address': {}}, # TODO
+        'location': lambda item: {'displayName': item.location, 'address': {}},  # TODO
         'importance': lambda item: item.urgency,
         'sensitivity': lambda item: item.sensitivity,
         'hasAttachments': lambda item: item.has_attachments,
@@ -40,4 +40,4 @@ class EventResource(Resource):
         data = utils.convert_event(event)
 
         resp.content_type = 'application/json'
-        resp.body = json.dumps(data, indent=2) # TODO stream
+        resp.body = json.dumps(data, indent=2)  # TODO stream

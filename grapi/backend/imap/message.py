@@ -39,5 +39,5 @@ class MessageResource(Resource):
         utils.logoff(M)
 
         resp.content_type = 'application/json'
-        resp.body = json.dumps(data, indent=2) # TODO stream
+        resp.body = json.dumps(data, indent=2)  # TODO stream
 
