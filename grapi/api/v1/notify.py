@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 from .api import API, APIResource
 from .config import PREFIX
-from .request import Request
 from .healthcheck import HealthCheckResource
+from .request import Request
 
 
 class NotifyAPI(API):

@@ -4,11 +4,9 @@ import base64
 import json
 import os
 
-import pytest
-
-from falcon.testing import TestClient
-
 import kopano
+import pytest
+from falcon.testing import TestClient
 
 from grapi.api.v1 import RestAPI
 

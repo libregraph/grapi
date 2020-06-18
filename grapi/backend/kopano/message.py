@@ -1,17 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import base64
+
 import falcon
 
-from .utils import (
-    _server_store, _folder, _item, HTTPBadRequest, experimental
-)
-from .resource import (
-    DEFAULT_TOP, _date
-)
-from .item import (
-    ItemResource, get_body, set_body, get_email
-)
 from . import attachment  # import as module since this is a circular import
+from .item import ItemResource, get_body, get_email, set_body
+from .resource import DEFAULT_TOP, _date
+from .utils import HTTPBadRequest, _folder, _item, _server_store, experimental
 
 
 def set_torecipients(item, arg):

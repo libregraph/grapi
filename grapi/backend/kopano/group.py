@@ -1,12 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from .utils import (
-    _server_store, HTTPBadRequest, experimental, _get_group_by_id
-)
-from .resource import (
-    DEFAULT_TOP, Resource
-)
 from . import user  # import as module since this is a circular import
+from .resource import DEFAULT_TOP, Resource
+from .utils import (HTTPBadRequest, _get_group_by_id, _server_store,
+                    experimental)
 
 
 @experimental

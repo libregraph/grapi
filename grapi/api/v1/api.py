@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-import falcon
 import importlib
 
-from .decorators import resourceException, requireResourceHandler
+import falcon
+
+from .decorators import requireResourceHandler, resourceException
 
 
 class API(falcon.API):

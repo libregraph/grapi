@@ -1,10 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from .utils import (
-    _server_store, _folder, HTTPBadRequest, experimental
-)
-from .message import MessageResource
 from .folder import FolderResource
+from .message import MessageResource
+from .utils import HTTPBadRequest, _folder, _server_store, experimental
 
 
 class DeletedMailFolderResource(FolderResource):

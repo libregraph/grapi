@@ -2,19 +2,18 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import argparse
-
 from collections import namedtuple
 from datetime import datetime, timedelta
-from email.utils import formatdate
+from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
+from email.utils import formatdate
 
-import pytz
 import kopano
+import pytz
 
-from icalendar import Alarm, Calendar, Event, Timezone, TimezoneStandard, vCalAddress, vText
-
+from icalendar import (Alarm, Calendar, Event, Timezone, TimezoneStandard,
+                       vCalAddress, vText)
 
 DATEFORMAT = '%Y-%m-%d'
 BASEDATE = (datetime.utcnow()+timedelta(days=1)).strftime(DATEFORMAT)

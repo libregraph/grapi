@@ -1,7 +1,7 @@
 from grapi.api.v1.resource import Resource
 
-from .user import UserResource
 from .message import MessageResource
+from .user import UserResource
 
 AttachmentResource = Resource
 MailFolderResource = Resource

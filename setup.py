@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import os
-from setuptools import setup, find_packages
 import subprocess
 
+from setuptools import find_packages, setup
 
 install_requires = [
     'bjoern>=2.2.2',

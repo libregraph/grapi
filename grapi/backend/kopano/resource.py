@@ -3,14 +3,15 @@ import datetime
 import logging
 import time
 
+import dateutil.parser
+import falcon
 import pytz
 import tzlocal
 
-from grapi.api.v1.resource import HTTPBadRequest, Resource as BaseResource, _parse_qs, _encode_qs, _dumpb_json
+from grapi.api.v1.resource import HTTPBadRequest
+from grapi.api.v1.resource import Resource as BaseResource
+from grapi.api.v1.resource import _dumpb_json, _encode_qs, _parse_qs
 from grapi.api.v1.timezone import to_timezone
-
-import dateutil.parser
-import falcon
 
 from .utils import _handle_exception
 

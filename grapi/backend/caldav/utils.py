@@ -3,8 +3,8 @@ import base64
 import codecs
 import os
 
-import vobject
 import caldav
+import vobject
 
 HOST = os.getenv('CALDAV_SERVER')
 USER = os.getenv('GRAPI_USER')

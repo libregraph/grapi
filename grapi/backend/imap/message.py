@@ -2,7 +2,8 @@
 
 import json
 
-from . import utils, Resource
+from . import Resource, utils
+
 
 class MessageResource(Resource):
     fields = {
@@ -40,4 +41,3 @@ class MessageResource(Resource):
 
         resp.content_type = 'application/json'
         resp.body = json.dumps(data, indent=2)  # TODO stream
-

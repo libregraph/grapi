@@ -1,11 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from urllib.parse import parse_qs, urlencode, quote
 import html
-
-from jsonschema import ValidationError
+from urllib.parse import parse_qs, quote, urlencode
 
 import falcon
+from jsonschema import ValidationError
 
 try:
     import ujson as json

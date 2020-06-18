@@ -1,12 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import codecs
 
-from .utils import (
-    _server_store, _folder, db_put, db_get, experimental
-)
-from .resource import (
-    DEFAULT_TOP, Resource
-)
+from .resource import DEFAULT_TOP, Resource
+from .utils import _folder, _server_store, db_get, db_put, experimental
 
 
 class DeletedFolder(object):

@@ -2,14 +2,11 @@
 import calendar
 import codecs
 import datetime
+
 import dateutil
 
-from .utils import (
-    db_get, db_put, experimental
-)
-from .resource import (
-    DEFAULT_TOP, Resource, _date
-)
+from .resource import DEFAULT_TOP, Resource, _date
+from .utils import db_get, db_put, experimental
 
 
 def get_body(req, item):

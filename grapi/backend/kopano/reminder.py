@@ -1,9 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import datetime
 
-from .resource import (
-    Resource, _tzdate
-)
+from .resource import Resource, _tzdate
 
 
 class ReminderResource(Resource):

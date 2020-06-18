@@ -4,8 +4,7 @@ import argparse
 import multiprocessing
 from wsgiref.simple_server import make_server
 
-from grapi.api.v1 import RestAPI
-from grapi.api.v1 import NotifyAPI
+from grapi.api.v1 import NotifyAPI, RestAPI
 
 REST_PORT = 8000
 NOTIFY_PORT = 8001

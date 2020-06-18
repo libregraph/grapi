@@ -5,7 +5,6 @@ import os.path
 
 from grapi.mfr import Server
 
-
 # Defaults
 PROCESS_NAME = 'kopano-mfr'
 SOCKET_PATH = '/var/run/kopano'

@@ -1,7 +1,6 @@
 import codecs
 import os
 
-
 _marker = object()
 
 

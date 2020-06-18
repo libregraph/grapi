@@ -4,24 +4,14 @@ import binascii
 
 import dateutil.parser
 import falcon
-
 import kopano
 
-from .utils import (
-    _server_store, _folder, HTTPBadRequest, HTTPNotFound, experimental
-)
-from .resource import (
-    DEFAULT_TOP, _date, _tzdate, set_date, _start_end
-)
-from .item import (
-    ItemResource, get_email, get_body, set_body
-)
-from .attachment import (
-    AttachmentResource
-)
-from .schema import (
-        mr_schema
-)
+from .attachment import AttachmentResource
+from .item import ItemResource, get_body, get_email, set_body
+from .resource import DEFAULT_TOP, _date, _start_end, _tzdate, set_date
+from .schema import mr_schema
+from .utils import (HTTPBadRequest, HTTPNotFound, _folder, _server_store,
+                    experimental)
 
 pattern_map = {
     'monthly': 'absoluteMonthly',

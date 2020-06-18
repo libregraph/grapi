@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-import kopano
 import logging
 
-from .utils import (
-    _server_store, _folder, _item, experimental, HTTPBadRequest, HTTPNotFound
-)
+import kopano
+
 from .resource import Resource
+from .utils import (HTTPBadRequest, HTTPNotFound, _folder, _item,
+                    _server_store, experimental)
 
 
 @experimental

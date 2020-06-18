@@ -1,18 +1,22 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import binascii
 import codecs
-from contextlib import closing
 import fcntl
-import time
 import logging
 import os
-
-from threading import Thread, Event, Lock
+import time
 from collections import namedtuple
-
-import falcon
+from contextlib import closing
+from threading import Event, Lock, Thread
 
 import bsddb3 as bsddb
+import falcon
+import kopano
+from MAPI.Struct import (MAPIErrorInvalidParameter, MAPIErrorNoAccess,
+                         MAPIErrorNotFound, MAPIErrorUnconfigured)
+
+from grapi.api.v1.decorators import experimental as experimentalDecorator
+from grapi.api.v1.resource import HTTPBadRequest
 
 try:
     from prometheus_client import Counter, Gauge
@@ -20,11 +24,7 @@ try:
 except ImportError:
     PROMETHEUS = False
 
-from MAPI.Struct import MAPIErrorNotFound, MAPIErrorNoAccess, MAPIErrorInvalidParameter, MAPIErrorUnconfigured
-import kopano
 
-from grapi.api.v1.resource import HTTPBadRequest
-from grapi.api.v1.decorators import experimental as experimentalDecorator
 
 PERSISTENCY_PATH = os.getenv('GRAPI_PERSISTENCY_PATH', '')
 

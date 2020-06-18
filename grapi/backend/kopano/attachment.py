@@ -1,13 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import base64
 
-from .utils import (
-    _server_store, _folder, _item, experimental
-)
-from .resource import (
-    Resource, _date
-)
 from . import message
+from .resource import Resource, _date
+from .utils import _folder, _item, _server_store, experimental
 
 
 @experimental

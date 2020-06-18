@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-import falcon
 import logging
+
+import falcon
 
 from .api import API, APIResource
 from .config import PREFIX
-from .request import Request
 from .healthcheck import HealthCheckResource
 from .prefer import Prefer
+from .request import Request
 from .timezone import to_timezone
 
 

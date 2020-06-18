@@ -3,7 +3,8 @@
 import datetime
 import json
 
-from . import utils, Resource
+from . import Resource, utils
+
 
 class UserResource(Resource):
 

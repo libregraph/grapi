@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: CC0-1.0
 import cProfile
-import pstats
 import io
 import logging
 import os
+import pstats
 import time
 
 # this code was written by Max Klymyshn and has been put into the public domain according to:

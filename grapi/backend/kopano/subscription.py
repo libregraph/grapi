@@ -1,23 +1,26 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import codecs
 import collections
-import falcon
-import http.cookiejar
-import kopano
 import datetime
-import dateutil.parser
-import requests
-import time
+import http.cookiejar
 import logging
+import time
 import uuid
-import validators
-
-from queue import Queue, Empty, Full
-from threading import Thread, Event, Lock
-
+from queue import Empty, Full, Queue
+from threading import Event, Lock, Thread
 from urllib.parse import urlparse
 
+import dateutil.parser
+import falcon
+import kopano
+import requests
+import validators
+from MAPI.Struct import MAPIErrorNoSupport
+
+from grapi.api.v1.resource import Resource, _dumpb_json
+
 from . import utils
+from .schema import subscription_schema, update_subscription_schema
 
 try:
     from prometheus_client import Counter, Gauge, Histogram
@@ -25,12 +28,7 @@ try:
 except ImportError:  # pragma: no cover
     PROMETHEUS = False
 
-from MAPI.Struct import (
-    MAPIErrorNoSupport
-)
 
-from grapi.api.v1.resource import Resource, _dumpb_json
-from .schema import subscription_schema, update_subscription_schema
 
 # TODO don't block on sending updates
 # TODO async subscription validation

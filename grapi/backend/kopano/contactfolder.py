@@ -1,13 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import falcon
 
-from .utils import (
-    _server_store, _folder, HTTPBadRequest, experimental
-)
+from .contact import ContactResource
 from .folder import FolderResource
-from .contact import (
-    ContactResource
-)
+from .utils import HTTPBadRequest, _folder, _server_store, experimental
 
 
 class DeletedContactFolderResource(FolderResource):

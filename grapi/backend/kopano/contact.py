@@ -1,14 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from .utils import (
-    _server_store, _folder, _item, HTTPBadRequest, experimental
-)
-from .resource import (
-    _date,
-)
-from .item import (
-    ItemResource, get_email2
-)
+from .item import ItemResource, get_email2
+from .resource import _date
+from .utils import HTTPBadRequest, _folder, _item, _server_store, experimental
 
 
 def set_email_addresses(item, arg):  # TODO multiple via pyko

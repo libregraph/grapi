@@ -1,11 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+import errno
 import gettext
 import glob
-import logging
-from functools import partial
-import multiprocessing
-import errno
 import io
+import logging
+import multiprocessing
 import os
 import os.path
 import signal
@@ -14,13 +13,14 @@ import sys
 import threading
 import time
 import warnings
-
-import grapi.api.v1 as grapi
-from grapi.mfr.utils import parse_accept_language
-from grapi.mfr.msgfmt import Msgfmt, PoSyntaxError
+from functools import partial
 
 import bjoern
 import falcon
+
+import grapi.api.v1 as grapi
+from grapi.mfr.msgfmt import Msgfmt, PoSyntaxError
+from grapi.mfr.utils import parse_accept_language
 
 try:
     import ujson  # noqa: F401

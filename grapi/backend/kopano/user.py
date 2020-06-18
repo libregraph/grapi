@@ -1,30 +1,23 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import codecs
-import falcon
 import logging
 
+import falcon
+import kopano  # TODO remove?
 from MAPI.Struct import MAPIErrorInvalidEntryid
 
-import kopano  # TODO remove?
-
-from .utils import (
-    _server_store, HTTPBadRequest, HTTPNotFound, experimental
-)
-from .resource import (
-    DEFAULT_TOP, Resource, _start_end
-)
+from . import group  # import as module since this is a circular import
 from .calendar import CalendarResource
 from .contact import ContactResource
 from .contactfolder import ContactFolderResource
 from .event import EventResource
 from .mailfolder import MailFolderResource
 from .message import MessageResource
+from .profilephoto import ProfilePhotoResource
 from .reminder import ReminderResource
+from .resource import DEFAULT_TOP, Resource, _start_end
 from .schema import event_schema
-from . import group  # import as module since this is a circular import
-from .profilephoto import (
-    ProfilePhotoResource
-)
+from .utils import HTTPBadRequest, HTTPNotFound, _server_store, experimental
 
 
 class UserImporter:

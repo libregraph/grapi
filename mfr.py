@@ -6,5 +6,7 @@
 # by the packaging console_scripts entry point.
 
 import sys
+
 from grapi.mfr import main
+
 sys.exit(main())

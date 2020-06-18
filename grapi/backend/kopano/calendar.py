@@ -1,19 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from .utils import (
-    _server_store, _folder, HTTPBadRequest, experimental
-)
-from .folder import (
-    FolderResource
-)
-from .event import (
-    EventResource
-)
-from .resource import (
-    _start_end
-)
-
+from .event import EventResource
+from .folder import FolderResource
+from .resource import _start_end
 from .schema import event_schema
+from .utils import HTTPBadRequest, _folder, _server_store, experimental
 
 
 class CalendarResource(FolderResource):
