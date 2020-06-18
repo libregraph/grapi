@@ -23,6 +23,7 @@ pipeline {
 						sh 'apt-get update && apt-get install -y \
 							apt-transport-https \
 							ca-certificates \
+							isort \
 							libcap-dev \
 							libdb-dev \
 							libev-dev \
@@ -50,6 +51,8 @@ pipeline {
 						echo 'Linting..'
 						sh 'make lint > pylint.log || true'
 						recordIssues tool: pyLint(pattern: 'pylint.log'), qualityGates: [[threshold: 40, type: 'TOTAL', unstable: true]]
+						echo 'Isort..'
+						sh 'make test-isort'
 					}
 				}
 				stage('Test') {

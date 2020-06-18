@@ -7,6 +7,7 @@ WORKDIR /workspace/
 RUN apt-get update && apt-get install --no-install-recommends -y \
 	build-essential \
 	ca-certificates \
+	isort \
 	libcap-dev \
 	libdb-dev \
 	libev-dev \

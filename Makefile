@@ -6,6 +6,8 @@ PYTEST ?= py.test-3
 
 CHGLOG ?= git-chglog
 
+ISORT ?= isort
+
 # Variables
 
 PYTHONPATH ?= .
@@ -13,6 +15,9 @@ ARGS ?=
 
 PYTEST_OPTIONS+=-s
 PYTEST_COVERAGE_OPTIONS+=--cov-report=term-missing
+
+ISORT_OPTIONS+=--recursive --skip env --skip grapi/mfr/msgfmt.py
+ISORT_CHECK_OPTIONS+=--check-only --diff
 
 # Rules
 
@@ -22,6 +27,14 @@ all:
 .PHONY: lint
 lint:
 	$(FLAKE8) -v --format=pylint --exclude=grapi/backend/caldav,grapi/backend/imap ./grapi
+
+.PHONY: test-isort
+test-isort:
+	${ISORT} ${ISORT_OPTIONS} ${ISORT_CHECK_OPTIONS} .
+
+.PHONY: isort
+isort:
+	${ISORT} ${ISORT_OPTIONS} .
 
 .PHONY: test
 test:
