@@ -160,7 +160,6 @@ def event_type(item):
         return 'singleInstance'
 
 
-@experimental
 class EventResource(ItemResource):
     fields = ItemResource.fields.copy()
     fields.update({
@@ -217,6 +216,7 @@ class EventResource(ItemResource):
         except kopano.errors.NotFoundError:
             raise HTTPNotFound(description='Item not found')
 
+    @experimental
     def handle_get_attachments(self, req, resp, event):
         attachments = list(event.attachments(embedded=True))
         data = (attachments, DEFAULT_TOP, 0, len(attachments))
@@ -272,6 +272,7 @@ class EventResource(ItemResource):
         item.decline(comment=fields.get('comment'), respond=(fields.get('sendResponse', True)), subject_prefix=_("Declined"))
         resp.status = falcon.HTTP_202
 
+    @experimental
     def handle_post_attachments(self, req, resp, fields, item):
         if fields['@odata.type'] == '#microsoft.graph.fileAttachment':
             att = item.create_attachment(fields['name'], base64.urlsafe_b64decode(fields['contentBytes']))
