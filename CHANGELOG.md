@@ -4,6 +4,12 @@
 
 
 
+## v10.4.3 (2020-06-23)
+
+- Make events resource not experimental
+- Handle an invalid entry provided to /users/ endpoint
+
+
 ## v10.4.2 (2020-06-08)
 
 - Fix check for translations path to allow non-writable paths
