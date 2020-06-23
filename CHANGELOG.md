@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Make events resource not experimental
+- Introduce isort for automatically sorting imports
+- Apply isort to grapi
+- Fix TODO comment formatting in non supported backends
+- Handle an invalid entry provided to /users/ endpoint
+- Add missing spaces between assignment in grapi.mfr
+- Remove PIDfile support
+
+
+## v10.4.3 (2020-06-23)
+
+- Make events resource not experimental
+- Handle an invalid entry provided to /users/ endpoint
 
 
 ## v10.4.2 (2020-06-08)
