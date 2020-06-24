@@ -19,6 +19,7 @@ def opt_args():
                         help="parent directory for unix sockets (default: {})".format(SOCKET_PATH),
                         type=is_writable_path,
                         default=SOCKET_PATH)
+    parser.add_argument("--pid-file", dest='pid_file', help=argparse.SUPPRESS)
     parser.add_argument("--log-level", dest='log_level', default='INFO',
                         help="log level (default: INFO)")
     parser.add_argument("-w", "--workers", dest="workers", type=int, default=WORKERS,
