@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+
+
+## v10.5.0 (2020-06-24)
+
+- Bring back --pid-file as noop parameter
+- Implement /$batch endpoint
 - Make events resource not experimental
 - Introduce isort for automatically sorting imports
 - Apply isort to grapi
