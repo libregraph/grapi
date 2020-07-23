@@ -85,7 +85,7 @@ def test_create_message(client, user, json_message):
     response = client.simulate_post(url, headers=user.auth_header, json=json_message)
     assert response.status_code == 200
     assert response.json['subject'] == json_message['subject']
-    assert response.json['isRead'] == False
+    assert not response.json['isRead']
 
     url = '/api/gc/v1/me/mailFolders/inbox/'
     response = client.simulate_get(url, headers=user.auth_header)
@@ -112,6 +112,7 @@ def test_copy(client, user):
     response = client.simulate_get('/api/gc/v1/me/mailFolders/inbox', headers=user.auth_header)
     assert response.status_code == 200
     assert response.json['childFolderCount'] == 2
+
 
 def test_move(client, user):
     folder1 = assert_create_folder(client, user, 'folder1')
