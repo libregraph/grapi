@@ -41,22 +41,12 @@ def client():
 
 @pytest.fixture()
 def user():
-    if KOPANO_SSLKEY_FILE:
-        admin_server = kopano.Server(parse_args=False, sslkey_file=KOPANO_SSLKEY_FILE, sslkey_pass=KOPANO_SSLKEY_PASS)
-        try:
-            admin_server.user(USERNAME1).create_store()
-        except kopano.errors.DuplicateError:
-            pass
-
     server = kopano.Server(parse_args=False, auth_user=USERNAME1, auth_pass=PASSWORD1)
     user = server.user(USERNAME1)
     user.auth_header = create_auth_header(USERNAME1, PASSWORD1)
     yield user
 
-    if KOPANO_SSLKEY_FILE:
-        admin_server.user(USERNAME1).unhook()
-    else:
-        [f.empty() for f in user.folders(recurse=False)]
+    [f.empty() for f in user.folders(recurse=False)]
 
 
 @pytest.fixture()
