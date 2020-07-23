@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+
 import pytest
 
 URLS = ['/api/gc/v1/me/events', '/api/gc/v1/me/calendars/calendar/events']
@@ -43,7 +44,7 @@ def test_create_recurrence_weekly(client, user, json_event_weekly, url):
 
     assert response.status_code == 200
     assert response.json['@odata.context'] == url
-    assert response.json['isAllDay'] == True
+    assert response.json['isAllDay']
 
     # TODO: Check expanded recurrence
 
@@ -203,7 +204,7 @@ def test_delete_instance(client, user, calendar_entryid, json_event_daily, url):
     assert response.status_code == 200
     assert len(response.json['value']) == occurences - 1
     # Verify it's really deleted
-    assert any(occ['id'] == id_ for occ in response.json['value']) == False
+    assert not any(occ['id'] == id_ for occ in response.json['value'])
 
 
 @pytest.mark.parametrize("url", URLS)
@@ -225,8 +226,8 @@ def test_update_instance(client, user, calendar_entryid, json_event_daily, url):
     }
 
     response = client.simulate_patch(url + '/' + id_,
-                                    json=update,
-                                    headers=user.auth_header)
+                                     json=update,
+                                     headers=user.auth_header)
     assert response.status_code == 200
 
     response = client.simulate_get(url + '/' + id_, headers=user.auth_header)
