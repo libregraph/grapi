@@ -37,6 +37,7 @@ def _date(d, local=False, show_time=True):
     return d.strftime(fmt)
 
 
+# TODO: re-order args? req, d, tzinfo=None?
 def _tzdate(d, tzinfo, req):
     if d is None:
         return None
@@ -67,6 +68,21 @@ def _naive_local(d):  # TODO make pyko not assume naive localtime..
         return d.astimezone(LOCAL).replace(tzinfo=None)
     else:
         return d
+
+
+def parse_datetime_timezone(datetime_timezone, field):
+    try:
+        tz = to_timezone(datetime_timezone.get('timeZone', 'UTC'))
+    except Exception:
+        logging.debug('failed to parse timezone value when setting date to \'%s\'', field)
+        raise HTTPBadRequest('The timeZone value of field \'%s\' is not supported.' % field)
+    try:
+        d = dateutil.parser.parse(datetime_timezone['dateTime'], ignoretz=True)
+    except ValueError:
+        logging.debug('failed to parse date when setting to \'%s\'', exc_info=True)
+        raise HTTPBadRequest('The date value of field \'%s\' is invalid.' % field)
+
+    return tz.localize(d).astimezone(LOCAL).replace(tzinfo=None)
 
 
 def set_date(item, field, arg):

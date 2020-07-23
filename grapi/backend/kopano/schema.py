@@ -70,7 +70,21 @@ _update_subscription_schema = {
     "required": ["expirationDateTime"],
 }
 
+# getSchedule
+_getschedule_schema = {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {
+        "availabilityViewInterval": {"type": "number", "minimum": 5, "maximum": 1440},
+        "startTime": _dateTimeTimeZone,
+        "endTime": _dateTimeTimeZone,
+        "schedules": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["startTime", "endTime", "schedules"]
+}
+
 event_schema = jsonschema.Draft4Validator(_event_schema)
 subscription_schema = jsonschema.Draft4Validator(_subscription_schema)
 update_subscription_schema = jsonschema.Draft4Validator(_update_subscription_schema)
 mr_schema = jsonschema.Draft4Validator(_mr_schema)
+get_schedule_schema = jsonschema.Draft4Validator(_getschedule_schema)
