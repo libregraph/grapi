@@ -48,7 +48,6 @@ def user():
         except kopano.errors.DuplicateError:
             pass
 
-
     server = kopano.Server(parse_args=False, auth_user=USERNAME1, auth_pass=PASSWORD1)
     user = server.user(USERNAME1)
     user.auth_header = create_auth_header(USERNAME1, PASSWORD1)
@@ -58,27 +57,6 @@ def user():
         admin_server.user(USERNAME1).unhook()
     else:
         [f.empty() for f in user.folders(recurse=False)]
-
-
-@pytest.fixture
-def create_user():
-    users = []
-    server = kopano.Server(parse_args=False)
-
-    def _create_user(name):
-        user = server.create_user(name, email='{}@kopano.io'.format(name), password=name)
-        user.auth_header = create_auth_header(name, name)
-        users.append(user)
-        return user
-
-    yield _create_user
-
-    for user in users:
-        # Test could have removed a user
-        try:
-            server.delete(user)
-        except kopano.errors.NotFoundError:
-            pass
 
 
 @pytest.fixture()
