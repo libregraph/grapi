@@ -322,6 +322,11 @@ class EventResource(ItemResource):
         self.handle_patch(req, resp, fields=fields, item=item)
 
     def handle_delete(self, req, resp, folder, item):
+        # If meeting is organised, sent cancellation
+        if self.fields['isOrganizer'](item):
+            item.cancel()
+            item.send()
+
         folder.delete(item)
         self.respond_204(resp)
 
