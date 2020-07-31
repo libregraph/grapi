@@ -10,10 +10,7 @@ from email.mime.text import MIMEText
 from email.utils import formatdate
 
 import kopano
-import pytz
-
-from icalendar import (Alarm, Calendar, Event, Timezone, TimezoneStandard,
-                       vCalAddress, vText)
+from icalendar import Alarm, Calendar, Event, vCalAddress, vText
 
 DATEFORMAT = '%Y-%m-%d'
 BASEDATE = (datetime.utcnow()+timedelta(days=1)).strftime(DATEFORMAT)
