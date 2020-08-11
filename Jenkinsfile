@@ -10,14 +10,14 @@ pipeline {
 		CI = 'true'
 		DEBIAN_FRONTEND = 'noninteractive'
 		REPO_URL = 'https://download.kopano.io/supported/core:/master/Ubuntu_18.04/'
-		PYTHONDONTWRITEBYTECODE  = "NO"
+		PYTHONDONTWRITEBYTECODE = '1'
 	}
 	stages {
 		stage('Lint/Test') {
 			agent {
 				docker {
 					image 'ubuntu:bionic'
-					args '-u 0'
+					args '-u 0 -e PYTHONDONTWRITEBYTECODE=1'
 				}
 			}
 			stages {
