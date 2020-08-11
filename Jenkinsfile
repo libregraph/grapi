@@ -18,6 +18,7 @@ pipeline {
 				docker {
 					image 'ubuntu:bionic'
 					args '-u 0 -e PYTHONDONTWRITEBYTECODE=1'
+					label 'docker'
 				}
 			}
 			stages {
@@ -68,7 +69,7 @@ pipeline {
 			}
 		}
 		stage('Integration Test') {
-			agent { label 'master' }
+			agent { label 'docker' }
 			stages {
 				stage('Run test') {
 					steps {
