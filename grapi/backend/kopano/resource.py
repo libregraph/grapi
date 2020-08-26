@@ -4,7 +4,6 @@ import logging
 import time
 
 import dateutil.parser
-import falcon
 import pytz
 import tzlocal
 
