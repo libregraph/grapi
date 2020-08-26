@@ -224,8 +224,7 @@ def _server(req, options, forceReconnect=False):
 
         if not sessiondata:
             logging.debug('creating session for passthrough user %s', userid)
-            username = _username(userid)
-            server = kopano.Server(auth_user=username, auth_pass='',
+            server = kopano.Server(userid=userid, auth_pass='',
                                    parse_args=False, store_cache=False, config={})
             store = kopano.Store(server=server, mapiobj=server.mapistore)
             record = Record(server=server, store=store)
