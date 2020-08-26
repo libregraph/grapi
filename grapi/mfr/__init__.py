@@ -320,7 +320,7 @@ class Server:
 
     def get_translations(self, translations_path):
         translations = {
-            'en': gettext.NullTranslations(None), # Always add default (built-in language en).
+            'en': gettext.NullTranslations(None),  # Always add default (built-in language en).
         }
 
         for entry in os.scandir(translations_path):
