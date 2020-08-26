@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import json
-
 from . import Resource, utils
 
 
@@ -27,6 +25,4 @@ class UserResource(Resource):
                 '@odata.nextLink': '/api/gc/v1/me/messages?$skip=10',
                 'value': value,
             }
-
-        resp.content_type = 'application/json'
-        resp.body = json.dumps(data, indent=2)  # TODO stream
+        self.respond_json(req, data)
