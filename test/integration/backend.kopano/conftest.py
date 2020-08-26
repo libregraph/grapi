@@ -10,9 +10,9 @@ from falcon.testing import TestClient
 
 from grapi.api.v1 import RestAPI
 
+
 DATA_DIR = '{}/data'.format(os.path.dirname(os.path.realpath(__file__)))
 BACKEND = 'kopano'
-API = '/api/gc/v1'
 
 USERNAME1 = 'user1'
 PASSWORD1 = 'user1'
