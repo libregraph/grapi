@@ -3,8 +3,6 @@
 # Implementation of /$batch call documented
 # https://docs.microsoft.com/en-us/graph/json-batching?context=graph%2Fapi%2F1.0&view=graph-rest-1.0#response-format
 
-import base64
-import codecs
 import json  # TODO(jelle): refactor grapi and use ujson
 import logging
 
@@ -109,8 +107,7 @@ class BatchResource(Resource):
                                     'code': result.status_code,
                                     'message': result.status,
                                     'headers': {'content-type': 'application/json'}
-                                    }
-                }
+                                    }}
 
             response['status'] = result.status_code
             responses.append(response)
