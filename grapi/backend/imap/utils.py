@@ -10,14 +10,17 @@ HOST = os.getenv('IMAP_SERVER')
 USER = os.getenv('GRAPI_USER')
 PASSWORD = os.getenv('GRAPI_PASSWORD')
 
+
 def login():
     M = imaplib.IMAP4_SSL(HOST)
     M.login(USER, PASSWORD)
     return M
 
+
 def logoff(M):
     M.close()
     M.logout()
+
 
 def convert_message(num, data):
     mail = email.message_from_bytes(data[0][1])
