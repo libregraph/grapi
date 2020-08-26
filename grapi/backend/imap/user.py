@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from grapi.api.v1.config import PREFIX
 from . import Resource, utils
 
 
@@ -19,10 +20,9 @@ class UserResource(Resource):
                 if count >= 10:
                     break
             utils.logoff(M)
-            # TODO: hardcoded api prefix
             data = {
-                '@odata.context': '/api/gc/v1/me/messages',
-                '@odata.nextLink': '/api/gc/v1/me/messages?$skip=10',
+                '@odata.context': '%s/me/messages' % PREFIX,
+                '@odata.nextLink': '%s/me/messages?$skip=10' % PREFIX,
                 'value': value,
             }
         self.respond_json(req, data)
