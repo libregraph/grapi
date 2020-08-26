@@ -10,12 +10,14 @@ HOST = os.getenv('CALDAV_SERVER')
 USER = os.getenv('GRAPI_USER')
 PASSWORD = os.getenv('GRAPI_PASSWORD')
 
+
 def calendar():
     client = caldav.DAVClient(HOST, username=USER, password=PASSWORD)
     principal = client.principal()
     for calendar in principal.calendars():
         if calendar.name == 'Calendar':  # TODO better lookup
             return calendar
+
 
 def convert_event(event):
     vobj = vobject.readOne(event.data)
