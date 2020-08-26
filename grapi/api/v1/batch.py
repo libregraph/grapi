@@ -3,10 +3,8 @@
 # Implementation of /$batch call documented
 # https://docs.microsoft.com/en-us/graph/json-batching?context=graph%2Fapi%2F1.0&view=graph-rest-1.0#response-format
 
-import json  # TODO(jelle): refactor grapi and use ujson
 import logging
 
-import falcon
 import jsonschema
 from falcon.testing import TestClient
 
@@ -112,6 +110,4 @@ class BatchResource(Resource):
             response['status'] = result.status_code
             responses.append(response)
 
-        resp.content_type = 'application/json'
-        resp.status = falcon.HTTP_200
-        resp.body = json.dumps(responses, indent=2)  # TODO(jelle): stream
+            self.respond_json(resp, responses)

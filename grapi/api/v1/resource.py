@@ -83,3 +83,8 @@ class Resource:
             schema.validate(fields)
         except ValidationError as e:
             raise HTTPBadRequest("JSON schema violation: %s " % e.message)
+
+    def respond_json(self, resp, data):
+        resp.content_type = 'application/json'
+        resp.status = falcon.HTTP_200
+        resp.body = json.dumps(data, indent=2)

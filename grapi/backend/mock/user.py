@@ -1,5 +1,3 @@
-import json
-
 from grapi.backend.mock import Resource
 
 from .data import MESSAGES, USERS
@@ -23,5 +21,4 @@ class UserResource(Resource):
                 'value': USERS,
             }
 
-        resp.content_type = 'application/json'
-        resp.body = json.dumps(data, indent=2, ensure_ascii=False).encode('utf-8')  # TODO stream
+        self.respond_json(resp, data)
