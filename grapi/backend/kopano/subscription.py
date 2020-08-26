@@ -29,7 +29,6 @@ except ImportError:  # pragma: no cover
     PROMETHEUS = False
 
 
-
 # TODO don't block on sending updates
 # TODO async subscription validation
 # TODO restarting app/server?
