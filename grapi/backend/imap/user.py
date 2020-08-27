@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from grapi.api.v1.config import PREFIX
+
 from . import Resource, utils
 
 
