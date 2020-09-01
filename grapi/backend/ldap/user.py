@@ -192,7 +192,7 @@ class UserResource(Resource):
                 break
             lc.cookie = cookie
 
-        if userid:
+        if userid and value:
             data = value[0]
         else:
             data = {
