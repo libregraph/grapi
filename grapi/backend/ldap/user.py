@@ -156,7 +156,7 @@ class UserResource(Resource):
                     # Ignore entries which have no login attribute.
                     continue
                 cn = _get_ldap_attr_value(attrs, self.attributeMapping['nameAttribute'], '')
-                mail = _get_ldap_attr_value(attrs,  self.attributeMapping['emailAttribute'], '')
+                mail = _get_ldap_attr_value(attrs, self.attributeMapping['emailAttribute'], '')
                 givenName = _get_ldap_attr_value(attrs, self.attributeMapping['givenNameAttribute'], '')
                 sn = _get_ldap_attr_value(attrs, self.attributeMapping['familyNameAttribute'], '')
                 jobTitle = _get_ldap_attr_value(attrs, self.attributeMapping['jobTitleAttribute'], '')
