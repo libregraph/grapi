@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import json
+import logging
 
 import ldap
 from ldap.controls import SimplePagedResultsControl
@@ -92,14 +93,14 @@ class UserResource(Resource):
 
         try:
             self.l = ldap.ldapobject.ReconnectLDAPObject(self.uri, retry_max=self.retryMax, retry_delay=self.retryDelay)
-        except ldap.LDAPError as e:
-            print("unable to connect to LDAP server", e)
+        except ldap.LDAPError:
+            logging.error("unable to connect to LDAP server", exc_info=True)
 
         if self.bindDN is not None:
             try:
                 self.l.simple_bind_s(self.bindDN, self.bindPW)
-            except ldap.INVALID_CREDENTIALS as e:
-                print("invalid LDAP credentials", e)
+            except ldap.LDAPError as excinfo:
+                logging.error("unable to authenticate with LDAP server: %s" % excinfo)
 
     def on_get(self, req, resp, userid=None, method=None):
         if method:
