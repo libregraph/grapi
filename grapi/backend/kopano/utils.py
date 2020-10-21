@@ -342,7 +342,7 @@ def _folder(store, folderid):
             return store.folder(entryid=folderid)
         except binascii.Error:
             raise HTTPBadRequest('Folder is is malformed')
-        except kopano.errors.ArgumentError:
+        except (kopano.errors.ArgumentError, kopano.errors.NotFoundError):
             raise falcon.HTTPNotFound(description=None)
 
 
