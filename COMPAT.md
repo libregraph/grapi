@@ -24,6 +24,10 @@ Genereally the [Graph documentation](https://developer.microsoft.com/en-us/graph
   For example: `GET /me/messages/id/attachment/id/$value`
 - We support the query parameter `$search` for `/users`.
 
+## Batch API
+
+We support the [JSON batching API](https://docs.microsoft.com/en-us/graph/json-batching) for combining multiple requests in one HTTP call.
+
 ## Resources
 
 This API supports groupware related endpoints. GRAPI follows a experimental/non-experimental
@@ -51,6 +55,8 @@ commandline switch).
 [List events](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/calendar-list-events.md)
 
 [Create event](https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/api-reference/v1.0/api/calendar-post-events.md)
+
+[getSchedule](https://docs.microsoft.com/en-us/graph/api/calendar-getschedule?view=graph-rest-1.0&tabs=http)
 
 ### contact Resource
 
