@@ -146,7 +146,12 @@ class MessageResource(ItemResource):
         _, store, _ = req.context.server_store
 
         folder = _folder(store, folderid)
-        item = self.create_message(folder, fields, MessageResource.set_fields)
+        item = self.create_message(
+            folder,
+            fields,
+            MessageResource.set_fields,
+            message_class="IPM.Note"
+        )
         resp.status = falcon.HTTP_201
         self.respond(req, resp, item, MessageResource.fields)
 

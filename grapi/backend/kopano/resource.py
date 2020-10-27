@@ -235,9 +235,12 @@ class Resource(BaseResource):
             order = tuple(('-' if len(o.split()) > 1 and o.split()[1] == 'desc' else '')+o.split()[0] for o in order)
         return generator(page_start=skip, page_limit=top, order=order), top, skip, count
 
-    def create_message(self, folder, fields, all_fields=None):
+    def create_message(self, folder, fields, all_fields=None, message_class=None):
         # TODO item.update and/or only save in the end
-        item = folder.create_item()
+        if message_class:
+            item = folder.create_item(message_class=message_class)
+        else:
+            item = folder.create_item()
 
         for field in all_fields or self.set_fields:
             if field in fields:
