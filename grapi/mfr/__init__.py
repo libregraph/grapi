@@ -401,22 +401,22 @@ class Server:
 
         if args.with_metrics:
             if PROMETHEUS:
-                if not os.environ.get('prometheus_multiproc_dir'):
+                if os.environ.get('prometheus_multiproc_dir'):
+                    # Spawn the metrics process later, so we can pass along worker name and pids.
+                    monitor_workers = [(worker.name, worker.pid) for worker in workers]
+                    # Include master process.
+                    monitor_workers.append(('master', os.getpid()))
+                    metrics_runner = Runner(queue, self.run_metrics, 'metrics', args.process_name, 0)
+                    metrics_process = multiprocessing.Process(target=metrics_runner.run, args=(args.socket_path, args, monitor_workers))
+                    metrics_process.daemon = True
+                    metrics_process.start()
+                    workers.append(metrics_process)
+                else:
                     logging.error('please export "prometheus_multiproc_dir"')
-                    sys.exit(-1)
-
-                # Spawn the metrics process later, so we can pass along worker name and pids.
-                monitor_workers = [(worker.name, worker.pid) for worker in workers]
-                # Include master process.
-                monitor_workers.append(('master', os.getpid()))
-                metrics_runner = Runner(queue, self.run_metrics, 'metrics', args.process_name, 0)
-                metrics_process = multiprocessing.Process(target=metrics_runner.run, args=(args.socket_path, args, monitor_workers))
-                metrics_process.daemon = True
-                metrics_process.start()
-                workers.append(metrics_process)
+                    self.running = False
             else:
                 logging.error('please install prometheus client python bindings')
-                sys.exit(-1)
+                self.running = False
 
         signal.signal(signal.SIGCHLD, self.sigchld)
         signal.signal(signal.SIGTERM, self.sigterm)
@@ -461,7 +461,7 @@ class Server:
                 else:
                     logging.warn('terminating worker: %d', worker.pid)
                     worker.terminate()
-            if args.with_metrics and PROMETHEUS:
+            if os.environ.get('prometheus_multiproc_dir') and args.with_metrics and PROMETHEUS:
                 prometheus_multiprocess.mark_process_dead(worker.pid)
             worker.join()
 
