@@ -58,7 +58,7 @@ def _dumpb_json(obj, *args, **kwargs):
 class HTTPBadRequest(falcon.HTTPBadRequest):
     def __init__(self, msg):
         msg = html.escape(msg)
-        super().__init__(None, msg)
+        super().__init__(title=None, description=msg)
 
 
 class Resource:

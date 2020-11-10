@@ -31,7 +31,7 @@ class BackendMiddleware:
                 prefer_tzinfo = to_timezone(prefer_timeZone)
             except Exception:
                 logging.debug('unsupported timezone value received in request: %s', prefer_timeZone)
-                raise falcon.HTTPBadRequest("Provided prefer timezone value is not supported.")
+                raise falcon.HTTPBadRequest(title="Provided prefer timezone value is not supported.")
             prefer.update('outlook.timezone', (prefer_tzinfo, prefer_timeZone))
 
         # Backend selection.
@@ -113,7 +113,7 @@ class RestAPI(API):
                     default_backend[type_] = name_backend[name]  # TODO type occurs twice
 
         middleware = (middleware or []) + [BackendMiddleware(name_backend, default_backend, options)]
-        super().__init__(media_type=None, middleware=middleware, request_type=Request)
+        super().__init__(media_type=None, request_type=Request, middleware=middleware)
 
         self.req_options.strip_url_path_trailing_slash = True
 

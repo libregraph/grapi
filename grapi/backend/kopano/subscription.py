@@ -464,7 +464,7 @@ class SubscriptionResource(Resource):
             # TODO(longsleep): Clean up and start from new.
             # TODO(longsleep): Add internal retry, do not throw exception to client.
             logging.exception('subscription not possible right now, resetting connection')
-            raise falcon.HTTPInternalServerError('subscription not possible, please retry')
+            raise falcon.HTTPInternalServerError(title='subscription not possible, please retry')
 
         record.subscriptions[id_] = (subscription, sink, user.userid)
         logging.debug(

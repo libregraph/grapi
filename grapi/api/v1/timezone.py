@@ -151,8 +151,8 @@ def to_timezone(tz):
 
 if __name__ == '__main__':
     import pprint
-    from urllib.request import urlopen
     import xml.etree.ElementTree as ElementTree
+    from urllib.request import urlopen
 
     with urlopen('https://raw.githubusercontent.com/unicode-org/cldr/master/common/supplemental/windowsZones.xml') as conn:
         root = ElementTree.parse(conn).getroot()

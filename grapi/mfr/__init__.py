@@ -29,8 +29,9 @@ except ImportError:
     UJSON = False
 
 try:
+    from prometheus_client import (CONTENT_TYPE_LATEST, CollectorRegistry,
+                                   Counter, Gauge, Summary, generate_latest)
     from prometheus_client import multiprocess as prometheus_multiprocess
-    from prometheus_client import generate_latest, CollectorRegistry, CONTENT_TYPE_LATEST, Summary, Counter, Gauge
     PROMETHEUS = True
 except ImportError:
     PROMETHEUS = False
@@ -88,7 +89,7 @@ def error_handler(ex, req, resp, params, with_metrics):
             if PROMETHEUS:
                 EXCEPTION_COUNT.inc()
         logging.exception('unhandled exception while processing request', exc_info=ex)
-        raise falcon.HTTPError(falcon.HTTP_500)
+        raise falcon.HTTPError(status=falcon.HTTP_500)
     raise ex
 
 
