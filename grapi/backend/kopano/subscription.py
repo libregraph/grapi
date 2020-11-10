@@ -354,7 +354,7 @@ class SubscriptionSink:
                     QUEUE.put((self.store, notification, self.subscription), timeout=5)  # TODO(longsleep): Add configuration for timeout.
                     break
                 except Full:
-                    logging.warn('subscription sink queue is full: %d', QUEUE.qsize())
+                    logging.warning('subscription sink queue is full: %d', QUEUE.qsize())
                     time.sleep(1)
 
     def unsubscribe(self):

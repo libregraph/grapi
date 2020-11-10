@@ -88,7 +88,7 @@ class UserResource(Resource):
         try:
             company = server.user(userid=userid).company
         except kopano.errors.NotFoundError:
-            logging.warn('failed to get company for user %s', userid, exc_info=True)
+            logging.warning('failed to get company for user %s', userid, exc_info=True)
             raise HTTPNotFound(description="The company wasn't found")
         query = None
         if '$search' in args:
