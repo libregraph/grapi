@@ -4,7 +4,7 @@ import falcon
 if falcon.__version__.startswith("1."):
     from .context import Context
 else:
-    from falcon.structures import Context
+    from falcon import Context
 
 
 class Request(falcon.request.Request):
