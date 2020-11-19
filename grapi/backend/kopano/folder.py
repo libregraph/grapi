@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import codecs
 
+import falcon
+
 from .resource import DEFAULT_TOP, Resource
 from .utils import _folder, _server_store, db_get, db_put, experimental
 
@@ -33,12 +35,14 @@ class FolderResource(Resource):
     @experimental
     def handle_delete(self, req, resp, store, folder):
         store.delete(folder)
-
         self.respond_204(resp)
 
     def on_delete(self, req, resp, userid=None, folderid=None):
         server, store, userid = _server_store(req, userid, self.options)
         folder = _folder(store, folderid)
+
+        if not folder:
+            raise falcon.HTTPNotFound(description="folder not found")
 
         self.handle_delete(req, resp, store=store, folder=folder)
 

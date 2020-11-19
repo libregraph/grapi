@@ -5,7 +5,7 @@
   "parentFolderId":"AAAAABzT74z5-EA7m_nwEvewbDsBAAAAAwAAACDsjHbx2URsvxYKWOoLD-QAAAAA",
   "lastModifiedDateTime":"2018-04-10T12:54:30Z",
   "bodyPreview":"allo monsieur!\r\n",
-  "importance":"normal",
+  "importance":"Normal",
   "body":{
 	"contentType":"html",
 	"content":"<!DOCTYPE HTML PUBLIC \"-\/\/W3C\/\/DTD HTML 4.01 Transitional\/\/EN\" \"http:\/\/www.w3.org\/TR\/html4\/loose.dtd\"><html>\r\n<head>\r\n  <meta name=\"Generator\" content=\"Kopano WebApp v8.6.80\">\r\n  <meta http-equiv=\"Content-Type\" content=\"text\/html; charset=utf-8\">\r\n  <title>allo<\/title>\r\n<\/head>\r\n<body>\r\n<p style=\"padding: 0; margin: 0;\"><span style=\"font-size: 10pt;\"><em><span style=\"font-family: tahoma,arial,helvetica,sans-serif;\">allo monsieur!<br \/><\/span><\/em><\/span><\/p>\r\n<\/body>\r\n<\/html>"
@@ -13,7 +13,6 @@
   "categories":[
 
   ],
-  "@odata.etag":"W\/\"MFGpj2uGRJyiHQ9Wgbh2UgMBAAA=\"",
   "replyTo":[
 
   ],

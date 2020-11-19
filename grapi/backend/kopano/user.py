@@ -3,8 +3,10 @@ import codecs
 import logging
 
 import falcon
-import kopano  # TODO remove?
+import kopano
 from MAPI.Struct import MAPIErrorInvalidEntryid
+
+from grapi.api.v1.resource import HTTPConflict
 
 from . import group  # import as module since this is a circular import
 from .calendar import CalendarResource
@@ -250,7 +252,11 @@ class UserResource(Resource):
 
     @experimental
     def handle_post_mailFolders(self, req, resp, fields, store):
-        folder = store.create_folder(fields['displayName'])  # TODO exception on conflict
+        try:
+            folder = store.create_folder(fields['displayName'])
+        except kopano.errors.DuplicateError:
+            raise HTTPConflict("'%s' folder already exists" % fields['displayName'])
+        resp.status = falcon.HTTP_201
         self.respond(req, resp, folder, MailFolderResource.fields)
 
     # TODO redirect to other resources?

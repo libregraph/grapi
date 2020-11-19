@@ -61,6 +61,14 @@ class HTTPBadRequest(falcon.HTTPBadRequest):
         super().__init__(title=None, description=msg)
 
 
+class HTTPConflict(falcon.HTTPConflict):
+
+    def __init__(self, msg):
+        msg = html.escape(msg)
+        super().__init__(title=None, description=msg)
+
+
+
 class Resource:
     def __init__(self, options):
         self.options = options
