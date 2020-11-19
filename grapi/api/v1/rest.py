@@ -31,7 +31,7 @@ class BackendMiddleware:
                 prefer_tzinfo = to_timezone(prefer_timeZone)
             except Exception:
                 logging.debug('unsupported timezone value received in request: %s', prefer_timeZone)
-                raise falcon.HTTPBadRequest(title="Provided prefer timezone value is not supported.")
+                raise falcon.HTTPBadRequest(description="Provided prefer timezone value is not supported.")
             prefer.update('outlook.timezone', (prefer_tzinfo, prefer_timeZone))
 
         # Backend selection.

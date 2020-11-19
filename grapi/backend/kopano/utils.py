@@ -319,6 +319,7 @@ def _server_store(req, userid, options, forceReconnect=False):
 
 
 def _folder(store, folderid):
+    """Return a store object related to the folder."""
     if store is None:
         raise falcon.HTTPNotFound(description='No store')
 

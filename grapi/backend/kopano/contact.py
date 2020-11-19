@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from .item import ItemResource, get_email2
+from .item import ItemResource
 from .resource import _date
 from .utils import HTTPBadRequest, _folder, _item, _server_store, experimental
 
@@ -33,7 +33,7 @@ class ContactResource(ItemResource):
     fields = ItemResource.fields.copy()
     fields.update({
         'displayName': lambda item: item.name,
-        'emailAddresses': lambda item: [get_email2(a) for a in item.addresses()],
+        'emailAddresses': lambda item: [{'name': a.name, 'address': a.email} for a in item.addresses()],
         'parentFolderId': lambda item: item.folder.entryid,
         'givenName': lambda item: item.first_name or None,
         'middleName': lambda item: item.middle_name or None,

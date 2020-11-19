@@ -217,7 +217,6 @@ class Resource(BaseResource):
                         obj2, resource = self.expansions[field](obj)
                         # TODO item@odata.context, @odata.type..
                         expand[field.split('/')[1]] = self.get_fields(req, obj2, resource.fields, resource.fields)
-
             resp.body = self.json(req, obj, fields, all_fields or self.fields, expand=expand)
 
     def generator(self, req, generator, count=0):
@@ -228,13 +227,13 @@ class Resource(BaseResource):
         order = args['$orderby'][0].split(',') if '$orderby' in args else None
         if order:
             order = tuple(('-' if len(o.split()) > 1 and o.split()[1] == 'desc' else '')+o.split()[0] for o in order)
-        return (generator(page_start=skip, page_limit=top, order=order), top, skip, count)
+        return generator(page_start=skip, page_limit=top, order=order), top, skip, count
 
     def create_message(self, folder, fields, all_fields=None):
         # TODO item.update and/or only save in the end
         item = folder.create_item()
 
-        for field in (all_fields or self.set_fields):
+        for field in all_fields or self.set_fields:
             if field in fields:
                 (all_fields or self.set_fields)[field](item, fields[field])
 

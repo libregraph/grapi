@@ -29,10 +29,6 @@ def get_email(addr):
     return {'emailAddress': {'name': addr.name, 'address': addr.email}}
 
 
-def get_email2(addr):  # TODO merge
-    return {'name': addr.name, 'address': addr.email}
-
-
 class DeletedItem(object):
     pass
 
