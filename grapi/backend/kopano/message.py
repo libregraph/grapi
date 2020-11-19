@@ -145,7 +145,7 @@ class MessageResource(ItemResource):
         handler = None
 
         if method == 'createReply':
-            handler = self.handle_post_creatReply
+            handler = self.handle_post_createReply
 
         elif method == 'createReplyAll':
             handler = self.handle_post_createReplyAll
