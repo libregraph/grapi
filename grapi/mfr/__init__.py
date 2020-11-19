@@ -140,9 +140,9 @@ class FalconMetrics:
         req.context.start_time = time.time()
 
     def process_response(self, req, resp, resource, req_succeeded=True):
-        t = time.time() - req.context.start_time
-        label = req.context.label
+        label = req.context.get("label")
         if label:
+            t = time.time() - req.context.start_time
             deltaid = req.context.get('deltaid')
             if deltaid:
                 label = label.replace(deltaid, 'delta')
