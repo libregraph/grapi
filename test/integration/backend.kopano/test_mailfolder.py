@@ -11,7 +11,7 @@ def assert_create_folder(client, user, name):
     response = client.simulate_post(url,
                                     json=data,
                                     headers=user.auth_header)
-    assert response.status_code == 200
+    assert response.status_code == 201
     return response.json['id']
 
 
@@ -83,7 +83,7 @@ def test_special_folders(client, user):
 def test_create_message(client, user, json_message):
     url = '/api/gc/v1/me/mailFolders/inbox/messages'
     response = client.simulate_post(url, headers=user.auth_header, json=json_message)
-    assert response.status_code == 200
+    assert response.status_code == 201
     assert response.json['subject'] == json_message['subject']
     assert not response.json['isRead']
 

@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+import falcon
 
 from .folder import FolderResource
 from .message import MessageResource
@@ -81,12 +82,14 @@ class MailFolderResource(FolderResource):
         folder = _folder(store, folderid)
         fields = self.load_json(req)
         item = self.create_message(folder, fields, MessageResource.set_fields)
+        resp.status = falcon.HTTP_201
         self.respond(req, resp, item, MessageResource.fields)
 
     def handle_post_childFolders(self, req, resp, store, folderid):
         folder = _folder(store, folderid)
         fields = self.load_json(req)
         child = folder.create_folder(fields['displayName'])  # TODO exception on conflict
+        resp.status = falcon.HTTP_201
         self.respond(req, resp, child, MailFolderResource.fields)
 
     def handle_post_copy(self, req, resp, store, folderid):
