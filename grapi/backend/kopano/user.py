@@ -53,6 +53,7 @@ class UserResource(Resource):
         'officeLocation': lambda user: user.office_location,
         'surname': lambda user: user.last_name,
         'userPrincipalName': lambda user: user.name,
+        'companyName': lambda user: user.company.name,
     }
 
     def delta(self, req, resp, server):
