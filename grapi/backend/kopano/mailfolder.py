@@ -36,6 +36,13 @@ class MailFolderResource(FolderResource):
         'messages': lambda folder: (folder.items, MessageResource)  # TODO event msgs
     }
 
+    # field map for $orderby query
+    sorting_field_map = {
+        "subject": "subject",
+        "receivedDateTime": "received",
+        "createdDateTime": "created",
+    }
+
     deleted_resource = DeletedMailFolderResource
     container_classes = (None, 'IPF.Note')
 
@@ -48,6 +55,31 @@ class MailFolderResource(FolderResource):
         data = _folder(store, folderid)
         data = self.folder_gen(req, data)
         self.respond(req, resp, data, MessageResource.fields)
+
+    def folder_gen(self, req, folder):
+        args = self.parse_qs(req)
+        if '$orderby' in args:
+            for index, field in enumerate(args['$orderby']):
+                if field.startswith("-") or field.startswith("+"):
+                    field_order = field[0]
+                    field = field[1:]
+                else:
+                    field_order = ''
+                if field in self.sorting_field_map:
+                    args['$orderby'][index] = field_order + self.sorting_field_map[field]
+                else:
+                    # undefined fields have to be removed.
+                    del args['$orderby'][index]
+
+        if '$search' in args:
+            query = args['$search'][0]
+
+            def yielder(**kwargs):
+                for item in folder.items(query=query):
+                    yield item
+            return self.generator(req, yielder, 0, args=args)
+        else:
+            return self.generator(req, folder.items, folder.count, args=args)
 
     def handle_get(self, req, resp, store, folderid):
         if folderid:

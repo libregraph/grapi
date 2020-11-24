@@ -219,9 +219,11 @@ class Resource(BaseResource):
                         expand[field.split('/')[1]] = self.get_fields(req, obj2, resource.fields, resource.fields)
             resp.body = self.json(req, obj, fields, all_fields or self.fields, expand=expand)
 
-    def generator(self, req, generator, count=0):
+    def generator(self, req, generator, count=0, args=None):
         # determine pagination and ordering
-        args = _parse_qs(req)
+        # TODO(mort), remove req and replace it by args.
+        if not args:
+            args = _parse_qs(req)
         top = int(args['$top'][0]) if '$top' in args else DEFAULT_TOP
         skip = int(args['$skip'][0]) if '$skip' in args else 0
         order = args['$orderby'][0].split(',') if '$orderby' in args else None
