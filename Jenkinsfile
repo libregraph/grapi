@@ -63,7 +63,7 @@ pipeline {
 				stage('Test') {
 					steps {
 						echo 'Testing..'
-						sh 'make test'
+						sh 'PYTEST_OPTIONS="-s -p no:cacheprovider" make test'
 					}
 				}
 			}
