@@ -73,7 +73,7 @@ def xtest_delete_special_folder(client, user):
 
 def test_special_folders(client, user):
     url = '/api/gc/v1/me/mailFolders/{}'
-    folders = [('junkemail', 'Junk E-mail'), ('deleteditems', 'Deleted Items')]
+    folders = [('junkemail', 'Junk E-mail'), ('deleteditems', 'Deleted Items'), ('outbox', 'Outbox')]
     for folder in folders:
         response = client.simulate_get(url.format(folder[0]), headers=user.auth_header)
         assert response.status_code == 200

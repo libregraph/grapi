@@ -336,6 +336,8 @@ def _folder(store, folderid):
         return store.wastebasket
     elif name == 'junkemail':
         return store.junk
+    elif name == 'outbox':
+        return store.outbox
     elif name == 'sentitems':
         return store.sentmail
     else:
