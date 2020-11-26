@@ -9,9 +9,10 @@ except ImportError:  # falcon 1.0
     from falcon import API as FalconAPI
 
 
-
 class API(FalconAPI):
-    def import_backend(self, name, options):
+
+    @staticmethod
+    def import_backend(name, options):
         backend = importlib.import_module('grapi.backend.%s' % name)
         if hasattr(backend, 'initialize'):
             backend.initialize(options)

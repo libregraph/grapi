@@ -119,6 +119,10 @@ def _start_end(req):
 
 
 class Resource(BaseResource):
+
+    # If a resource doesn't need to have access to a store, set it False.
+    need_store = True
+
     def exceptionHandler(self, ex, req, resp, **params):
         _handle_exception(ex, req)
 

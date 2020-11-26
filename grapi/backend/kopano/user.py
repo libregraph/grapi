@@ -4,7 +4,6 @@ import logging
 
 import falcon
 import kopano
-from MAPI.Struct import MAPIErrorInvalidEntryid
 
 from grapi.api.v1.resource import HTTPConflict
 
@@ -19,7 +18,7 @@ from .profilephoto import ProfilePhotoResource
 from .reminder import ReminderResource
 from .resource import DEFAULT_TOP, Resource, _start_end
 from .schema import event_schema
-from .utils import HTTPBadRequest, HTTPNotFound, _server_store, experimental
+from .utils import HTTPBadRequest, HTTPNotFound, experimental
 
 
 class UserImporter:
@@ -213,10 +212,7 @@ class UserResource(Resource):
         else:
             raise HTTPBadRequest("Unsupported in user")
 
-        try:
-            server, store, userid = _server_store(req, userid, self.options)
-        except MAPIErrorInvalidEntryid:
-            raise HTTPBadRequest("Invalid entryid provided")
+        server, store, userid = req.context.server_store
         if not userid and req.path.split('/')[-1] != 'users':
             userid = kopano.Store(server=server, mapiobj=server.mapistore).user.userid
         handler(req, resp, store=store, server=server, userid=userid)
@@ -285,6 +281,6 @@ class UserResource(Resource):
         else:
             raise HTTPBadRequest("Unsupported in user")
 
-        server, store, userid = _server_store(req, userid, self.options)
+        server, store, userid = req.context.server_store
         fields = self.load_json(req)
         handler(req, resp, fields=fields, store=store)

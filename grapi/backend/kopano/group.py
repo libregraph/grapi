@@ -2,8 +2,7 @@
 
 from . import user  # import as module since this is a circular import
 from .resource import DEFAULT_TOP, Resource
-from .utils import (HTTPBadRequest, _get_group_by_id, _server_store,
-                    experimental)
+from .utils import HTTPBadRequest, _get_group_by_id, experimental
 
 
 @experimental
@@ -53,5 +52,5 @@ class GroupResource(Resource):
         else:
             handler = self.handle_get
 
-        server, store, userid = _server_store(req, userid, self.options)
+        server, store, userid = req.context.server_store
         handler(req, resp, server=server, groupid=groupid)

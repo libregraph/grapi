@@ -2,6 +2,7 @@
 import logging
 
 import falcon
+from MAPI.Struct import MAPIErrorInvalidEntryid
 
 from .api import API, APIResource
 from .batch import BatchResource
@@ -70,8 +71,19 @@ class BackendMiddleware:
         if not backend:
             backend = resource.default_backend
 
+        resource_cls = getattr(backend, resource.name)
+
+        # Add server store object for the user to the resource instance.
+        if hasattr(resource_cls, "need_store") and resource_cls.need_store:
+            backend_name = next(iter(self.name_backend))
+            utils = API.import_backend("{}.utils".format(backend_name), None)
+            try:
+                req.context.server_store = utils._server_store(req, params.get('userid'), self.options)
+            except MAPIErrorInvalidEntryid:
+                raise falcon.HTTPBadRequest("Invalid entryid provided")
+
         # result: eg ldap.UserResource() or kopano.MessageResource()
-        req.context.resource = getattr(backend, resource.name)(self.options)
+        req.context.resource = resource_cls(self.options)
 
 
 class BackendResource(APIResource):

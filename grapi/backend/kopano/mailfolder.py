@@ -9,7 +9,7 @@ from grapi.api.v1.resource import HTTPBadRequest, HTTPConflict
 from .folder import FolderResource
 from .message import MessageResource
 from .schema import destination_id_schema, folder_schema, message_schema
-from .utils import _folder, _server_store, experimental
+from .utils import _folder, experimental
 
 
 class DeletedMailFolderResource(FolderResource):
@@ -108,7 +108,7 @@ class MailFolderResource(FolderResource):
         else:
             raise HTTPBadRequest("Unsupported mailFolder segment '%s'" % method)
 
-        server, store, userid = _server_store(req, userid, self.options)
+        server, store, userid = req.context.server_store
         handler(req, resp, store=store, folderid=folderid)
 
     def handle_post_messages(self, req, resp, store, folderid):
@@ -182,5 +182,5 @@ class MailFolderResource(FolderResource):
         else:
             raise HTTPBadRequest("Unsupported in mailfolder")
 
-        server, store, userid = _server_store(req, userid, self.options)
+        server, store, userid = req.context.server_store
         handler(req, resp, store, folderid)

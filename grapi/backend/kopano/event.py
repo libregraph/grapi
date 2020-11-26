@@ -10,8 +10,7 @@ from .attachment import AttachmentResource
 from .item import ItemResource, get_body, get_email, set_body
 from .resource import DEFAULT_TOP, _date, _start_end, _tzdate, set_date
 from .schema import mr_schema
-from .utils import (HTTPBadRequest, HTTPNotFound, _folder, _server_store,
-                    experimental)
+from .utils import HTTPBadRequest, HTTPNotFound, _folder, experimental
 
 pattern_map = {
     'monthly': 'absoluteMonthly',
@@ -249,7 +248,7 @@ class EventResource(ItemResource):
         else:
             handler = self.handle_get
 
-        server, store, userid = _server_store(req, userid, self.options)
+        server, store, userid = req.context.server_store
         folder = _folder(store, folderid or 'calendar')
         event = self.get_event(folder, eventid)
         handler(req, resp, event=event)
@@ -300,7 +299,7 @@ class EventResource(ItemResource):
         else:
             raise HTTPBadRequest("Unsupported in event")
 
-        server, store, userid = _server_store(req, userid, self.options)
+        server, store, userid = req.context.server_store
         folder = _folder(store, folderid or 'calendar')
         item = self.get_event(folder, eventid)
         fields = self.load_json(req)
@@ -314,7 +313,7 @@ class EventResource(ItemResource):
         self.respond(req, resp, item, EventResource.fields)
 
     def on_patch(self, req, resp, userid=None, folderid=None, eventid=None, method=None):
-        server, store, userid = _server_store(req, userid, self.options)
+        server, store, userid = req.context.server_store
         folder = _folder(store, folderid or 'calendar')
         item = self.get_event(folder, eventid)
 
@@ -333,7 +332,7 @@ class EventResource(ItemResource):
     def on_delete(self, req, resp, userid=None, folderid=None, eventid=None):
         handler = self.handle_delete
 
-        server, store, userid = _server_store(req, userid, self.options)
+        server, store, userid = req.context.server_store
         folder = _folder(store, folderid or 'calendar')
         item = self.get_event(folder, eventid)
 

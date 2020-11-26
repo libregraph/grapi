@@ -2,7 +2,7 @@
 
 from .item import ItemResource
 from .resource import _date
-from .utils import HTTPBadRequest, _folder, _item, _server_store, experimental
+from .utils import HTTPBadRequest, _folder, _item, experimental
 
 
 def set_email_addresses(item, arg):  # TODO multiple via pyko
@@ -101,7 +101,7 @@ class ContactResource(ItemResource):
         else:
             raise HTTPBadRequest("Unsupported contact segment '%s'" % method)
 
-        server, store, userid = _server_store(req, userid, self.options)
+        server, store, userid = req.context.server_store
         handler(req, resp, store=store, server=server, folderid=folderid, itemid=itemid)
 
     def handle_delete(self, req, resp, store, server, folderid, itemid):
@@ -114,5 +114,5 @@ class ContactResource(ItemResource):
     def on_delete(self, req, resp, userid=None, folderid=None, itemid=None):
         handler = self.handle_delete
 
-        server, store, userid = _server_store(req, userid, self.options)
+        server, store, userid = req.context.server_store
         handler(req, resp, store=store, server=server, folderid=folderid, itemid=itemid)

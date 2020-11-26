@@ -6,7 +6,7 @@ import falcon
 from . import attachment  # import as module since this is a circular import
 from .item import ItemResource, get_body, get_email, set_body
 from .resource import DEFAULT_TOP, _date
-from .utils import HTTPBadRequest, _folder, _item, _server_store, experimental
+from .utils import HTTPBadRequest, _folder, _item, experimental
 
 
 def set_torecipients(item, arg):
@@ -101,7 +101,7 @@ class MessageResource(ItemResource):
         else:
             raise HTTPBadRequest("Unsupported in message")
 
-        server, store, userid = _server_store(req, userid, self.options)
+        server, store, userid = req.context.server_store
         folder = _folder(store, folderid or 'inbox')  # TODO all folders?
         handler(req, resp, store=store, folder=folder, itemid=itemid)
 
@@ -168,7 +168,7 @@ class MessageResource(ItemResource):
         else:
             raise HTTPBadRequest("Unsupported in message")
 
-        server, store, userid = _server_store(req, userid, self.options)
+        server, store, userid = req.context.server_store
         folder = _folder(store, folderid or 'inbox')  # TODO all folders?
         item = _item(folder, itemid)
         handler(req, resp, store=store, folder=folder, item=item)
@@ -192,7 +192,7 @@ class MessageResource(ItemResource):
         else:
             raise HTTPBadRequest("Unsupported message segment '%s'" % method)
 
-        server, store, userid = _server_store(req, userid, self.options)
+        server, store, userid = req.context.server_store
         folder = _folder(store, folderid or 'inbox')  # TODO all folders?
         handler(req, resp, store=store, folder=folder, itemid=itemid)
 
@@ -212,7 +212,7 @@ class MessageResource(ItemResource):
         else:
             raise HTTPBadRequest("Unsupported message segment '%s'" % method)
 
-        server, store, userid = _server_store(req, userid, self.options)
+        server, store, userid = req.context.server_store
         handler(req, resp, store=store, itemid=itemid)
 
 

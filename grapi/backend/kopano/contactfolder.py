@@ -3,7 +3,7 @@ import falcon
 
 from .contact import ContactResource
 from .folder import FolderResource
-from .utils import HTTPBadRequest, _folder, _server_store, experimental
+from .utils import HTTPBadRequest, _folder, experimental
 
 
 class DeletedContactFolderResource(FolderResource):
@@ -57,7 +57,7 @@ class ContactFolderResource(FolderResource):
             else:
                 raise HTTPBadRequest("Unsupported in contactfolder")
 
-        server, store, userid = _server_store(req, userid, self.options)
+        server, store, userid = req.context.server_store
         handler(req, resp, store=store, folderid=folderid)
 
     def handle_post_contacts(self, req, resp, store, folderid):
@@ -80,5 +80,5 @@ class ContactFolderResource(FolderResource):
         else:
             raise HTTPBadRequest("Unsupported in contactfolder")
 
-        server, store, userid = _server_store(req, userid, self.options)
+        server, store, userid = req.context.server_store
         handler(req, resp, store=store, folderid=folderid)

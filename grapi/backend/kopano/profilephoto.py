@@ -4,8 +4,7 @@ import logging
 import kopano
 
 from .resource import Resource
-from .utils import (HTTPBadRequest, HTTPNotFound, _folder, _item,
-                    _server_store, experimental)
+from .utils import HTTPBadRequest, HTTPNotFound, _folder, _item, experimental
 
 
 @experimental
@@ -60,7 +59,7 @@ class ProfilePhotoResource(Resource):
     def on_get(self, req, resp, userid=None, folderid=None, itemid=None, photoid=None, method=None):
         handler = self.handle_get
 
-        server, store, userid = _server_store(req, userid, self.options)
+        server, store, userid = req.context.server_store
         handler(req, resp, store=store, server=server, userid=userid, folderid=folderid, itemid=itemid, photoid=photoid, method=method)
 
     def on_patch(self, *args, **kwargs):
@@ -78,7 +77,7 @@ class ProfilePhotoResource(Resource):
         else:
             raise HTTPBadRequest("Unsupported profilephoto segment '%s'" % method)
 
-        server, store, userid = _server_store(req, userid, self.options)
+        server, store, userid = req.context.server_store
         folder = _folder(store, folderid or 'contacts')
         item = _item(folder, itemid)
 
