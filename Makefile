@@ -16,7 +16,7 @@ ARGS ?=
 PYTEST_OPTIONS+=-s
 PYTEST_COVERAGE_OPTIONS+=--cov-report=term-missing
 
-ISORT_OPTIONS+=--recursive --skip env --skip grapi/mfr/msgfmt.py
+ISORT_OPTIONS+=--recursive
 ISORT_CHECK_OPTIONS+=--check-only --diff
 
 # Rules
@@ -26,7 +26,7 @@ all:
 
 .PHONY: lint
 lint:
-	$(FLAKE8) -v --format=pylint --exclude=grapi/backend/caldav,grapi/backend/imap ./grapi
+	$(FLAKE8) -v --format=pylint ./grapi
 
 .PHONY: test-isort
 test-isort:

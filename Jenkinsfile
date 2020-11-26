@@ -28,7 +28,6 @@ pipeline {
 						sh 'apt-get update && apt-get install -y \
 							apt-transport-https \
 							ca-certificates \
-							isort \
 							libcap-dev \
 							libdb-dev \
 							libev-dev \
@@ -40,8 +39,9 @@ pipeline {
 							python3-pytest \
 							python3-pytest-cov \
 							python3-wheel \
-							flake8 \
 							'
+						sh 'pip3 install -r requirements-dev.txt'
+
 						sh 'echo "deb [trusted=yes] ${REPO_URL} ./" > /etc/apt/sources.list.d/kopano.list'
 						sh 'apt-get update'
 						sh 'apt-get install -y python3-kopano'
@@ -54,10 +54,8 @@ pipeline {
 				stage('Lint') {
 					steps {
 						echo 'Linting..'
-						sh 'make lint > pylint.log || true'
+						sh 'make lint | tee pylint.log || true'
 						recordIssues tool: pyLint(pattern: 'pylint.log'), qualityGates: [[threshold: 40, type: 'TOTAL', unstable: true]]
-						echo 'Isort..'
-						sh 'make test-isort'
 					}
 				}
 				stage('Test') {
