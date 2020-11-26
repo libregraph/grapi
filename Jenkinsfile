@@ -9,14 +9,14 @@ pipeline {
 	environment {
 		CI = 'true'
 		DEBIAN_FRONTEND = 'noninteractive'
-		REPO_URL = 'https://download.kopano.io/supported/core:/master/Ubuntu_18.04/'
+		REPO_URL = 'https://download.kopano.io/supported/core:/master/Debian_10/'
 		PYTHONDONTWRITEBYTECODE = '1'
 	}
 	stages {
 		stage('Lint/Test') {
 			agent {
 				docker {
-					image 'ubuntu:bionic'
+					image 'debian:buster'
 					args '-u 0 -e PYTHONDONTWRITEBYTECODE=1'
 					label 'docker'
 				}
