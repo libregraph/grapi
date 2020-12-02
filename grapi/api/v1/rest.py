@@ -2,15 +2,18 @@
 import logging
 
 import falcon
+
+from grapi.api.common import API
 from MAPI.Struct import MAPIErrorInvalidEntryid
 
-from .api import API, APIResource
+from .api import APIResource
 from .batch import BatchResource
 from .config import PREFIX
 from .healthcheck import HealthCheckResource
 from .prefer import Prefer
 from .request import Request
 from .timezone import to_timezone
+from .utils import suffix_method_caller
 
 
 class BackendMiddleware:
@@ -129,6 +132,7 @@ class RestAPI(API):
 
         self.req_options.strip_url_path_trailing_slash = True
 
+        self.set_suffix_method_caller(suffix_method_caller)
         self.add_routes(default_backend, options)
 
     def route(self, path, resource, method=True):

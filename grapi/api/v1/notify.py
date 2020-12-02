@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-from .api import API, APIResource
+from grapi.api.common import API
+
+from .api import APIResource
 from .config import PREFIX
 from .healthcheck import HealthCheckResource
 from .request import Request
