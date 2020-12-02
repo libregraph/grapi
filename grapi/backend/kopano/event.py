@@ -1,15 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-import base64
 import binascii
 
 import dateutil.parser
 import falcon
 import kopano
 
-from .attachment import AttachmentResource
 from .item import ItemResource, get_body, get_email, set_body
-from .resource import DEFAULT_TOP, _date, _start_end, _tzdate, set_date
-from .schema import mr_schema
+from .resource import _date, _start_end, _tzdate, set_date
+from .schema import event_schema, mr_schema
 from .utils import HTTPBadRequest, HTTPNotFound, _folder, experimental
 
 pattern_map = {
@@ -207,7 +205,10 @@ class EventResource(ItemResource):
 
     # TODO delta functionality seems to include expanding recurrences!? check with MSGE
 
-    def get_event(self, folder, eventid):
+    # GET
+
+    @staticmethod
+    def get_event(folder, eventid):
         try:
             return folder.event(eventid)
         except binascii.Error:
@@ -215,14 +216,12 @@ class EventResource(ItemResource):
         except kopano.errors.NotFoundError:
             raise HTTPNotFound(description='Item not found')
 
-    @experimental
-    def handle_get_attachments(self, req, resp, event):
-        attachments = list(event.attachments(embedded=True))
-        data = (attachments, DEFAULT_TOP, 0, len(attachments))
-        self.respond(req, resp, data, AttachmentResource.fields)
-
-    def handle_get_instances(self, req, resp, event):
+    def _get_event_instances(self, req, resp, folderid, eventid):
         start, end = _start_end(req)
+
+        server, store, userid = req.context.server_store
+        folder = _folder(store, folderid)
+        event = self.get_event(folder, eventid)
 
         def yielder(**kwargs):
             for occ in event.occurrences(start, end, **kwargs):
@@ -230,34 +229,110 @@ class EventResource(ItemResource):
         data = self.generator(req, yielder)
         self.respond(req, resp, data)
 
+    def on_get_instances_by_folderid(self, req, resp, folderid, eventid):
+        self._get_event_instances(req, resp, folderid, eventid)
+
+    def on_get_instances(self, req, resp, eventid):
+        self._get_event_instances(req, resp, "calendar", eventid)
+
     def handle_get(self, req, resp, event):
         self.respond(req, resp, event)
 
-    def on_get(self, req, resp, userid=None, folderid=None, eventid=None, method=None):
-        handler = None
+    @experimental
+    def on_get_events(self, req, resp):
+        store = req.context.server_store[1]
+        calendar = store.calendar
+        data = self.generator(req, calendar.items, calendar.count)
+        self.respond(req, resp, data, EventResource.fields)
 
-        if method == 'attachments':
-            handler = self.handle_get_attachments
+    def on_get_by_folderid(self, req, resp, folderid):
+        """Get events of a specific folder."""
+        _, store, _ = req.context.server_store
+        folder = store.folder(folderid)
+        store.calendar = folder
+        data = self.generator(req, store.calendar.items, store.calendar.count)
+        self.respond(req, resp, data, EventResource.fields)
 
-        elif method == 'instances':
-            handler = self.handle_get_instances
-
-        elif method:
-            raise HTTPBadRequest("Unsupported event segment '%s'" % method)
-
-        else:
-            handler = self.handle_get
-
-        server, store, userid = req.context.server_store
-        folder = _folder(store, folderid or 'calendar')
+    def on_get_by_eventid(self, req, resp, eventid):
+        store = req.context.server_store[1]
+        folder = _folder(store, "calendar")
         event = self.get_event(folder, eventid)
-        handler(req, resp, event=event)
+        self.respond(req, resp, event, self.fields)
 
-    def handle_post_accept(self, req, resp, fields, item):
-        _ = req.context.i18n.gettext
+    def on_get_by_folderid_eventid(self, req, resp, folderid, eventid):
+        store = req.context.server_store[1]
+        folder = _folder(store, folderid)
+        event = self.get_event(folder, eventid)
+        self.respond(req, resp, event, self.fields)
+
+    def on_get(self, req, resp, userid=None, folderid=None, eventid=None):
+        raise HTTPBadRequest("Unsupported in event")
+
+    # POST
+
+    def _create_event(self, req, resp, folderid):
+        """Create an events.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): folder ID which the event be created in.
+
+        Raises:
+            HTTPBadRequest: invalid argument error or request has empty payload.
+        """
+        if not req.content_length:
+            raise HTTPBadRequest("request has empty payload")
+        fields = self.load_json(req)
+        self.validate_json(event_schema, fields)
+
+        store = req.context.server_store[1]
+        folder = _folder(store, folderid)
+        try:
+            item = self.create_message(folder, fields, EventResource.set_fields)
+        except kopano.errors.ArgumentError as e:
+            raise HTTPBadRequest("Invalid argument error '{}'".format(e))
+        if fields.get('attendees', None):
+            # NOTE(longsleep): Sending can fail with NO_ACCCESS if no permission to outbox.
+            item.send()
+        self.respond(req, resp, item, EventResource.fields)
+
+    @experimental
+    def on_post_events(self, req, resp):
+        """Handle POST request to create event in the "calendar" folder.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+        """
+        self._create_event(req, resp, "calendar")
+
+    @experimental
+    def on_post_by_folderid(self, req, resp, folderid):
+        """Handle POST request to create an event in a specific folder.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): folder ID which the event be created in.
+        """
+        self._create_event(req, resp, folderid)
+
+    def _accept_event(self, req, resp, folderid, eventid):
+        fields = self.load_json(req)
         self.validate_json(mr_schema, fields)
+        _ = req.context.i18n.gettext
+        store = req.context.server_store[1]
+        folder = _folder(store, folderid)
+        item = self.get_event(folder, eventid)
         item.accept(comment=fields.get('comment'), respond=(fields.get('sendResponse', True)), subject_prefix=_("Accepted"))
         resp.status = falcon.HTTP_202
+
+    def on_post_accept_event_by_folderid(self, req, resp, folderid, eventid):
+        self._accept_event(req, resp, folderid, eventid)
+
+    def on_post_accept_event(self, req, resp, eventid):
+        self._accept_event(req, resp, "calendar", eventid)
 
     def handle_post_tentativelyAccept(self, req, resp, fields, item):
         _ = req.context.i18n.gettext
@@ -265,33 +340,28 @@ class EventResource(ItemResource):
         item.accept(comment=fields.get('comment'), tentative=True, respond=(fields.get('sendResponse', True)), subject_prefix=_("Tentatively accepted"))
         resp.status = falcon.HTTP_202
 
-    def handle_post_decline(self, req, resp, fields, item):
-        _ = req.context.i18n.gettext
+    def _decline_event(self, req, resp, folderid, eventid):
+        fields = self.load_json(req)
         self.validate_json(mr_schema, fields)
+        _ = req.context.i18n.gettext
+        store = req.context.server_store[1]
+        self.validate_json(mr_schema, fields)
+        folder = _folder(store, folderid)
+        item = self.get_event(folder, eventid)
         item.decline(comment=fields.get('comment'), respond=(fields.get('sendResponse', True)), subject_prefix=_("Declined"))
         resp.status = falcon.HTTP_202
 
-    @experimental
-    def handle_post_attachments(self, req, resp, fields, item):
-        if fields['@odata.type'] == '#microsoft.graph.fileAttachment':
-            att = item.create_attachment(fields['name'], base64.urlsafe_b64decode(fields['contentBytes']))
-            self.respond(req, resp, att, AttachmentResource.fields)
-            resp.status = falcon.HTTP_201
+    def on_post_decline_event_by_folderid(self, req, resp, folderid, eventid):
+        self._decline_event(req, resp, folderid, eventid)
+
+    def on_post_decline_event(self, req, resp, eventid):
+        self._decline_event(req, resp, "calendar", eventid)
 
     def on_post(self, req, resp, userid=None, folderid=None, eventid=None, method=None):
         handler = None
 
-        if method == 'accept':
-            handler = self.handle_post_accept
-
-        elif method == 'tentativelyAccept':
+        if method == 'tentativelyAccept':
             handler = self.handle_post_tentativelyAccept
-
-        elif method == 'decline':
-            handler = self.handle_post_decline
-
-        elif method == 'attachments':
-            handler = self.handle_post_attachments
 
         elif method:
             raise HTTPBadRequest("Unsupported event segment '%s'" % method)
@@ -305,35 +375,89 @@ class EventResource(ItemResource):
         fields = self.load_json(req)
         handler(req, resp, fields=fields, item=item)
 
-    def handle_patch(self, req, resp, fields, item):
+    # PATCH
+
+    def _update_event(self, req, resp, folderid, eventid):
+        """Update an event.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): folder ID which the event exists in.
+            eventid (str): event ID which should be updated.
+        """
+        fields = self.load_json(req)
+        store = req.context.server_store[1]
+        folder = _folder(store, folderid)
+        item = self.get_event(folder, eventid)
+
         for field, value in fields.items():
             if field in self.set_fields:
                 self.set_fields[field](item, value)
 
-        self.respond(req, resp, item, EventResource.fields)
+        self.respond(req, resp, item, self.fields)
 
-    def on_patch(self, req, resp, userid=None, folderid=None, eventid=None, method=None):
+    def on_patch_by_eventid(self, req, resp, eventid):
+        """Handle PATCH request for a specific event in 'calendar' folder.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            eventid (str): event ID which should be updated.
+        """
+        self._update_event(req, resp, "calendar", eventid)
+
+    def on_patch_by_folderid_eventid(self, req, resp, folderid, eventid):
+        """Handle PATCH request for a specific event in a specific folder.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): folder ID which the event exists in.
+            eventid (str): event ID which should be updated.
+        """
+        self._update_event(req, resp, folderid, eventid)
+
+    # DELETE
+
+    def _delete_event(self, req, resp, folderid, eventid):
+        """Delete an event.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): folder ID which the event exists in.
+            eventid (str): event ID which should be deleted.
+        """
         server, store, userid = req.context.server_store
-        folder = _folder(store, folderid or 'calendar')
-        item = self.get_event(folder, eventid)
+        folder = _folder(store, folderid)
+        event = self.get_event(folder, eventid)
 
-        fields = self.load_json(req)
-        self.handle_patch(req, resp, fields=fields, item=item)
-
-    def handle_delete(self, req, resp, folder, item):
         # If meeting is organised, sent cancellation
-        if self.fields['isOrganizer'](item):
-            item.cancel()
-            item.send()
+        if self.fields['isOrganizer'](event):
+            event.cancel()
+            event.send()
 
-        folder.delete(item)
+        folder.delete(event)
         self.respond_204(resp)
 
-    def on_delete(self, req, resp, userid=None, folderid=None, eventid=None):
-        handler = self.handle_delete
+    def on_delete_by_eventid(self, req, resp, eventid):
+        """Handle DELETE request for a specific event in 'calendar' folder.
 
-        server, store, userid = req.context.server_store
-        folder = _folder(store, folderid or 'calendar')
-        item = self.get_event(folder, eventid)
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            eventid (str): event ID which should be deleted.
+        """
+        self._delete_event(req, resp, "calendar", eventid)
 
-        handler(req, resp, folder=folder, item=item)
+    def on_delete_by_folderid_eventid(self, req, resp, folderid, eventid):
+        """Handle DELETE request for a specific event in a specific folder.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): folder ID which the event exists in.
+            eventid (str): event ID which should be deleted.
+        """
+        self._delete_event(req, resp, folderid, eventid)

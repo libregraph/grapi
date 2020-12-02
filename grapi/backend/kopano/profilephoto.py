@@ -16,6 +16,23 @@ class ProfilePhotoResource(Resource):
         'id': lambda photo: ('%dX%d' % (photo.width, photo.height))
     }
 
+    @experimental
+    def on_get_photos(self, req, resp):
+        # TODO multiple photos?
+        server, store, userid = req.context.server_store
+
+        if not userid and req.path.split('/')[-1] != 'users':
+            userid = kopano.Store(server=server, mapiobj=server.mapistore).user.userid
+
+        user = server.user(userid=userid)
+
+        def yielder(**kwargs):
+            photo = user.photo
+            if photo:
+                yield photo
+        data = self.generator(req, yielder)
+        self.respond(req, resp, data, self.fields)
+
     def handle_get(self, req, resp, store, server, userid, folderid, itemid, photoid, method):
         photo = None
 

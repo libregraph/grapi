@@ -5,19 +5,10 @@ import logging
 import falcon
 import kopano
 
-from grapi.api.v1.resource import HTTPConflict
-
 from . import group  # import as module since this is a circular import
-from .calendar import CalendarResource
 from .contact import ContactResource
-from .contactfolder import ContactFolderResource
-from .event import EventResource
-from .mailfolder import MailFolderResource
 from .message import MessageResource
-from .profilephoto import ProfilePhotoResource
-from .reminder import ReminderResource
 from .resource import DEFAULT_TOP, Resource, _start_end
-from .schema import event_schema
 from .utils import HTTPBadRequest, HTTPNotFound, experimental
 
 
@@ -55,6 +46,8 @@ class UserResource(Resource):
         'companyName': lambda user: user.company.name,
     }
 
+    # GET
+
     def delta(self, req, resp, server):
         args = self.parse_qs(req)
         token = args['$deltatoken'][0] if '$deltatoken' in args else None
@@ -69,22 +62,22 @@ class UserResource(Resource):
     def handle_get(self, req, resp, store, server, userid):
         if userid:
             if userid == 'delta':
-                self._handle_get_delta(req, resp, store=store, server=server)
+                self._handle_get_delta(req, resp, server=server)
             else:
-                self._handle_get_with_userid(req, resp, store=store, server=server, userid=userid)
+                self._handle_get_with_userid(req, resp, server=server, userid=userid)
         else:
-            self._handle_get_without_userid(req, resp, store=store, server=server)
+            self._handle_get_without_userid(req, resp, server=server)
 
     @experimental
-    def _handle_get_delta(self, req, resp, store, server):
+    def _handle_get_delta(self, req, resp, server):
         req.context.deltaid = '{userid}'
         self.delta(req, resp, server=server)
 
-    def _handle_get_with_userid(self, req, resp, store, server, userid):
+    def _handle_get_with_userid(self, req, resp, server, userid):
         data = server.user(userid=userid)
         self.respond(req, resp, data)
 
-    def _handle_get_without_userid(self, req, resp, store, server):
+    def _handle_get_without_userid(self, req, resp, server):
         args = self.parse_qs(req)
         userid = kopano.Store(server=server, mapiobj=server.mapistore).user.userid
         try:
@@ -102,54 +95,9 @@ class UserResource(Resource):
         self.respond(req, resp, data)
 
     @experimental
-    def handle_get_mailFolders(self, req, resp, store, server, userid):
-        data = self.generator(req, store.mail_folders, 0)
-        self.respond(req, resp, data, MailFolderResource.fields)
-
-    @experimental
-    def handle_get_contactFolders(self, req, resp, store, server, userid):
-        data = self.generator(req, store.contact_folders, 0)
-        self.respond(req, resp, data, ContactFolderResource.fields)
-
-    @experimental
-    def handle_get_messages(self, req, resp, store, server, userid):
-        data = self.folder_gen(req, store.inbox)
-        self.respond(req, resp, data, MessageResource.fields)
-
-    @experimental
     def handle_get_contacts(self, req, resp, store, server, userid):
         data = self.folder_gen(req, store.contacts)
         self.respond(req, resp, data, ContactResource.fields)
-
-    def handle_get_calendars(self, req, resp, store, server, userid):
-        data = self.generator(req, store.calendars, 0)
-        self.respond(req, resp, data, CalendarResource.fields)
-
-    @experimental
-    def handle_get_events(self, req, resp, store, server, userid):
-        calendar = store.calendar
-        data = self.generator(req, calendar.items, calendar.count)
-        self.respond(req, resp, data, EventResource.fields)
-
-    def handle_get_calendarView(self, req, resp, store, server, userid):
-        start, end = _start_end(req)
-
-        def yielder(**kwargs):
-            for occ in store.calendar.occurrences(start, end, **kwargs):
-                yield occ
-        data = self.generator(req, yielder)
-        self.respond(req, resp, data, EventResource.fields)
-
-    @experimental
-    def handle_get_reminderView(self, req, resp, store, server, userid):
-        start, end = _start_end(req)
-
-        def yielder(**kwargs):
-            for occ in store.calendar.occurrences(start, end):
-                if occ.reminder:
-                    yield occ
-        data = self.generator(req, yielder)
-        self.respond(req, resp, data, ReminderResource.fields)
 
     @experimental
     def handle_get_memberOf(self, req, resp, store, server, userid):
@@ -157,16 +105,41 @@ class UserResource(Resource):
         data = (user.groups(), DEFAULT_TOP, 0, 0)
         self.respond(req, resp, data, group.GroupResource.fields)
 
-    @experimental
-    def handle_get_photos(self, req, resp, store, server, userid):
-        user = server.user(userid=userid)
+    def on_get_me(self, req, resp):
+        """Return 'me' user info.
 
-        def yielder(**kwargs):
-            photo = user.photo
-            if photo:
-                yield photo
-        data = self.generator(req, yielder)
-        self.respond(req, resp, data, ProfilePhotoResource.fields)
+        :param req: Falcon request object.
+        :type req: Request
+        :param resp: Falcon response object.
+        :type resp: Response
+        """
+        server, _, userid = req.context.server_store
+        userid = kopano.Store(server=server, mapiobj=server.mapistore).user.userid
+        self._handle_get_with_userid(req, resp, server, userid)
+
+    def on_get_users(self, req, resp):
+        """Return list of all users.
+
+        :param req: Falcon request object.
+        :type req: Request
+        :param resp: Falcon response object.
+        :type resp: Response
+        """
+        server = req.context.server_store[0]
+        self._handle_get_without_userid(req, resp, server=server)
+
+    def on_get_by_userid(self, req, resp, userid):
+        """Return a user info by ID.
+
+        :param req: Falcon request object.
+        :type req: Request
+        :param resp: Falcon response object.
+        :type resp: Response
+        :param userid: user ID.
+        :type userid: str
+        """
+        server = req.context.server_store[0]
+        self._handle_get_with_userid(req, resp, server, userid)
 
     # TODO redirect to other resources?
     def on_get(self, req, resp, userid=None, method=None):
@@ -175,36 +148,11 @@ class UserResource(Resource):
         if not method:
             handler = self.handle_get
 
-        elif method == 'mailFolders':
-            handler = self.handle_get_mailFolders
-
-        elif method == 'contactFolders':
-            handler = self.handle_get_contactFolders
-
-        elif method == 'messages':  # TODO store-wide?
-            handler = self.handle_get_messages
-
         elif method == 'contacts':
             handler = self.handle_get_contacts
 
-        elif method == 'calendars':
-            handler = self.handle_get_calendars
-
-        elif method == 'events':  # TODO multiple calendars?
-            handler = self.handle_get_events
-
-        elif method == 'calendarView':  # TODO multiple calendars? merge code with calendar.py
-            handler = self.handle_get_calendarView
-
-        elif method == 'reminderView':  # TODO multiple calendars?
-            # TODO use restriction in pyko: calendar.reminders(start, end)?
-            handler = self.handle_get_reminderView
-
         elif method == 'memberOf':
             handler = self.handle_get_memberOf
-
-        elif method == 'photos':  # TODO multiple photos?
-            handler = self.handle_get_photos
 
         elif method:
             raise HTTPBadRequest("Unsupported user segment '%s'" % method)
@@ -216,6 +164,8 @@ class UserResource(Resource):
         if not userid and req.path.split('/')[-1] != 'users':
             userid = kopano.Store(server=server, mapiobj=server.mapistore).user.userid
         handler(req, resp, store=store, server=server, userid=userid)
+
+    # POST
 
     @experimental
     def handle_post_sendMail(self, req, resp, fields, store):
@@ -229,51 +179,12 @@ class UserResource(Resource):
         item = self.create_message(store.contacts, fields, ContactResource.set_fields)
         self.respond(req, resp, item, ContactResource.fields)
 
-    @experimental
-    def handle_post_messages(self, req, resp, fields, store):
-        item = self.create_message(store.drafts, fields, MessageResource.set_fields)
-        self.respond(req, resp, item, MessageResource.fields)
-
-    @experimental
-    def handle_post_events(self, req, resp, fields, store):
-        self.validate_json(event_schema, fields)
-
-        try:
-            item = self.create_message(store.calendar, fields, EventResource.set_fields)
-        except kopano.errors.ArgumentError as e:
-            raise HTTPBadRequest("Invalid argument error '{}'".format(e))
-        if fields.get('attendees', None):
-            # NOTE(longsleep): Sending can fail with NO_ACCCESS if no permission to outbox.
-            item.send()
-        self.respond(req, resp, item, EventResource.fields)
-
-    @experimental
-    def handle_post_mailFolders(self, req, resp, fields, store):
-        try:
-            folder = store.create_folder(fields['displayName'])
-        except kopano.errors.DuplicateError:
-            raise HTTPConflict("'%s' folder already exists" % fields['displayName'])
-        resp.status = falcon.HTTP_201
-        self.respond(req, resp, folder, MailFolderResource.fields)
-
     # TODO redirect to other resources?
     def on_post(self, req, resp, userid=None, method=None):
         handler = None
 
         if method == 'sendMail':
             handler = self.handle_post_sendMail
-
-        elif method == 'contacts':
-            handler = self.handle_post_contacts
-
-        elif method == 'messages':
-            handler = self.handle_post_messages
-
-        elif method == 'events':
-            handler = self.handle_post_events
-
-        elif method == 'mailFolders':
-            handler = self.handle_post_mailFolders
 
         elif method:
             raise HTTPBadRequest("Unsupported user segment '%s'" % method)

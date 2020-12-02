@@ -93,6 +93,12 @@ class ContactResource(ItemResource):
         data = _item(folder, itemid)
         self.respond(req, resp, data)
 
+    @experimental
+    def on_get_contacts(self, req, resp):
+        _, store, _ = req.context.server_store
+        data = self.folder_gen(req, store.contacts)
+        self.respond(req, resp, data, ContactResource.fields)
+
     def on_get(self, req, resp, userid=None, folderid=None, itemid=None, method=None):
         handler = None
 
@@ -110,6 +116,13 @@ class ContactResource(ItemResource):
         store.delete(item)
 
         self.respond_204(resp)
+
+    @experimental
+    def on_post_contacts(self, req, resp):
+        fields = self.load_json(req)
+        _, store, _ = req.context.server_store
+        item = self.create_message(store.contacts, fields, ContactResource.set_fields)
+        self.respond(req, resp, item, ContactResource.fields)
 
     def on_delete(self, req, resp, userid=None, folderid=None, itemid=None):
         handler = self.handle_delete

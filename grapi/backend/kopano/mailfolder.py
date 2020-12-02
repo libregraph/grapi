@@ -8,7 +8,7 @@ from grapi.api.v1.resource import HTTPBadRequest, HTTPConflict
 
 from .folder import FolderResource
 from .message import MessageResource
-from .schema import destination_id_schema, folder_schema, message_schema
+from .schema import destination_id_schema, folder_schema
 from .utils import _folder, experimental
 
 
@@ -46,15 +46,11 @@ class MailFolderResource(FolderResource):
     deleted_resource = DeletedMailFolderResource
     container_classes = (None, 'IPF.Note')
 
-    def handle_get_childFolders(self, req, resp, store, folderid):
+    def on_get_child_folders(self, req, resp, folderid):
+        _, store, _ = req.context.server_store
         data = _folder(store, folderid)
         data = self.generator(req, data.folders, data.subfolder_count_recursive)
         self.respond(req, resp, data)
-
-    def handle_get_messages(self, req, resp, store, folderid):
-        data = _folder(store, folderid)
-        data = self.folder_gen(req, data)
-        self.respond(req, resp, data, MessageResource.fields)
 
     def folder_gen(self, req, folder):
         args = self.parse_qs(req)
@@ -98,30 +94,34 @@ class MailFolderResource(FolderResource):
             raise falcon.HTTPNotFound(description="folder not found")
         self.respond(req, resp, data)
 
+    @experimental
+    def on_get_mail_folders(self, req, resp, userid=None):
+        """Handle GET request on mailFolders.
+
+        Args:
+            userid (Optional[str): user ID.
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+        """
+        store = req.context.server_store[1]
+        data = self.generator(req, store.mail_folders, 0)
+        self.respond(req, resp, data, MailFolderResource.fields)
+
     def on_get(self, req, resp, userid=None, folderid=None, method=None):
         if method is None:
             handler = self.handle_get
-        elif method == "childFolders":
-            handler = self.handle_get_childFolders
-        elif method == "messages":
-            handler = self.handle_get_messages
         else:
             raise HTTPBadRequest("Unsupported mailFolder segment '%s'" % method)
 
         server, store, userid = req.context.server_store
         handler(req, resp, store=store, folderid=folderid)
 
-    def handle_post_messages(self, req, resp, store, folderid):
-        fields = self.load_json(req)
-        self.validate_json(message_schema, fields)
-        folder = _folder(store, folderid)
-        item = self.create_message(folder, fields, MessageResource.set_fields)
-        resp.status = falcon.HTTP_201
-        self.respond(req, resp, item, MessageResource.fields)
-
-    def handle_post_childFolders(self, req, resp, store, folderid):
+    def on_post_child_folders(self, req, resp, folderid):
         fields = self.load_json(req)
         self.validate_json(folder_schema, fields)
+
+        store = req.context.server_store[1]
+
         folder = _folder(store, folderid)
         if folder.get_folder(fields['displayName']):
             raise HTTPConflict("'%s' already exists" % fields['displayName'])
@@ -129,10 +129,12 @@ class MailFolderResource(FolderResource):
         resp.status = falcon.HTTP_201
         self.respond(req, resp, child, MailFolderResource.fields)
 
-    def handle_post_copy(self, req, resp, store, folderid):
+    def on_post_copy_folder(self, req, resp, folderid):
+        _, store, _ = req.context.server_store
         self._handle_post_copyOrMove(req, resp, store=store, folderid=folderid, move=False)
 
-    def handle_post_move(self, req, resp, store, folderid):
+    def on_post_move_folder(self, req, resp, folderid):
+        _, store, _ = req.context.server_store
         self._handle_post_copyOrMove(req, resp, store=store, folderid=folderid, move=True)
 
     def _handle_post_copyOrMove(self, req, resp, store, folderid, move=False):
@@ -161,26 +163,17 @@ class MailFolderResource(FolderResource):
         new_folder = to_folder.folder(folder.name)
         self.respond(req, resp, new_folder, MailFolderResource.fields)
 
-    def on_post(self, req, resp, userid=None, folderid=None, method=None):
-        handler = None
+    @experimental
+    def on_post_mail_folders(self, req, resp):
+        _, store, _ = req.context.server_store
+        fields = self.load_json(req)
+        self.validate_json(folder_schema, fields)
+        try:
+            folder = store.create_folder(fields['displayName'])
+        except kopano.errors.DuplicateError:
+            raise HTTPConflict("'%s' folder already exists" % fields['displayName'])
+        resp.status = falcon.HTTP_201
+        self.respond(req, resp, folder, MailFolderResource.fields)
 
-        if method == 'messages':
-            handler = self.handle_post_messages
-
-        elif method == 'childFolders':
-            handler = self.handle_post_childFolders
-
-        elif method == 'copy':
-            handler = self.handle_post_copy
-
-        elif method == 'move':
-            handler = self.handle_post_move
-
-        elif method:
-            raise HTTPBadRequest("Unsupported mailFolder segment '%s'" % method)
-
-        else:
-            raise HTTPBadRequest("Unsupported in mailfolder")
-
-        server, store, userid = req.context.server_store
-        handler(req, resp, store, folderid)
+    def on_post(self, req, resp, userid=None, folderid=None):
+        raise HTTPBadRequest("Unsupported in mailfolder")

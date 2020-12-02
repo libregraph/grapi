@@ -38,6 +38,7 @@ def test_create_recurrence(client, user, json_event_daily, url):
 
     # TODO: Check expanded recurrence
 
+
 @pytest.mark.parametrize("url", URLS)
 def test_create_recurrence_weekly(client, user, json_event_weekly, url):
     response = client.simulate_post(url, headers=user.auth_header, json=json_event_weekly)
@@ -50,34 +51,9 @@ def test_create_recurrence_weekly(client, user, json_event_weekly, url):
 
 
 @pytest.mark.parametrize("url", URLS)
-def test_post_event_empty_method(client, user, json_event, url):
-    id_ = assert_create_event(client, user, json_event, url)
-
-    response = client.simulate_post(url + '/' + id_, headers=user.auth_header)
-    assert response.status_code == 400
-    assert response.json['description'] == 'Unsupported in event'
-
-
-@pytest.mark.parametrize("url", URLS)
-def test_post_event_unsupported_method(client, user, json_event, url):
-    id_ = assert_create_event(client, user, json_event, url)
-
-    response = client.simulate_post(url + '/{}/test'.format(id_), headers=user.auth_header)
-    assert response.status_code == 400
-    assert 'Unsupported event segment' in response.json['description']
-
-
-@pytest.mark.parametrize("url", URLS)
 def test_post_event_accept_not_data(client, user, json_event, url):
     id_ = assert_create_event(client, user, json_event, url)
-
     response = client.simulate_post(url + '/{}/accept'.format(id_), headers=user.auth_header)
-    assert response.status_code == 400
-
-
-@pytest.mark.parametrize("url", URLS)
-def test_post_event_malformed(client, user, url):
-    response = client.simulate_post(url + '/malformed', headers=user.auth_header)
     assert response.status_code == 400
 
 
@@ -89,17 +65,8 @@ def test_get_event_malformed(client, user, url):
 
 
 @pytest.mark.parametrize("url", URLS)
-def test_get_event_no_segment(client, user, json_event, url):
-    id_ = assert_create_event(client, user, json_event, url)
-
-    response = client.simulate_get(url + '/{}/malformed'.format(id_), headers=user.auth_header)
-    assert response.status_code == 400
-
-
-@pytest.mark.parametrize("url", URLS)
 def test_get_event_attachments(client, user, json_event, url):
     id_ = assert_create_event(client, user, json_event, url)
-
     response = client.simulate_get(url + '/{}/attachments'.format(id_), headers=user.auth_header)
     assert response.status_code == 200
     assert not response.json['value']
@@ -240,19 +207,3 @@ def test_update_instance(client, user, calendar_entryid, json_event_daily, url):
     assert response.status_code == 200
     occ = response.json['value'][0]
     assert occ['subject'] == 'new subject'
-
-
-def test_get_calendar_segment_unsupported(client, user, calendar_entryid):
-    url = '/api/gc/v1/me/calendars/{}/notfound/'.format(calendar_entryid)
-    response = client.simulate_get(url, headers=user.auth_header)
-    assert response.status_code == 400
-
-
-def test_post_calendar_segment_unsupported(client, user, calendar_entryid):
-    url = '/api/gc/v1/me/calendars/{}/notfound/'.format(calendar_entryid)
-    response = client.simulate_post(url, headers=user.auth_header)
-    assert response.status_code == 400
-
-    url = '/api/gc/v1/me/calendars/{}/'.format(calendar_entryid)
-    response = client.simulate_post(url, headers=user.auth_header)
-    assert response.status_code == 400

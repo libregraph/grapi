@@ -52,24 +52,6 @@ class BackendMiddleware:
                     params['userid'] = userid[len(name)+1:]
                     break
 
-        # userresource method determines backend type # TODO solve nicer in routing? (fight the falcon)
-        method = params.get('method')
-        if method and not backend and resource.name == 'UserResource':
-            if method in (
-                'messages',
-                'mailFolders'
-            ):
-                backend = self.default_backend.get('mail')
-            elif method in (
-                'contacts',
-                'contactFolders',
-                'memberOf',
-                'photos'
-            ):
-                backend = self.default_backend.get('directory')
-            else:
-                backend = self.default_backend.get('calendar')
-
         # fall back to default backend for type
         if not backend:
             backend = resource.default_backend
@@ -80,10 +62,17 @@ class BackendMiddleware:
         if hasattr(resource_cls, "need_store") and resource_cls.need_store:
             backend_name = next(iter(self.name_backend))
             utils = API.import_backend("{}.utils".format(backend_name), None)
+            userid = params.pop('userid') if 'userid' in params else None
             try:
-                req.context.server_store = utils._server_store(req, params.get('userid'), self.options)
+                server, store, userid = utils._server_store(req, userid, self.options)
             except MAPIErrorInvalidEntryid:
                 raise falcon.HTTPBadRequest("Invalid entryid provided")
+            # User should have store.
+            if not store:
+                raise falcon.HTTPForbidden("No store found for the user")
+
+            # Todo(mort), store User object in the Context instead of userid.
+            req.context.server_store = server, store, userid
 
         # result: eg ldap.UserResource() or kopano.MessageResource()
         req.context.resource = resource_cls(self.options)
@@ -115,14 +104,14 @@ class RestAPI(API):
         # And specifying it in backends.
         backend_types = {
             'ldap': ['directory'],
-            'kopano': ['directory', 'mail', 'calendar'],
+            'kopano': ['directory', 'mail', 'calendar', 'reminder'],
             'imap': ['mail'],
             'caldav': ['calendar'],
             'mock': ['mail', 'directory'],
         }
 
         default_backend = {}
-        for type_ in ('directory', 'mail', 'calendar'):
+        for type_ in ('directory', 'mail', 'calendar', 'reminder'):
             for name, types in backend_types.items():
                 if name in backends and type_ in types:
                     default_backend[type_] = name_backend[name]  # TODO type occurs twice
@@ -155,22 +144,30 @@ class RestAPI(API):
             contacts = BackendResource(directory, 'ContactResource')
             photos = BackendResource(directory, 'ProfilePhotoResource')
 
-            self.route(PREFIX+'/me', users)
-            self.route(PREFIX+'/users', users, method=False)  # TODO method == ugly
-            self.route(PREFIX+'/users/{userid}', users)
-            self.route(PREFIX+'/groups', groups, method=False)
-            self.route(PREFIX+'/groups/{groupid}', groups)
+            self.add_route(PREFIX + '/me', users)
+            self.add_route(PREFIX + '/users', users)
+            self.add_route(PREFIX + '/users/{userid}', users)
 
-            for user in (PREFIX+'/me', PREFIX+'/users/{userid}'):
-                self.route(user+'/contactFolders/{folderid}', contactfolders)
-                self.route(user+'/contacts/{itemid}', contacts)
-                self.route(user+'/contactFolders/{folderid}/contacts/{itemid}', contacts)
-                self.route(user+'/photo', photos)
-                self.route(user+'/photos/{photoid}', photos)
-                self.route(user+'/contacts/{itemid}/photo', photos)
-                self.route(user+'/contacts/{itemid}/photos/{photoid}', photos)
-                self.route(user+'/contactFolders/{folderid}/contacts/{itemid}/photo', photos)
-                self.route(user+'/contactFolders/{folderid}/contacts/{itemid}/photos/{photoid}', photos)
+            self.add_route(PREFIX + '/groups', groups)
+            self.add_route(PREFIX + '/groups/{groupid}', groups)
+
+            for user in (PREFIX + '/me', PREFIX + '/users/{userid}'):
+                self.add_route(user + '/contactFolders/', contactfolders, suffix="contact_folders")
+                self.add_route(user + '/contactFolders/{folderid}', contactfolders)
+                self.add_route(user + '/contacts/', contacts, suffix="contacts")
+                self.add_route(user + '/contacts/{itemid}', contacts)
+                self.add_route(user + '/contactFolders/{folderid}/contacts/{itemid}', contacts)
+
+                self.add_route(user + '/photo', photos)
+                self.add_route(user + '/photos/', photos, suffix="photos")
+                self.add_route(user + '/photos/{photoid}', photos)
+
+                self.add_route(user + '/contacts/{itemid}/photo', photos)
+                self.add_route(user + '/contacts/{itemid}/photos/{photoid}', photos)
+                self.add_route(user + '/contactFolders/{folderid}/contacts/{itemid}/photo', photos)
+                self.add_route(user + '/contactFolders/{folderid}/contacts/{itemid}/photos/{photoid}', photos)
+
+                self.add_route(user + '/memberOf', groups, suffix="member_of")
 
         mail = default_backend.get('mail')
         if mail:
@@ -178,25 +175,65 @@ class RestAPI(API):
             attachments = BackendResource(mail, 'AttachmentResource')
             mailfolders = BackendResource(mail, 'MailFolderResource')
 
-            for user in (PREFIX+'/me', PREFIX+'/users/{userid}'):
-                self.route(user+'/mailFolders/{folderid}', mailfolders)
-                self.route(user+'/messages/{itemid}', messages)
-                self.route(user+'/mailFolders/{folderid}/messages/{itemid}', messages)
-                self.route(user+'/messages/{itemid}/attachments/{attachmentid}', attachments)
-                self.route(user+'/mailFolders/{folderid}/messages/{itemid}/attachments/{attachmentid}', attachments)
+            for user in (PREFIX + '/me', PREFIX + '/users/{userid}'):
+                self.add_route(user + '/mailFolders', mailfolders, suffix="mail_folders")
+                self.add_route(user + '/mailFolders/{folderid}', mailfolders)
+                self.add_route(user + '/mailFolders/{folderid}/childFolders', mailfolders, suffix="child_folders")
+
+                self.add_route(user + '/mailFolders/{folderid}/copy', mailfolders, suffix="copy_folder")
+                self.add_route(user + '/mailFolders/{folderid}/move', mailfolders, suffix="move_folder")
+
+                self.add_route(user + '/messages', messages, suffix="messages")
+                self.add_route(user + '/messages/{itemid}', messages, suffix="message_by_itemid")
+                self.add_route(user + '/mailFolders/{folderid}/messages', messages, suffix="messages_by_folderid")
+                self.add_route(user + '/mailFolders/{folderid}/messages/{itemid}', messages)
+
+                self.add_route(user + '/messages/{itemid}/attachments', attachments, suffix="attachments_by_itemid")
+                self.add_route(user + '/messages/{itemid}/attachments/{attachmentid}', attachments)
+                self.add_route(user + '/mailFolders/{folderid}/messages/{itemid}/attachments/{attachmentid}',
+                               attachments)
 
         calendar = default_backend.get('calendar')
+        reminder = default_backend.get('reminder')
         if calendar:
             calendars = BackendResource(calendar, 'CalendarResource')
+            reminders = BackendResource(reminder, 'ReminderResource')
             events = BackendResource(calendar, 'EventResource')
             calendar_attachments = BackendResource(calendar, 'AttachmentResource')
 
-            for user in (PREFIX+'/me', PREFIX+'/users/{userid}'):
-                self.route(user+'/calendar', calendars)
-                self.route(user+'/calendars/{folderid}', calendars)
-                self.route(user+'/events/{eventid}', events)
-                self.route(user+'/calendar/events/{eventid}', events)
-                self.route(user+'/calendars/{folderid}/events/{eventid}', events)
-                self.route(user+'/events/{eventid}/attachments/{attachmentid}', calendar_attachments)  # TODO other routes
-                self.route(user+'/calendar/events/{eventid}/attachments/{attachmentid}', calendar_attachments)
-                self.route(user+'/calendars/{folderid}/events/{eventid}/attachments/{attachmentid}', calendar_attachments)
+            for user in (PREFIX + '/me', PREFIX + '/users/{userid}'):
+                self.add_route(user + '/calendar', calendars, suffix="calendar")
+                self.add_route(user + '/calendars', calendars, suffix="calendars")
+                self.add_route(user + '/calendars/{folderid}', calendars)
+
+                self.add_route(user + '/events', events, suffix="events")
+                self.add_route(user + '/events/{eventid}', events, suffix="by_eventid")
+                self.add_route(user + '/events/{eventid}/accept', events, suffix="accept_event")
+                self.add_route(user + '/events/{eventid}/decline', events, suffix="decline_event")
+                self.add_route(user + '/events/{eventid}/instances', events, suffix="instances")
+
+                self.add_route(user + '/calendar/events/{eventid}', events, suffix="by_eventid")
+                self.add_route(user + '/calendar/events/{eventid}/accept', events, suffix="accept_event")
+
+                self.add_route(user + '/calendars/{folderid}/events', events, suffix="by_folderid")
+                self.add_route(user + '/calendars/{folderid}/events/{eventid}/accept', events,
+                               suffix="accept_event_by_folderid")
+                self.add_route(user + '/calendars/{folderid}/events/{eventid}/decline', events,
+                               suffix="decline_event_by_folderid")
+                self.add_route(user + '/calendars/{folderid}/events/{eventid}/instances', events,
+                               suffix="instances_by_folderid")
+                self.add_route(user + '/calendars/{folderid}/events/{eventid}', events, suffix="by_folderid_eventid")
+
+                self.add_route(user + '/events/{eventid}/attachments', calendar_attachments, suffix="attachments_by_eventid")
+                self.add_route(user + '/events/{eventid}/attachments/{attachmentid}',
+                               calendar_attachments)  # TODO other routes
+                self.add_route(user + '/calendar/events/{eventid}/attachments/{attachmentid}', calendar_attachments)
+                self.add_route(user + '/calendars/{folderid}/events/{eventid}/attachments/{attachmentid}',
+                               calendar_attachments)
+                self.add_route(user + '/calendars/{folderid}/events/{eventid}/attachments', calendar_attachments,
+                               suffix="attachments_by_folderid")
+
+                self.add_route(user + '/calendars/{folderid}/calendarView', calendars,
+                               suffix="calendar_view_by_folderid")
+                self.add_route(user + '/calendarView', calendars, suffix="calendar_view")
+                self.add_route(user + '/reminderView', reminders, suffix="reminder_view")

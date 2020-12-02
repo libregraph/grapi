@@ -1,11 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-import base64
-
 import falcon
 
 from . import attachment  # import as module since this is a circular import
 from .item import ItemResource, get_body, get_email, set_body
-from .resource import DEFAULT_TOP, _date
+from .resource import _date
+from .schema import message_schema
 from .utils import HTTPBadRequest, _folder, _item, experimental
 
 
@@ -66,6 +65,8 @@ class MessageResource(ItemResource):
         'attachments': lambda message: (message.attachments, attachment.FileAttachmentResource),  # TODO embedded
     }
 
+    # GET
+
     def handle_get(self, req, resp, store, folder, itemid):
         if itemid == 'delta':  # TODO move to MailFolder resource somehow?
             self._handle_get_delta(req, resp, store=store, folder=folder)
@@ -80,30 +81,30 @@ class MessageResource(ItemResource):
         item = _item(folder, itemid)
         self.respond(req, resp, item)
 
-    def handle_get_attachments(self, req, resp, store, folder, itemid):
-        item = _item(folder, itemid)
-        attachments = list(attachment.get_attachments(item))
-        data = (attachments, DEFAULT_TOP, 0, len(attachments))
-        self.respond(req, resp, data)
+    @experimental
+    def on_get_messages(self, req, resp):
+        """Handle GET request for users' 'messages'.
 
-    def on_get(self, req, resp, userid=None, folderid=None, itemid=None, method=None):
-        handler = None
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+        """
+        _, store, _ = req.context.server_store
+        data = self.folder_gen(req, store.inbox)
+        self.respond(req, resp, data, MessageResource.fields)
 
-        if not method:
-            handler = self.handle_get
+    def on_get_message_by_itemid(self, req, resp, itemid):
+        store = req.context.server_store[1]
+        item = _item(store.inbox, itemid)
+        self.respond(req, resp, item)
 
-        elif method == 'attachments':
-            handler = self.handle_get_attachments
+    def on_get_messages_by_folderid(self, req, resp, folderid):
+        store = req.context.server_store[1]
+        data = _folder(store, folderid)
+        data = self.folder_gen(req, data)
+        self.respond(req, resp, data, MessageResource.fields)
 
-        elif method:
-            raise HTTPBadRequest("Unsupported message segment '%s'" % method)
-
-        else:
-            raise HTTPBadRequest("Unsupported in message")
-
-        server, store, userid = req.context.server_store
-        folder = _folder(store, folderid or 'inbox')  # TODO all folders?
-        handler(req, resp, store=store, folder=folder, itemid=itemid)
+    # POST
 
     def handle_post_createReply(self, req, resp, store, folder, item):
         self.respond(req, resp, item.reply())
@@ -112,16 +113,6 @@ class MessageResource(ItemResource):
     def handle_post_createReplyAll(self, req, resp, store, folder, item):
         self.respond(req, resp, item.reply(all=True))
         resp.status = falcon.HTTP_201
-
-    def handle_post_attachments(self, req, resp, store, folder, item):
-        fields = self.load_json(req)
-        odataType = fields.get('@odata.type', None)
-        if odataType == '#microsoft.graph.fileAttachment':  # TODO other types
-            att = item.create_attachment(fields['name'], base64.urlsafe_b64decode(fields['contentBytes']))
-            self.respond(req, resp, att, attachment.FileAttachmentResource.fields)
-            resp.status = falcon.HTTP_201
-        else:
-            raise HTTPBadRequest("Unsupported attachment @odata.type: '%s'" % odataType)
 
     def handle_post_copy(self, req, resp, store, folder, item):
         self._handle_post_copyOrMove(req, resp, store=store, item=item)
@@ -141,6 +132,43 @@ class MessageResource(ItemResource):
         item.send()
         resp.status = falcon.HTTP_202
 
+    def _create_message(self, req, resp, folderid):
+        """Create a new message in a defined folder.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): folder ID.
+        """
+        fields = self.load_json(req)
+        self.validate_json(message_schema, fields)
+
+        _, store, _ = req.context.server_store
+
+        folder = _folder(store, folderid)
+        item = self.create_message(folder, fields, MessageResource.set_fields)
+        resp.status = falcon.HTTP_201
+        self.respond(req, resp, item, MessageResource.fields)
+
+    def on_post_messages(self, req, resp):
+        """Handle POST request on messages endpoint.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+        """
+        self._create_message(req, resp, "drafts")
+
+    def on_post_messages_by_folderid(self, req, resp, folderid):
+        """Handle POST request on message endpoint with defined folder ID.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): folder ID which message should be created in.
+        """
+        self._create_message(req, resp, folderid)
+
     def on_post(self, req, resp, userid=None, folderid=None, itemid=None, method=None):
         handler = None
 
@@ -149,9 +177,6 @@ class MessageResource(ItemResource):
 
         elif method == 'createReplyAll':
             handler = self.handle_post_createReplyAll
-
-        elif method == 'attachments':
-            handler = self.handle_post_attachments
 
         elif method == 'copy':
             handler = self.handle_post_copy
@@ -172,6 +197,8 @@ class MessageResource(ItemResource):
         folder = _folder(store, folderid or 'inbox')  # TODO all folders?
         item = _item(folder, itemid)
         handler(req, resp, store=store, folder=folder, item=item)
+
+    # PATCH
 
     def handle_patch(self, req, resp, store, folder, itemid):
         item = _item(folder, itemid)
@@ -195,6 +222,8 @@ class MessageResource(ItemResource):
         server, store, userid = req.context.server_store
         folder = _folder(store, folderid or 'inbox')  # TODO all folders?
         handler(req, resp, store=store, folder=folder, itemid=itemid)
+
+    # DELETE
 
     def handle_delete(self, req, resp, store, itemid):
         item = _item(store, itemid)

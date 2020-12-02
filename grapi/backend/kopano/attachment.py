@@ -1,9 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import base64
 
+import falcon
+
 from . import message
-from .resource import Resource, _date
-from .utils import _folder, _item, experimental
+from .event import EventResource
+from .resource import DEFAULT_TOP, Resource, _date
+from .utils import HTTPBadRequest, _folder, _item, experimental
 
 
 @experimental
@@ -18,6 +21,8 @@ class AttachmentResource(Resource):
     expansions = {
         'microsoft.graph.itemAttachment/item': lambda attachment: (attachment.item, message.EmbeddedMessageResource),
     }
+
+    # GET
 
     def handle_get(self, req, resp, store, server, userid, folderid, itemid, eventid, attachmentid, method):
         if folderid:
@@ -50,11 +55,108 @@ class AttachmentResource(Resource):
             all_fields = FileAttachmentResource.fields
         self.respond(req, resp, data, all_fields=all_fields)
 
+    def _get_attachments(self, req, resp, folderid, eventid):
+        store = req.context.server_store[1]
+        folder = _folder(store, folderid)
+        event = EventResource.get_event(folder, eventid)
+        attachments = list(event.attachments(embedded=True))
+        data = (attachments, DEFAULT_TOP, 0, len(attachments))
+        self.respond(req, resp, data, self.fields)
+
+    @experimental
+    def on_get_attachments_by_folderid(self, req, resp, folderid, eventid):
+        self._get_attachments(req, resp, folderid, eventid)
+
+    @experimental
+    def on_get_attachments_by_itemid(self, req, resp, itemid):
+        """Handle GET requests of attachments of an item in the "inbox" folder.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            itemid (str): item ID (e.g. message ID).
+        """
+        store = req.context.server_store[1]
+        item = _item(store.inbox, itemid)
+        attachments = list(item.attachments(embedded=True))
+        data = (attachments, DEFAULT_TOP, 0, len(attachments))
+        self.respond(req, resp, data, self.fields)
+
+    @experimental
+    def on_get_attachments_by_eventid(self, req, resp, eventid):
+        self._get_attachments(req, resp, "calendar", eventid)
+
     def on_get(self, req, resp, userid=None, folderid=None, itemid=None, eventid=None, attachmentid=None, method=None):
         handler = self.handle_get
 
         server, store, userid = req.context.server_store
         handler(req, resp, store=store, server=server, userid=userid, folderid=folderid, itemid=itemid, eventid=eventid, attachmentid=attachmentid, method=method)
+
+    # POST
+
+    def _add_attachments(self, req, resp, folder, item):
+        """Add attachments for an event in a specific folder.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folder (Folder): folder instance (e.g. Inbox).
+            item (Item): item instance (e.g. message or event).
+
+        Raises:
+            HTTPBadRequest: unsupported attachment.
+        """
+        fields = self.load_json(req)
+        odata_type = fields.get('@odata.type', None)
+        if odata_type == '#microsoft.graph.fileAttachment':
+            att = item.create_attachment(fields['name'], base64.urlsafe_b64decode(fields['contentBytes']))
+            self.respond(req, resp, att, self.fields)
+            resp.status = falcon.HTTP_201
+        else:
+            raise HTTPBadRequest("Unsupported attachment @odata.type: '%s'" % odata_type)
+
+    @experimental
+    def on_post_attachments_by_folderid(self, req, resp, folderid, eventid):
+        """Handle POST request for attachments on an event in a specific folder.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): folder ID which the event exists in.
+            eventid (str): event ID which need to have attachments.
+        """
+        store = req.context.server_store[1]
+        folder = _folder(store, folderid)
+        item = self.get_event(folder, eventid)
+        self._add_attachments(req, resp, folder, item)
+
+    @experimental
+    def on_post_attachments(self, req, resp, eventid):
+        """Handle POST request for attachments on an event in "calendar" folder.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            eventid (str): event ID which need to have attachments.
+        """
+        store = req.context.server_store[1]
+        item = self.get_event(store.calendar, eventid)
+        self._add_attachments(req, resp, store.calendar, item)
+
+    @experimental
+    def on_post_attachments_by_itemid(self, req, resp, itemid):
+        """Handle POST requests of attachments of an item in the "inbox" folder.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            itemid (str): item ID (e.g. message ID).
+        """
+        store = req.context.server_store[1]
+        item = _item(store.inbox, itemid)
+        self._add_attachments(req, resp, store.inbox, item)
+
+    # DELETE
 
     def handle_delete(self, req, resp, store, server, userid, folderid, itemid, eventid, attachmentid, method):
         if folderid:  # TODO same code above

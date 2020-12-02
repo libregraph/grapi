@@ -2,6 +2,7 @@
 
 from grapi.api.v1.resource import Resource
 
+from .message import MessageResource  # noqa: F401
 from .user import UserResource  # noqa: F401
 
 GroupResource = Resource

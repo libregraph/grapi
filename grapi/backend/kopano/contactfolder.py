@@ -39,6 +39,12 @@ class ContactFolderResource(FolderResource):
         fields = ContactResource.fields
         self.respond(req, resp, data, fields)
 
+    @experimental
+    def on_get_contact_folders(self, req, resp):
+        store = req.context.server_store[1]
+        data = self.generator(req, store.contact_folders, 0)
+        self.respond(req, resp, data, ContactFolderResource.fields)
+
     def on_get(self, req, resp, userid=None, folderid=None, method=None):
         handler = None
 

@@ -53,7 +53,7 @@ def test_create_message(client, user, json_message):
     assert result.json['totalItemCount'] == 0
 
     result = client.simulate_post('/api/gc/v1/me/messages', headers=user.auth_header, json=json_message)
-    assert result.status_code == 200
+    assert result.status_code == 201
 
     result = client.simulate_get('/api/gc/v1/me/mailFolders/drafts', headers=user.auth_header)
     assert result.status_code == 200
@@ -68,7 +68,7 @@ def test_list_message(client, user):
 
 def test_send_message(client, user, json_message):
     result = client.simulate_post('/api/gc/v1/me/messages', headers=user.auth_header, json=json_message)
-    assert result.status_code == 200
+    assert result.status_code == 201
     message_id = result.json['id']
 
     result = client.simulate_get('/api/gc/v1/me/messages/{}'.format(message_id), headers=user.auth_header)
@@ -85,7 +85,7 @@ def test_send_message(client, user, json_message):
 def test_list_contact_folders(client, user):
     result = client.simulate_get('/api/gc/v1/me/contactFolders', headers=user.auth_header)
     # Contact folders and Suggested Contacts
-    len(result.json['value']) == 2
+    assert len(result.json['value']) == 2
 
 
 def test_create_contact(client, user, json_contact):

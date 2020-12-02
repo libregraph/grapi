@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import datetime
 
-from .resource import Resource, _tzdate
+from .resource import Resource, _start_end, _tzdate
+from .utils import experimental
 
 
 class ReminderResource(Resource):
@@ -14,3 +15,17 @@ class ReminderResource(Resource):
         'eventLocation': lambda occ: occ.location,
         'reminderFireTime': lambda req, occ: _tzdate(occ.start-datetime.timedelta(minutes=occ.reminder_minutes), occ.tzinfo, req),
     }
+
+    @experimental
+    def on_get_reminder_view(self, req, resp):
+        # TODO use restriction in pyko: calendar.reminders(start, end)?
+        start, end = _start_end(req)
+
+        store = req.context.server_store[1]
+
+        def yielder(**kwargs):
+            for occ in store.calendar.occurrences(start, end):
+                if occ.reminder:
+                    yield occ
+        data = self.generator(req, yielder)
+        self.respond(req, resp, data, ReminderResource.fields)

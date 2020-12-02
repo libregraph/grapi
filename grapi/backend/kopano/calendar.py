@@ -7,7 +7,7 @@ from kopano.errors import NotFoundError
 from .event import EventResource
 from .folder import FolderResource
 from .resource import _dumpb_json, _start_end, _tzdate, parse_datetime_timezone
-from .schema import event_schema, get_schedule_schema
+from .schema import get_schedule_schema
 from .utils import HTTPBadRequest, _folder, _server_store, experimental
 
 
@@ -25,8 +25,10 @@ class CalendarResource(FolderResource):
         'name': lambda folder: folder.name,
     })
 
-    def handle_get_calendarView(self, req, resp, folder):
+    def on_get_calendar_view_by_folderid(self, req, resp, folderid):
         start, end = _start_end(req)
+        store = req.context.server_store[1]
+        folder = _folder(store, folderid)
 
         def yielder(**kwargs):
             for occ in folder.occurrences(start, end, **kwargs):
@@ -35,45 +37,43 @@ class CalendarResource(FolderResource):
         fields = EventResource.fields
         self.respond(req, resp, data, fields)
 
-    def handle_get_events(self, req, resp, folder):
-        data = self.generator(req, folder.items, folder.count)
-        fields = EventResource.fields
-        self.respond(req, resp, data, fields)
+    def on_get_calendars(self, req, resp):
+        """Handle GET request on 'calendars' endpoint.
 
-    def handle_get(self, req, resp, folder):
-        data = folder
-        fields = None
+        :param req: Falcon request object.
+        :type req: Request
+        :param resp: Falcon response object.
+        :type resp: Response
+        """
+        store = req.context.server_store[1]
+        data = self.generator(req, store.calendars, 0)
+        self.respond(req, resp, data, CalendarResource.fields)
 
-        self.respond(req, resp, data, fields)
+    def on_get_calendar(self, req, resp):
+        """Handle GET request on 'calendar' endpoint.
 
-    def on_get(self, req, resp, userid=None, folderid=None, method=None):
-        handler = None
+        :param req: Falcon request object.
+        :type req: Request
+        :param resp: Falcon response object.
+        :type resp: Response
+        """
+        store = req.context.server_store[1]
+        self.respond(req, resp, store.calendar, self.fields)
 
-        if method == 'calendarView':
-            handler = self.handle_get_calendarView
+    def on_get_calendar_view(self, req, resp):
+        start, end = _start_end(req)
+        store = req.context.server_store[1]
 
-        elif method == 'events':
-            handler = self.handle_get_events
+        def yielder(**kwargs):
+            for occ in store.calendar.occurrences(start, end, **kwargs):
+                yield occ
+        data = self.generator(req, yielder)
+        self.respond(req, resp, data, EventResource.fields)
 
-        elif method:
-            raise HTTPBadRequest("Unsupported calendar segment '%s'" % method)
+    def on_get(self, req, resp, userid=None, folderid=None):
+        raise HTTPBadRequest("Unsupported in calendar")
 
-        else:
-            handler = self.handle_get
-
-        server, store, userid = req.context.server_store
-        folder = _folder(store, folderid or 'calendar')
-        handler(req, resp, folder=folder)
-
-    def handle_post_events(self, req, resp, folder):
-        fields = self.load_json(req)
-        self.validate_json(event_schema, fields)
-
-        item = self.create_message(folder, fields, EventResource.set_fields)
-        if fields.get('attendees', None):
-            # NOTE(longsleep): Sending can fail with NO_ACCCESS if no permission to outbox.
-            item.send()
-        self.respond(req, resp, item, EventResource.fields)
+    # POST
 
     @experimental
     def handle_post_schedule(self, req, resp, folder):
@@ -125,10 +125,7 @@ class CalendarResource(FolderResource):
     def on_post(self, req, resp, userid=None, folderid=None, method=None):
         handler = None
 
-        if method == 'events':
-            handler = self.handle_post_events
-
-        elif method == 'getSchedule':
+        if method == 'getSchedule':
             handler = self.handle_post_schedule
 
         elif method:
