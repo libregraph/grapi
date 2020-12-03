@@ -126,6 +126,22 @@ class Resource(BaseResource):
     # Field map for $orderby query.
     sorting_field_map = {}
 
+    # Fields are needed when we're refering to a list of items.
+    # It should contain basic fields which are needed.
+    # For instance, the fields of users can be 'givenName', 'jobTitle', and etc.
+    fields = {}
+
+    # Complementary fields are needed when we're using $select in a request.
+    # It should contain more fields incontrast of the fields variable.
+    # For instance, the complementary fields of a user can be its 'postalcode'
+    # and etc which are not exist in the fields variable.
+    complementary_fields = {}
+
+    # Individual fields are useful when we're refering to a single item.
+    # For instance, the individual fields of a user can be its 'birthday', 'preferredName',
+    # and etc which are not exists in the other fields.
+    individual_fields = {}
+
     def exceptionHandler(self, ex, req, resp, **params):
         _handle_exception(ex, req)
 
@@ -189,13 +205,36 @@ class Resource(BaseResource):
             logging.exception("failed to marshal %s JSON response", req.path)
         yield b'\n  ]\n}'
 
+    def _get_fields(self, data, is_select_query=False):
+        """Return fields based on fetched data.
+
+        Args:
+            data (Union[Dict, Tuple]): data object (e.g. single user or list of users).
+            is_select_query (bool): get fields based on `$select` query or normal request.
+
+        Returns:
+            Dict: dictionary of fields which should be represented.
+        """
+        if isinstance(data, tuple):
+            if is_select_query:
+                # Users should be able to select in both fields (standard and complementary).
+                return {**self.fields, **self.complementary_fields}
+            return self.fields
+
+        return {**self.fields, **self.complementary_fields, **self.individual_fields}
+
     def respond(self, req, resp, obj, all_fields=None, deltalink=None):
         # determine fields
         args = self.parse_qs(req)
         if '$select' in args:
             fields = set(args['$select'][0].split(',') + ['@odata.type', '@odata.etag', 'id'])
+            is_select_query = True
         else:
             fields = None
+            is_select_query = False
+
+        if all_fields is None:
+            all_fields = self._get_fields(obj, is_select_query)
 
         resp.content_type = "application/json"
         prefer_body_content_type = req.context.prefer.get('outlook.body-content-type', raw=True)
@@ -207,7 +246,7 @@ class Resource(BaseResource):
             obj, top, skip, count = obj
             add_count = '$count' in args and args['$count'][0] == 'true'
 
-            resp.stream = self.json_multi(req, obj, fields, all_fields or self.fields, top, skip, count, deltalink, add_count)
+            resp.stream = self.json_multi(req, obj, fields, all_fields, top, skip, count, deltalink, add_count)
 
         # single object
         else:
@@ -224,7 +263,7 @@ class Resource(BaseResource):
                         obj2, resource = self.expansions[field](obj)
                         # TODO item@odata.context, @odata.type..
                         expand[field.split('/')[1]] = self.get_fields(req, obj2, resource.fields, resource.fields)
-            resp.body = self.json(req, obj, fields, all_fields or self.fields, expand=expand)
+            resp.body = self.json(req, obj, fields, all_fields, expand=expand)
 
     def generator(self, req, generator, count=0, args=None):
         """Response generator.

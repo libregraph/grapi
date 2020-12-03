@@ -43,7 +43,17 @@ class UserResource(Resource):
         'officeLocation': lambda user: user.office_location,
         'surname': lambda user: user.last_name,
         'userPrincipalName': lambda user: user.name,
+        'businessPhones': lambda user: getattr(user, "business_phones", []),
+    }
+
+    complementary_fields = {
         'companyName': lambda user: user.company.name,
+        'postalCode': lambda user: getattr(user, "postal_code", ""),
+    }
+
+    individual_fields = {
+        'preferredName': lambda user: getattr(user, "preferred_name", ""),
+        'birthday': lambda user: getattr(user, "birthday", ""),
     }
 
     # GET
