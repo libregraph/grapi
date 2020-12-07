@@ -229,11 +229,11 @@ class EventResource(ItemResource):
         data = self.generator(req, yielder)
         self.respond(req, resp, data)
 
-    def on_get_instances_by_folderid(self, req, resp, folderid, eventid):
-        self._get_event_instances(req, resp, folderid, eventid)
+    def on_get_instances_by_folderid(self, req, resp, folderid, itemid):
+        self._get_event_instances(req, resp, folderid, itemid)
 
-    def on_get_instances(self, req, resp, eventid):
-        self._get_event_instances(req, resp, "calendar", eventid)
+    def on_get_instances(self, req, resp, itemid):
+        self._get_event_instances(req, resp, "calendar", itemid)
 
     def handle_get(self, req, resp, event):
         self.respond(req, resp, event)
@@ -253,19 +253,19 @@ class EventResource(ItemResource):
         data = self.generator(req, store.calendar.items, store.calendar.count)
         self.respond(req, resp, data, EventResource.fields)
 
-    def on_get_by_eventid(self, req, resp, eventid):
+    def on_get_by_eventid(self, req, resp, itemid):
         store = req.context.server_store[1]
         folder = _folder(store, "calendar")
-        event = self.get_event(folder, eventid)
+        event = self.get_event(folder, itemid)
         self.respond(req, resp, event, self.fields)
 
-    def on_get_by_folderid_eventid(self, req, resp, folderid, eventid):
+    def on_get_by_folderid_eventid(self, req, resp, folderid, itemid):
         store = req.context.server_store[1]
         folder = _folder(store, folderid)
-        event = self.get_event(folder, eventid)
+        event = self.get_event(folder, itemid)
         self.respond(req, resp, event, self.fields)
 
-    def on_get(self, req, resp, userid=None, folderid=None, eventid=None):
+    def on_get(self, req, resp, userid=None, folderid=None, itemid=None):
         raise HTTPBadRequest("Unsupported in event")
 
     # POST
@@ -328,11 +328,11 @@ class EventResource(ItemResource):
         item.accept(comment=fields.get('comment'), respond=(fields.get('sendResponse', True)), subject_prefix=_("Accepted"))
         resp.status = falcon.HTTP_202
 
-    def on_post_accept_event_by_folderid(self, req, resp, folderid, eventid):
-        self._accept_event(req, resp, folderid, eventid)
+    def on_post_accept_event_by_folderid(self, req, resp, folderid, itemid):
+        self._accept_event(req, resp, folderid, itemid)
 
-    def on_post_accept_event(self, req, resp, eventid):
-        self._accept_event(req, resp, "calendar", eventid)
+    def on_post_accept_event(self, req, resp, itemid):
+        self._accept_event(req, resp, "calendar", itemid)
 
     def handle_post_tentativelyAccept(self, req, resp, fields, item):
         _ = req.context.i18n.gettext
@@ -340,24 +340,24 @@ class EventResource(ItemResource):
         item.accept(comment=fields.get('comment'), tentative=True, respond=(fields.get('sendResponse', True)), subject_prefix=_("Tentatively accepted"))
         resp.status = falcon.HTTP_202
 
-    def _decline_event(self, req, resp, folderid, eventid):
+    def _decline_event(self, req, resp, folderid, itemid):
         fields = self.load_json(req)
         self.validate_json(mr_schema, fields)
         _ = req.context.i18n.gettext
         store = req.context.server_store[1]
         self.validate_json(mr_schema, fields)
         folder = _folder(store, folderid)
-        item = self.get_event(folder, eventid)
+        item = self.get_event(folder, itemid)
         item.decline(comment=fields.get('comment'), respond=(fields.get('sendResponse', True)), subject_prefix=_("Declined"))
         resp.status = falcon.HTTP_202
 
-    def on_post_decline_event_by_folderid(self, req, resp, folderid, eventid):
-        self._decline_event(req, resp, folderid, eventid)
+    def on_post_decline_event_by_folderid(self, req, resp, folderid, itemid):
+        self._decline_event(req, resp, folderid, itemid)
 
-    def on_post_decline_event(self, req, resp, eventid):
-        self._decline_event(req, resp, "calendar", eventid)
+    def on_post_decline_event(self, req, resp, itemid):
+        self._decline_event(req, resp, "calendar", itemid)
 
-    def on_post(self, req, resp, userid=None, folderid=None, eventid=None, method=None):
+    def on_post(self, req, resp, userid=None, folderid=None, itemid=None, method=None):
         handler = None
 
         if method == 'tentativelyAccept':
@@ -371,25 +371,25 @@ class EventResource(ItemResource):
 
         server, store, userid = req.context.server_store
         folder = _folder(store, folderid or 'calendar')
-        item = self.get_event(folder, eventid)
+        item = self.get_event(folder, itemid)
         fields = self.load_json(req)
         handler(req, resp, fields=fields, item=item)
 
     # PATCH
 
-    def _update_event(self, req, resp, folderid, eventid):
+    def _update_event(self, req, resp, folderid, itemid):
         """Update an event.
 
         Args:
             req (Request): Falcon request object.
             resp (Response): Falcon response object.
             folderid (str): folder ID which the event exists in.
-            eventid (str): event ID which should be updated.
+            itemid (str): item/event ID which should be updated.
         """
         fields = self.load_json(req)
         store = req.context.server_store[1]
         folder = _folder(store, folderid)
-        item = self.get_event(folder, eventid)
+        item = self.get_event(folder, itemid)
 
         for field, value in fields.items():
             if field in self.set_fields:
@@ -397,41 +397,41 @@ class EventResource(ItemResource):
 
         self.respond(req, resp, item, self.fields)
 
-    def on_patch_by_eventid(self, req, resp, eventid):
+    def on_patch_by_eventid(self, req, resp, itemid):
         """Handle PATCH request for a specific event in 'calendar' folder.
 
         Args:
             req (Request): Falcon request object.
             resp (Response): Falcon response object.
-            eventid (str): event ID which should be updated.
+            itemid (str): item/event ID which should be updated.
         """
-        self._update_event(req, resp, "calendar", eventid)
+        self._update_event(req, resp, "calendar", itemid)
 
-    def on_patch_by_folderid_eventid(self, req, resp, folderid, eventid):
+    def on_patch_by_folderid_eventid(self, req, resp, folderid, itemid):
         """Handle PATCH request for a specific event in a specific folder.
 
         Args:
             req (Request): Falcon request object.
             resp (Response): Falcon response object.
             folderid (str): folder ID which the event exists in.
-            eventid (str): event ID which should be updated.
+            itemid (str): item/event ID which should be updated.
         """
-        self._update_event(req, resp, folderid, eventid)
+        self._update_event(req, resp, folderid, itemid)
 
     # DELETE
 
-    def _delete_event(self, req, resp, folderid, eventid):
+    def _delete_event(self, req, resp, folderid, itemid):
         """Delete an event.
 
         Args:
             req (Request): Falcon request object.
             resp (Response): Falcon response object.
             folderid (str): folder ID which the event exists in.
-            eventid (str): event ID which should be deleted.
+            itemid (str): item/event ID which should be deleted.
         """
         server, store, userid = req.context.server_store
         folder = _folder(store, folderid)
-        event = self.get_event(folder, eventid)
+        event = self.get_event(folder, itemid)
 
         # If meeting is organised, sent cancellation
         if self.fields['isOrganizer'](event):
@@ -441,23 +441,23 @@ class EventResource(ItemResource):
         folder.delete(event)
         self.respond_204(resp)
 
-    def on_delete_by_eventid(self, req, resp, eventid):
+    def on_delete_by_eventid(self, req, resp, itemid):
         """Handle DELETE request for a specific event in 'calendar' folder.
 
         Args:
             req (Request): Falcon request object.
             resp (Response): Falcon response object.
-            eventid (str): event ID which should be deleted.
+            itemid (str): item/event ID which should be deleted.
         """
-        self._delete_event(req, resp, "calendar", eventid)
+        self._delete_event(req, resp, "calendar", itemid)
 
-    def on_delete_by_folderid_eventid(self, req, resp, folderid, eventid):
+    def on_delete_by_folderid_eventid(self, req, resp, folderid, itemid):
         """Handle DELETE request for a specific event in a specific folder.
 
         Args:
             req (Request): Falcon request object.
             resp (Response): Falcon response object.
             folderid (str): folder ID which the event exists in.
-            eventid (str): event ID which should be deleted.
+            itemid (str): item/event ID which should be deleted.
         """
-        self._delete_event(req, resp, folderid, eventid)
+        self._delete_event(req, resp, folderid, itemid)

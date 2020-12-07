@@ -216,22 +216,22 @@ class RestAPI(API):
                 self.add_route(user + '/calendars/{folderid}', calendars)
 
                 self.add_route(user + '/events', events, suffix="events")
-                self.add_route(user + '/events/{eventid}', events, suffix="by_eventid")
-                self.add_route(user + '/events/{eventid}/accept', events, suffix="accept_event")
-                self.add_route(user + '/events/{eventid}/decline', events, suffix="decline_event")
-                self.add_route(user + '/events/{eventid}/instances', events, suffix="instances")
+                self.add_route(user + '/events/{itemid}', events, suffix="by_eventid")
+                self.add_route(user + '/events/{itemid}/accept', events, suffix="accept_event")
+                self.add_route(user + '/events/{itemid}/decline', events, suffix="decline_event")
+                self.add_route(user + '/events/{itemid}/instances', events, suffix="instances")
 
-                self.add_route(user + '/calendar/events/{eventid}', events, suffix="by_eventid")
-                self.add_route(user + '/calendar/events/{eventid}/accept', events, suffix="accept_event")
+                self.add_route(user + '/calendar/events/{itemid}', events, suffix="by_eventid")
+                self.add_route(user + '/calendar/events/{itemid}/accept', events, suffix="accept_event")
 
                 self.add_route(user + '/calendars/{folderid}/events', events, suffix="by_folderid")
-                self.add_route(user + '/calendars/{folderid}/events/{eventid}/accept', events,
+                self.add_route(user + '/calendars/{folderid}/events/{itemid}/accept', events,
                                suffix="accept_event_by_folderid")
-                self.add_route(user + '/calendars/{folderid}/events/{eventid}/decline', events,
+                self.add_route(user + '/calendars/{folderid}/events/{itemid}/decline', events,
                                suffix="decline_event_by_folderid")
-                self.add_route(user + '/calendars/{folderid}/events/{eventid}/instances', events,
+                self.add_route(user + '/calendars/{folderid}/events/{itemid}/instances', events,
                                suffix="instances_by_folderid")
-                self.add_route(user + '/calendars/{folderid}/events/{eventid}', events, suffix="by_folderid_eventid")
+                self.add_route(user + '/calendars/{folderid}/events/{itemid}', events, suffix="by_folderid_eventid")
 
                 # Event attachments
                 self.add_route(user + '/events/{itemid}/attachments',
