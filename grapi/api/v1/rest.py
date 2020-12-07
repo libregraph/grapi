@@ -188,10 +188,19 @@ class RestAPI(API):
                 self.add_route(user + '/mailFolders/{folderid}/messages', messages, suffix="messages_by_folderid")
                 self.add_route(user + '/mailFolders/{folderid}/messages/{itemid}', messages)
 
-                self.add_route(user + '/messages/{itemid}/attachments', attachments, suffix="attachments_by_itemid")
-                self.add_route(user + '/messages/{itemid}/attachments/{attachmentid}', attachments)
+                # Message attachments
+                self.add_route(user + '/messages/{itemid}/attachments',
+                               attachments, suffix="by_id")
+                self.add_route(user + '/messages/{itemid}/attachments/{attachmentid}',
+                               attachments, suffix="by_id")
+                self.add_route(user + '/messages/{itemid}/attachments/{attachmentid}/$value',
+                               attachments, suffix="binary_by_id")
+                self.add_route(user + '/mailFolders/{folderid}/messages/{itemid}/attachments',
+                               attachments, suffix="in_folder_by_id")
                 self.add_route(user + '/mailFolders/{folderid}/messages/{itemid}/attachments/{attachmentid}',
-                               attachments)
+                               attachments, suffix="in_folder_by_id")
+                self.add_route(user + '/mailFolders/{folderid}/messages/{itemid}/attachments/{attachmentid}/$value',
+                               attachments, suffix="binary_in_folder_by_id")
 
         calendar = default_backend.get('calendar')
         reminder = default_backend.get('reminder')
@@ -199,7 +208,7 @@ class RestAPI(API):
             calendars = BackendResource(calendar, 'CalendarResource')
             reminders = BackendResource(reminder, 'ReminderResource')
             events = BackendResource(calendar, 'EventResource')
-            calendar_attachments = BackendResource(calendar, 'AttachmentResource')
+            attachments = BackendResource(calendar, 'AttachmentResource')
 
             for user in (PREFIX + '/me', PREFIX + '/users/{userid}'):
                 self.add_route(user + '/calendar', calendars, suffix="calendar")
@@ -224,14 +233,23 @@ class RestAPI(API):
                                suffix="instances_by_folderid")
                 self.add_route(user + '/calendars/{folderid}/events/{eventid}', events, suffix="by_folderid_eventid")
 
-                self.add_route(user + '/events/{eventid}/attachments', calendar_attachments, suffix="attachments_by_eventid")
-                self.add_route(user + '/events/{eventid}/attachments/{attachmentid}',
-                               calendar_attachments)  # TODO other routes
-                self.add_route(user + '/calendar/events/{eventid}/attachments/{attachmentid}', calendar_attachments)
-                self.add_route(user + '/calendars/{folderid}/events/{eventid}/attachments/{attachmentid}',
-                               calendar_attachments)
-                self.add_route(user + '/calendars/{folderid}/events/{eventid}/attachments', calendar_attachments,
-                               suffix="attachments_by_folderid")
+                # Event attachments
+                self.add_route(user + '/events/{itemid}/attachments',
+                               attachments, suffix="by_id")
+                self.add_route(user + '/events/{itemid}/attachments/{attachmentid}',
+                               attachments, suffix="by_id")
+                self.add_route(user + '/events/{itemid}/attachments/{attachmentid}/$value',
+                               attachments, suffix="binary_by_id")
+                self.add_route(user + '/calendar/events/{itemid}/attachments/{attachmentid}',
+                               attachments, suffix="by_id")
+                self.add_route(user + '/calendar/events/{itemid}/attachments/{attachmentid}/$value',
+                               attachments, suffix="binary_by_id")
+                self.add_route(user + '/calendars/{folderid}/events/{itemid}/attachments',
+                               attachments, suffix="in_folder_by_id")
+                self.add_route(user + '/calendars/{folderid}/events/{itemid}/attachments/{attachmentid}',
+                               attachments, suffix="in_folder_by_id")
+                self.add_route(user + '/calendars/{folderid}/events/{itemid}/attachments/{attachmentid}/$value',
+                               attachments, suffix="binary_in_folder_by_id")
 
                 self.add_route(user + '/calendars/{folderid}/calendarView', calendars,
                                suffix="calendar_view_by_folderid")

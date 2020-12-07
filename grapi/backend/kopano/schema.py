@@ -81,6 +81,117 @@ _getschedule_schema = {
     "required": ["startTime", "endTime", "schedules"]
 }
 
+# attachments
+_base_attachment_schema_fields = {
+    "@odata.type": {
+      "type": "string",
+      "enum": [
+          "#microsoft.graph.fileAttachment",
+          "#microsoft.graph.itemAttachment",
+          "#microsoft.graph.referenceAttachment",
+      ],
+    },
+    "contentType": {
+        "type": "string",
+    },
+    "id": {
+        "type": "string",
+    },
+    "isInline": {
+        "type": "boolean",
+    },
+    "lastModifiedDateTime": {
+        "type": "string",
+        "format": "date-time",
+    },
+    "name": {
+        "type": "string",
+    },
+    "size": {
+        "type": "integer",
+    },
+}
+
+_file_attachment_schema = {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {
+        **_base_attachment_schema_fields,
+        "contentLocation": {
+            "type": "string",
+        },
+        "contentId": {
+            "type": "string",
+        },
+        "contentBytes": {
+            "type": "string",
+        },
+        "required": [
+            "@odata.type",
+            "name",
+            "contentBytes",
+        ],
+        "additionalProperties": False,
+    }
+}
+
+_item_attachment_schema = {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {
+        **_base_attachment_schema_fields,
+        "item": {
+            "type": "object",
+            "properties": {
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                    },
+                    "minItems": 1,
+                },
+                "changeKey": {
+                    "type": "string",
+                },
+                "createdDateTime": {
+                    "type": "string",
+                    "format": "date-time",
+                },
+                "id": {
+                    "type": "string",
+                },
+                "lastModifiedDateTime": {
+                    "type": "string",
+                    "format": "date-time",
+                }
+            },
+            "required": [
+                "categories",
+            ],
+            "additionalProperties": False,
+        },
+        "required": [
+            "@odata.type",
+            "name",
+            "item",
+        ],
+        "additionalProperties": False,
+    }
+}
+
+_reference_attachment_schema = {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {
+        **_base_attachment_schema_fields,
+        "required": [
+            "@odata.type",
+            "name",
+        ],
+        "additionalProperties": False
+    }
+}
+
 # message
 _message_schema = {
     "$schema": "http://json-schema.org/draft-04/schema#",
@@ -287,87 +398,6 @@ _message_schema = {
         "webLink": {
             "type": "string"
         },
-        "attachments": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "contentType": {
-                        "type": "string"
-                    },
-                    "id": {
-                        "type": "string"
-                    },
-                    "isInline": {
-                        "type": "boolean"
-                    },
-                    "lastModifiedDateTime": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "size": {
-                        "type": "integer"
-                    },
-                    # fileAttachment
-                    "contentLocation": {
-                        "type": "string"
-                    },
-                    "contentId": {
-                        "type": "string"
-                    },
-                    "contentBytes": {
-                        "type": "string"
-                    },
-                    # itemAttachment
-                    "item": {
-                        "type": "object",
-                        "properties": {
-                            "categories": {
-                                "type": "array",
-                                "items": {
-                                    "type": "string"
-                                }
-                            },
-                            "changeKey": {
-                                "type": "string"
-                            },
-                            "createdDateTime": {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            "id": {
-                                "type": "string"
-                            },
-                            "lastModifiedDateTime": {
-                                "type": "string",
-                                "format": "date-time"
-                            }
-                        },
-                        "required": [
-                            "categories",
-                            "changeKey",
-                            "createdDateTime",
-                            "id",
-                            "lastModifiedDateTime"
-                        ],
-                        "additionalProperties": False
-                    }
-                },
-                "required": [
-                    "contentType",
-                    "id",
-                    "type",
-                    "isInline",
-                    "lastModifiedDateTime",
-                    "name",
-                    "size"
-                ],
-                "additionalProperties": False
-            }
-        },
         "extensions": {
             "type": "array",
             "items": {
@@ -461,6 +491,9 @@ subscription_schema = jsonschema.Draft4Validator(_subscription_schema)
 update_subscription_schema = jsonschema.Draft4Validator(_update_subscription_schema)
 mr_schema = jsonschema.Draft4Validator(_mr_schema)
 get_schedule_schema = jsonschema.Draft4Validator(_getschedule_schema)
+file_attachment_schema = jsonschema.Draft4Validator(_file_attachment_schema)
+item_attachment_schema = jsonschema.Draft4Validator(_item_attachment_schema)
+reference_attachment_schema = jsonschema.Draft4Validator(_reference_attachment_schema)
 message_schema = jsonschema.Draft4Validator(_message_schema)
 folder_schema = jsonschema.Draft4Validator(_folder_schema)
 destination_id_schema = jsonschema.Draft4Validator(_destination_id_schema)
