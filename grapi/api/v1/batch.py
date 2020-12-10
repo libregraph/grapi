@@ -117,7 +117,7 @@ def fail_dependent_requests(graph, request_id, requests):
                 generate_response(
                     424,
                     str(chained_real_request_id),
-                    message="failed dependency - ID: {}".format(depend_request_id)
+                    message="Failed dependency - ID: {}".format(depend_request_id)
                 )
             )
 
@@ -162,8 +162,8 @@ class BatchResource(Resource):
                 continue
             requests[request_id]["processed"] = True
 
-            # Headers
-            custom_headers = request.get('headers', {})
+            # Headers.
+            custom_headers = request.get("headers", {})
             # dict merging has right-to-left priority
             headers = {**custom_headers, **req.headers}
 
@@ -171,12 +171,12 @@ class BatchResource(Resource):
             parsed_url = urlparse(request.get("url", ""))
 
             try:
-                # TODO(jelle): implement POST/PATCH/PUT submission
                 response = client.simulate_request(
                     method=request["method"],
                     path=parsed_url.path,
                     headers=headers,
                     query_string=parsed_url.query,
+                    json=request.get("body", {})
                 )
             except AssertionError:
                 responses.append(generate_response(404, request["id"], message="Not found."))
@@ -192,8 +192,7 @@ class BatchResource(Resource):
                         generate_response(response.status_code, request["id"], response)
                     )
                 else:
-                    if response.headers.get('content-type') == "application/json" or \
-                            response.status_code == 404:
+                    if "application/json" in response.headers.get("content-type", ""):
                         responses.append(
                             generate_response(response.status_code, request["id"], response)
                         )

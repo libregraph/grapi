@@ -82,7 +82,7 @@ class Resource:
 
     def load_json(self, req):
         try:
-            return _loadb_json(req.stream.read())
+            return _loadb_json(req.stream.read(req.content_length or 0))
         except ValueError:
             raise HTTPBadRequest("Invalid JSON")
 

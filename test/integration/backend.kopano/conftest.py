@@ -80,5 +80,10 @@ def json_event_weekly():
 
 
 @pytest.fixture()
+def json_batch():
+    return json.load(open('{}/batch'.format(DATA_DIR)))
+
+
+@pytest.fixture()
 def calendar_entryid(user):
     return user.calendar.entryid

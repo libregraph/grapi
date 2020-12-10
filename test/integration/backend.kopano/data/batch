@@ -1,0 +1,101 @@
+{
+  "batch": [
+    {
+      "requests": [
+        {
+          "id": "1",
+          "method": "GET",
+          "url": "/api/gc/v1/me/"
+        },
+        {
+          "id": "2",
+          "method": "GET",
+          "url": "/api/gc/v1/me",
+          "dependsOn": [
+            "1"
+          ]
+        },
+        {
+          "id": "3",
+          "method": "GET",
+          "url": "/api/gc/v1/me",
+          "dependsOn": [
+            "2"
+          ]
+        }
+      ]
+    },
+    {
+      "requests": [
+        {
+          "id": "1",
+          "method": "GET",
+          "url": "/api/gc/v1/me/wrong"
+        },
+        {
+          "id": "2",
+          "method": "GET",
+          "url": "/api/gc/v1/me",
+          "dependsOn": [
+            "1"
+          ]
+        },
+        {
+          "id": "3",
+          "method": "GET",
+          "url": "/api/gc/v1/me",
+          "dependsOn": [
+            "2"
+          ]
+        }
+      ]
+    },
+    {
+      "requests": [
+        {
+          "id": "1",
+          "method": "GET",
+          "url": "/api/gc/v1/me/wrong"
+        },
+        {
+          "id": "2",
+          "method": "GET",
+          "url": "/api/gc/v1/me",
+          "dependsOn": [
+            "1"
+          ]
+        },
+        {
+          "id": "3",
+          "method": "GET",
+          "url": "/api/gc/v1/me"
+        }
+      ]
+    },
+    {
+      "requests": [
+        {
+          "id": "1",
+          "method": "GET",
+          "url": "/api/gc/v1/me/"
+        },
+        {
+          "id": "2",
+          "method": "DELETE",
+          "url": "/api/gc/v1/me/mailFolders/{}",
+          "dependsOn": [
+            "3"
+          ]
+        },
+        {
+          "id": "3",
+          "method": "POST",
+          "url": "/api/gc/v1/me/mailFolders",
+          "body": {
+            "displayName": ""
+          }
+        }
+      ]
+    }
+  ]
+}
