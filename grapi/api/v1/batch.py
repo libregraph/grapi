@@ -1,9 +1,6 @@
+"""Batch request handler."""
 # SPDX-License-Identifier: AGPL-3.0-or-later
-#
-# Implementation of /$batch call documented
-# https://docs.microsoft.com/en-us/graph/json-batching?context=graph%2Fapi%2F1.0&view=graph-rest-1.0#response-format
-
-import logging
+from urllib.parse import urlparse
 
 from falcon.testing import TestClient
 
@@ -57,6 +54,38 @@ def process_request(data):
     return graph, requests
 
 
+def generate_response(status_code, request_id, response=None, message=None):
+    """Generate response body.
+
+    Args:
+        status_code (int): HTTP status code of the received response.
+        request_id (str): request ID.
+        response (Result): Falcon processed response object. Defaults to None.
+        message (str): customized message. Defaults to None.
+
+    Returns:
+        Dict: generated response data.
+    """
+    if status_code not in GOOD_STATUS_CODES:
+        body = {
+            "error": {
+                "code": status_code,
+                "message": message or response.status,
+            },
+        }
+    else:
+        body = response.json if status_code != 204 else None
+
+    return {
+        "id": request_id,
+        "status": status_code,
+        "body": body,
+        "headers": {
+            "content-type": "application/json"
+        },
+    }
+
+
 def fail_dependent_requests(graph, request_id, requests):
     """Mark all dependent requests as failed.
 
@@ -84,30 +113,32 @@ def fail_dependent_requests(graph, request_id, requests):
             chained_real_request_id = chained_request_id + 1
 
             # Generate response for this request.
-            responses.append({
-                "status": 424,
-                "id": str(chained_real_request_id),
-                "body": {
-                    "error": {
-                        "code": 424,
-                        "message": "failed dependency - ID: {}".format(depend_request_id),
-                    },
-                },
-                "headers": {
-                    "content-type": "application/json"
-                },
-            })
+            responses.append(
+                generate_response(
+                    424,
+                    str(chained_real_request_id),
+                    message="failed dependency - ID: {}".format(depend_request_id)
+                )
+            )
 
     return responses
 
 
 @experimental
 class BatchResource(Resource):
+    """Batch resource implementation."""
+
     def __init__(self, options, api):
         super().__init__(options)
         self.api = api
 
     def on_post(self, req, resp):
+        """Handle POST request.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+        """
         data = self.load_json(req)
         self.validate_json(schema_validator, data)
 
@@ -116,7 +147,8 @@ class BatchResource(Resource):
             graph, requests = process_request(data)
             requests_order = graph.get_sorted_vertices()
         except ValueError as e:
-            msg = str(e).replace("graph", "request")
+            # Change context by replacing graph-related words to request-related words.
+            msg = str(e).replace("graph", "request").replace("vertex", "request")
             raise HTTPBadRequest(msg)
 
         responses = []
@@ -130,52 +162,51 @@ class BatchResource(Resource):
                 continue
             requests[request_id]["processed"] = True
 
-            response = {'id': request['id'], 'body': 'null'}
+            # Headers
             custom_headers = request.get('headers', {})
             # dict merging has right-to-left priority
             headers = {**custom_headers, **req.headers}
 
+            # URL and query string.
+            parsed_url = urlparse(request.get("url", ""))
+
             try:
                 # TODO(jelle): implement POST/PATCH/PUT submission
-                result = client.simulate_request(method=request['method'], path=request['url'], headers=headers)
-            except AssertionError as exc:  # request might have failed with no content-type
-                logging.exception(exc)
-                response['status'] = 500
-                response['body'] = {'error': {'code': 500, 'message': 'An error occurred executing the request.'}}
-                response['headers'] = {'content-type': 'application/json'}
-                responses.append(response)
+                response = client.simulate_request(
+                    method=request["method"],
+                    path=parsed_url.path,
+                    headers=headers,
+                    query_string=parsed_url.query,
+                )
+            except AssertionError:
+                responses.append(generate_response(404, request["id"], message="Not found."))
 
-                # Mark all dependent requests as failed.
+                # Mark all dependent (chained) requests as failed.
                 responses.extend(
                     fail_dependent_requests(graph, request_id, requests)
                 )
 
             else:
-                if result.status_code == 200:
-                    headers = result.headers
-                    response['headers'] = {'content-type': 'application/json'}
-
-                    if headers.get('content-type') == 'application/json':
-                        response['body'] = result.json
+                if response.status_code in GOOD_STATUS_CODES:
+                    responses.append(
+                        generate_response(response.status_code, request["id"], response)
+                    )
+                else:
+                    if response.headers.get('content-type') == "application/json" or \
+                            response.status_code == 404:
+                        responses.append(
+                            generate_response(response.status_code, request["id"], response)
+                        )
                     else:
-                        message = 'content-type: {} is unsupported.'.format(headers.get('content-type'))
-                        response['status'] = 400
-                        response['body'] = {'error': {'code': 400, 'message': message}}
-
-                        # Mark all dependent requests as failed.
-                        responses.extend(
-                            fail_dependent_requests(graph, request_id, requests)
+                        responses.append(
+                            generate_response(
+                                400, request["id"], response, "Unsupported content-type."
+                            )
                         )
 
-                # if an unexpected status code is returned set the error object
-                if result.status_code not in GOOD_STATUS_CODES:
-                    response['body'] = {'error': {
-                                        'code': result.status_code,
-                                        'message': result.status,
-                                        'headers': {'content-type': 'application/json'}
-                                        }}
-
-                response['status'] = result.status_code
-                responses.append(response)
+                    # Mark all dependent requests as failed.
+                    responses.extend(
+                        fail_dependent_requests(graph, request_id, requests)
+                    )
 
         self.respond_json(resp, responses)
