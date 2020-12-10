@@ -169,7 +169,9 @@ class MailFolderResource(FolderResource):
         fields = self.load_json(req)
         self.validate_json(folder_schema, fields)
         try:
-            folder = store.create_folder(fields['displayName'])
+            folder = store.subtree.create_folder(
+                fields['displayName'], container_class="IPF.Note"
+            )
         except kopano.errors.DuplicateError:
             raise HTTPConflict("'%s' folder already exists" % fields['displayName'])
         resp.status = falcon.HTTP_201
