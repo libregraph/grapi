@@ -5,58 +5,14 @@
 
 import logging
 
-import jsonschema
 from falcon.testing import TestClient
 
-from grapi.api.v1.config import PREFIX
 from grapi.api.v1.decorators import experimental
 from grapi.api.v1.graph import AdjacencyMatrix as Graph
 from grapi.api.v1.resource import HTTPBadRequest, Resource
+from grapi.api.v1.schema.batch import schema_validator
 
 GOOD_STATUS_CODES = (200, 201, 204)
-
-
-_batchRequest = {
-    "type": "object",
-    "properties": {
-        "requests": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "string",
-                        "pattern": "^[1-9][0-9]*$",
-                    },
-                    "method": {
-                        "type": "string",
-                        "enum": ["GET", "DELETE"],
-                    },
-                    "url": {
-                        "type": "string",
-                        "pattern": "^{}".format(PREFIX),
-                    },
-                    "body": {
-                        "type": "object",
-                    },
-                    "headers": {
-                        "type": "object",
-                        "additionalProperties": {
-                            "type": "string"
-                        }
-                    },
-                    "dependsOn": {
-                        "type": "array",
-                    }
-                },
-                "required": ["id", "method", "url"],
-            }
-        }
-    },
-    "required": ["requests"],
-}
-
-batch_schema = jsonschema.Draft4Validator(_batchRequest)
 
 
 def process_request(data):
@@ -153,7 +109,7 @@ class BatchResource(Resource):
 
     def on_post(self, req, resp):
         data = self.load_json(req)
-        self.validate_json(batch_schema, data)
+        self.validate_json(schema_validator, data)
 
         # Processing on requests to generate graph and data map.
         try:
