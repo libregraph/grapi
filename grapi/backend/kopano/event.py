@@ -211,7 +211,7 @@ class EventResource(ItemResource):
     def get_event(folder, eventid):
         try:
             return folder.event(eventid)
-        except binascii.Error:
+        except (binascii.Error, kopano.errors.ArgumentError):
             raise HTTPBadRequest('Event id is malformed')
         except kopano.errors.NotFoundError:
             raise HTTPNotFound(description='Item not found')
