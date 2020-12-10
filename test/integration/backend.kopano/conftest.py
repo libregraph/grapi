@@ -40,7 +40,7 @@ def client():
 
 @pytest.fixture()
 def user():
-    server = kopano.Server(parse_args=False, auth_user=USERNAME1, auth_pass=PASSWORD1)
+    server = kopano.server(parse_args=False, auth_user=USERNAME1, auth_pass=PASSWORD1)
     user = server.user(USERNAME1)
     user.auth_header = create_auth_header(USERNAME1, PASSWORD1)
     yield user
