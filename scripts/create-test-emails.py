@@ -12,6 +12,7 @@ from io import BytesIO
 import kopano
 from PIL import Image
 
+SERVER = 'default:'
 
 def formatemail(user):
     return "{fullname} <{email}>".format(fullname=user.fullname, email=user.email)
@@ -197,9 +198,11 @@ if __name__ == "__main__":
     parser.add_argument('--sender', type=str, help='The Kopano user sender', required=True)
     parser.add_argument('--count', type=int, help='Create given amount of emails (for performance testing)', default=0)
     parser.add_argument('--nuke-inbox', dest='nuke', help='If set, all mail items from the users inbox will be removed', action='store_true', default=False)
+    parser.add_argument('--server', type=str, help='The kopano server to connect to default({})'.format(SERVER),
+                        default=SERVER)
     args = parser.parse_args()
 
-    server = kopano.server()
+    server = kopano.server(server_socket=args.server)
     user = server.user(args.user)
     sender = server.user(args.sender)
 

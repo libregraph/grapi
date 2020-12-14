@@ -14,6 +14,7 @@ import kopano
 from icalendar import Alarm, Calendar, Event, vCalAddress, vText
 
 DATEFORMAT = '%Y-%m-%d'
+SERVER = 'default:'
 BASEDATE = (datetime.utcnow()+timedelta(days=1)).strftime(DATEFORMAT)
 
 OrganiserTuple = namedtuple('Organiser', ['fullname', 'email'])
@@ -147,10 +148,12 @@ if __name__ == "__main__":
     parser.add_argument('--basedate', type=str, help='The base date for the calendar default({})'.format(BASEDATE),
                         default=BASEDATE)
     parser.add_argument('--nuke-calendar', dest='nuke', help='If set, all calendar entries from the users calendar will be removed', action='store_true', default=False)
+    parser.add_argument('--server', type=str, help='The kopano server to connect to default({})'.format(SERVER),
+                        default=SERVER)
     args = parser.parse_args()
 
     basedate = datetime.strptime(args.basedate, DATEFORMAT)
-    server = kopano.server()
+    server = kopano.server(server_socket=args.server)
     user = server.user(args.user)
 
     if args.organiser:
