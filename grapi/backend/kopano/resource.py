@@ -123,6 +123,9 @@ class Resource(BaseResource):
     # If a resource doesn't need to have access to a store, set it False.
     need_store = True
 
+    # Field map for $orderby query.
+    sorting_field_map = {}
+
     def exceptionHandler(self, ex, req, resp, **params):
         _handle_exception(ex, req)
 
@@ -224,8 +227,22 @@ class Resource(BaseResource):
             resp.body = self.json(req, obj, fields, all_fields or self.fields, expand=expand)
 
     def generator(self, req, generator, count=0, args=None):
-        # determine pagination and ordering
-        # TODO(mort), remove req and replace it by args.
+        """Response generator.
+
+        It also determines pagination and ordering.
+
+        Todo:
+            (mort) remove req and replace it by args.
+
+        Args:
+            req (Request): Falcon request object.
+            generator (Callable): callable function/method to get data.
+            count (int): number of items which should be get.
+            args (Dict): query parameters.
+
+        Returns:
+            Tuple: generated response.
+        """
         if not args:
             args = _parse_qs(req)
         top = int(args['$top'][0]) if '$top' in args else DEFAULT_TOP
@@ -233,6 +250,7 @@ class Resource(BaseResource):
         order = args['$orderby'][0].split(',') if '$orderby' in args else None
         if order:
             order = tuple(('-' if len(o.split()) > 1 and o.split()[1] == 'desc' else '')+o.split()[0] for o in order)
+
         return generator(page_start=skip, page_limit=top, order=order), top, skip, count
 
     def create_message(self, folder, fields, all_fields=None, message_class=None):
@@ -249,13 +267,35 @@ class Resource(BaseResource):
         return item
 
     def folder_gen(self, req, folder):
-        args = self.parse_qs(req)  # TODO generalize
+        """Return folder items.
+
+        Args:
+            req (Request): Falcon request object.
+            folder (Folder): an instance of a folder.
+
+        Returns:
+            Item: yield an item from the folder.
+        """
+        args = self.parse_qs(req)
+        if '$orderby' in args:
+            for index, field in enumerate(args['$orderby']):
+                if field.startswith("-") or field.startswith("+"):
+                    field_order = field[0]
+                    field = field[1:]
+                else:
+                    field_order = ''
+                if field in self.sorting_field_map:
+                    args['$orderby'][index] = field_order + self.sorting_field_map[field]
+                else:
+                    # undefined fields have to be removed.
+                    del args['$orderby'][index]
+
         if '$search' in args:
             query = args['$search'][0]
 
             def yielder(**kwargs):
                 for item in folder.items(query=query):
                     yield item
-            return self.generator(req, yielder, 0)
+            return self.generator(req, yielder, 0, args=args)
         else:
-            return self.generator(req, folder.items, folder.count)
+            return self.generator(req, folder.items, folder.count, args=args)

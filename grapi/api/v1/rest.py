@@ -177,8 +177,11 @@ class RestAPI(API):
 
             for user in (PREFIX + '/me', PREFIX + '/users/{userid}'):
                 self.add_route(user + '/mailFolders', mailfolders, suffix="mail_folders")
-                self.add_route(user + '/mailFolders/{folderid}', mailfolders)
+                self.add_route(user + '/mailFolders/delta', mailfolders, suffix="mail_folders_delta")
+                self.add_route(user + '/mailFolders/{folderid}', mailfolders, suffix="mail_folder_by_id")
                 self.add_route(user + '/mailFolders/{folderid}/childFolders', mailfolders, suffix="child_folders")
+                self.add_route(user + '/mailFolders/{folderid}/childFolders/{childid}',
+                               mailfolders, suffix="child_folder_by_id")
 
                 self.add_route(user + '/mailFolders/{folderid}/copy', mailfolders, suffix="copy_folder")
                 self.add_route(user + '/mailFolders/{folderid}/move', mailfolders, suffix="move_folder")

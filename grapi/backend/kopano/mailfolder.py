@@ -1,10 +1,10 @@
+"""MailFolders resource implementation."""
 # SPDX-License-Identifier: AGPL-3.0-or-later
-
 import falcon
 import kopano
 from MAPI.Struct import MAPIErrorCollision
 
-from grapi.api.v1.resource import HTTPBadRequest, HTTPConflict
+from grapi.api.v1.resource import HTTPConflict
 
 from .folder import FolderResource
 from .message import MessageResource
@@ -22,6 +22,8 @@ class DeletedMailFolderResource(FolderResource):
 
 @experimental
 class MailFolderResource(FolderResource):
+    """MailFolder resource."""
+
     fields = FolderResource.fields.copy()
     fields.update({
         'parentFolderId': lambda folder: folder.parent.entryid,
@@ -36,7 +38,6 @@ class MailFolderResource(FolderResource):
         'messages': lambda folder: (folder.items, MessageResource)  # TODO event msgs
     }
 
-    # field map for $orderby query
     sorting_field_map = {
         "subject": "subject",
         "receivedDateTime": "received",
@@ -44,62 +45,73 @@ class MailFolderResource(FolderResource):
     }
 
     deleted_resource = DeletedMailFolderResource
-    container_classes = (None, 'IPF.Note')
+
+    # GET
+
+    def _get_child_folder_by_id(self, req, folderid, childid):
+        """Return childFolder by ID.
+
+        Args:
+            req (Request): Falcon request object.
+            folderid (str): parent folder ID.
+            childid (str): child folder ID.
+
+        Returns:
+            Tuple[Folder]: parent and child folder object.
+
+        Raises:
+            falcon.HTTPNotFound: when parent folder or child folder not found.
+        """
+        store = req.context.server_store[1]
+        parent = _folder(store, folderid)
+        if not parent:
+            raise falcon.HTTPNotFound(description="folder not found")
+        child = parent.get_folder(entryid=childid)
+        if not child:
+            raise falcon.HTTPNotFound(description="child folder not found")
+        return parent, child
 
     def on_get_child_folders(self, req, resp, folderid):
-        _, store, _ = req.context.server_store
+        """Return childFolders list.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): parent folder ID.
+        """
+        store = req.context.server_store[1]
         data = _folder(store, folderid)
         data = self.generator(req, data.folders, data.subfolder_count_recursive)
         self.respond(req, resp, data)
 
-    def folder_gen(self, req, folder):
-        args = self.parse_qs(req)
-        if '$orderby' in args:
-            for index, field in enumerate(args['$orderby']):
-                if field.startswith("-") or field.startswith("+"):
-                    field_order = field[0]
-                    field = field[1:]
-                else:
-                    field_order = ''
-                if field in self.sorting_field_map:
-                    args['$orderby'][index] = field_order + self.sorting_field_map[field]
-                else:
-                    # undefined fields have to be removed.
-                    del args['$orderby'][index]
+    def on_get_mail_folder_by_id(self, req, resp, folderid):
+        """Return info of a specific folder ID.
 
-        if '$search' in args:
-            query = args['$search'][0]
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): folder ID.
+        """
+        store = req.context.server_store[1]
+        folder = _folder(store, folderid)
+        self.respond(req, resp, folder)
 
-            def yielder(**kwargs):
-                for item in folder.items(query=query):
-                    yield item
-            return self.generator(req, yielder, 0, args=args)
-        else:
-            return self.generator(req, folder.items, folder.count, args=args)
+    def on_get_mail_folders_delta(self, req, resp):
+        """Return mailFolder's delta info.
 
-    def handle_get(self, req, resp, store, folderid):
-        if folderid:
-            if folderid == 'delta':
-                self._handle_get_delta(req, resp, store=store)
-            else:
-                self._handle_get_with_folderid(req, resp, store=store, folderid=folderid)
-
-    def _handle_get_delta(self, req, resp, store):
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+        """
+        store = req.context.server_store[1]
         req.context.deltaid = '{folderid}'
         self.delta(req, resp, store=store)
 
-    def _handle_get_with_folderid(self, req, resp, store, folderid):
-        data = _folder(store, folderid)
-        if not data:
-            raise falcon.HTTPNotFound(description="folder not found")
-        self.respond(req, resp, data)
-
     @experimental
-    def on_get_mail_folders(self, req, resp, userid=None):
-        """Handle GET request on mailFolders.
+    def on_get_mail_folders(self, req, resp):
+        """Return mailFolders list.
 
         Args:
-            userid (Optional[str): user ID.
             req (Request): Falcon request object.
             resp (Response): Falcon response object.
         """
@@ -107,40 +119,83 @@ class MailFolderResource(FolderResource):
         data = self.generator(req, store.mail_folders, 0)
         self.respond(req, resp, data, MailFolderResource.fields)
 
-    def on_get(self, req, resp, userid=None, folderid=None, method=None):
-        if method is None:
-            handler = self.handle_get
-        else:
-            raise HTTPBadRequest("Unsupported mailFolder segment '%s'" % method)
+    def on_get_child_folder_by_id(self, req, resp, folderid, childid):
+        """Get a childFolder by ID.
 
-        server, store, userid = req.context.server_store
-        handler(req, resp, store=store, folderid=folderid)
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): parent folder ID.
+            childid (str): child folder ID which should be removed.
+        """
+        child = self._get_child_folder_by_id(req, folderid, childid)[1]
+        self.respond(req, resp, child, self.fields)
+
+    # POST
 
     def on_post_child_folders(self, req, resp, folderid):
+        """Create a new childFolder.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): parent folder ID.
+
+        Raises:
+            HTTPConflict: when the folder already exists.
+        """
         fields = self.load_json(req)
         self.validate_json(folder_schema, fields)
 
         store = req.context.server_store[1]
-
         folder = _folder(store, folderid)
-        if folder.get_folder(fields['displayName']):
-            raise HTTPConflict("'%s' already exists" % fields['displayName'])
-        child = folder.create_folder(fields['displayName'])
+        try:
+            child = folder.create_folder(fields['displayName'])
+        except kopano.errors.DuplicateError as e:
+            raise HTTPConflict(str(e))
+
         resp.status = falcon.HTTP_201
-        self.respond(req, resp, child, MailFolderResource.fields)
+        self.respond(req, resp, child, self.fields)
 
     def on_post_copy_folder(self, req, resp, folderid):
-        _, store, _ = req.context.server_store
-        self._handle_post_copyOrMove(req, resp, store=store, folderid=folderid, move=False)
+        """Copy a folder to a destination.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): selected folder ID which need to be copied.
+        """
+        store = req.context.server_store[1]
+        self._folder_copy_or_move(req, resp, store, folderid, move=False)
 
     def on_post_move_folder(self, req, resp, folderid):
-        _, store, _ = req.context.server_store
-        self._handle_post_copyOrMove(req, resp, store=store, folderid=folderid, move=True)
+        """Move a folder to a destination.
 
-    def _handle_post_copyOrMove(self, req, resp, store, folderid, move=False):
-        """Handle POST request for Copy or Move actions."""
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): selected folder ID which need to be moved.
+        """
+        store = req.context.server_store[1]
+        self._folder_copy_or_move(req, resp, store, folderid, move=True)
+
+    def _folder_copy_or_move(self, req, resp, store, folderid, move=False):
+        """Copy or move a folder to a destination.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): selected folder ID which need to be copied or moved.
+            move (bool): Is it 'move' or 'copy'?
+                True means 'move' and False means 'copy' action.
+
+        Raises:
+            falcon.HTTPNotFound: when the origin or destination folder not found.
+            falcon.HTTPConflict: when some items already exists in the destination.
+        """
         fields = self.load_json(req)
         self.validate_json(destination_id_schema, fields)
+
         folder = _folder(store, folderid)
         if not folder:
             raise falcon.HTTPNotFound(description="source folder not found")
@@ -161,21 +216,102 @@ class MailFolderResource(FolderResource):
                 raise HTTPConflict("move has failed because some items already exists")
 
         new_folder = to_folder.folder(folder.name)
-        self.respond(req, resp, new_folder, MailFolderResource.fields)
+        self.respond(req, resp, new_folder, self.fields)
 
     @experimental
     def on_post_mail_folders(self, req, resp):
-        _, store, _ = req.context.server_store
+        """Create a new mailFolder.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+
+        Raises:
+            HTTPConflict: when the folder already exists.
+        """
         fields = self.load_json(req)
         self.validate_json(folder_schema, fields)
+
+        store = req.context.server_store[1]
         try:
             folder = store.subtree.create_folder(
                 fields['displayName'], container_class="IPF.Note"
             )
-        except kopano.errors.DuplicateError:
-            raise HTTPConflict("'%s' folder already exists" % fields['displayName'])
-        resp.status = falcon.HTTP_201
-        self.respond(req, resp, folder, MailFolderResource.fields)
+        except kopano.errors.DuplicateError as e:
+            raise HTTPConflict(str(e))
 
-    def on_post(self, req, resp, userid=None, folderid=None):
-        raise HTTPBadRequest("Unsupported in mailfolder")
+        resp.status = falcon.HTTP_201
+        self.respond(req, resp, folder, self.fields)
+
+    # PATCH
+
+    def on_patch_mail_folder_by_id(self, req, resp, folderid):
+        """Update mailFolder by ID.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): target folder ID which should be updated.
+
+        Raises:
+            falcon.HTTPNotFound: when folder not found.
+        """
+        fields = self.load_json(req)
+        self.validate_json(folder_schema, fields)
+
+        store = req.context.server_store[1]
+        folder = _folder(store, folderid)
+        if not folder:
+            raise falcon.HTTPNotFound(description="folder not found")
+        folder.name = fields["displayName"]
+
+        self.respond(req, resp, folder, self.fields)
+
+    def on_patch_child_folder_by_id(self, req, resp, folderid, childid):
+        """Update mailFolder by ID.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): parent folder ID.
+            childid (str): child folder ID which should be updated.
+        """
+        fields = self.load_json(req)
+        self.validate_json(folder_schema, fields)
+
+        child = self._get_child_folder_by_id(req, folderid, childid)[1]
+        child.name = fields["displayName"]
+
+        self.respond(req, resp, child, self.fields)
+
+    # DELETE
+
+    def on_delete_mail_folder_by_id(self, req, resp, folderid):
+        """Delete a mailFolder by ID.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): target folder ID which should be removed.
+
+        Raises:
+            falcon.HTTPNotFound: when folder not found.
+        """
+        store = req.context.server_store[1]
+        folder = _folder(store, folderid)
+        if not folder:
+            raise falcon.HTTPNotFound(description="folder not found")
+        self.handle_delete(req, resp, store=store, folder=folder)
+
+    def on_delete_child_folder_by_id(self, req, resp, folderid, childid):
+        """Delete a childFolder by ID.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): parent folder ID.
+            childid (str): child folder ID which should be removed.
+        """
+        parent, child = self._get_child_folder_by_id(req, folderid, childid)
+        parent.delete([child])
+        self.respond_204(resp)
