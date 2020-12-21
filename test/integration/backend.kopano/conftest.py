@@ -8,7 +8,7 @@ import kopano
 import pytest
 from falcon.testing import TestClient
 
-from grapi.api.v1 import RestAPI
+from grapi.api.v1 import API
 
 DATA_DIR = '{}/data'.format(os.path.dirname(os.path.realpath(__file__)))
 BACKEND = 'kopano'
@@ -35,7 +35,7 @@ def create_auth_header(username, password):
 # https://falcon.readthedocs.io/en/stable/api/testing.html
 @pytest.fixture(scope='module')
 def client():
-    return TestClient(RestAPI(options=Options(), backends=[BACKEND]))
+    return TestClient(API(options=Options(), backends=[BACKEND]))
 
 
 @pytest.fixture()

@@ -3,7 +3,7 @@
 import pytest
 from falcon import testing
 
-from grapi.api.v1 import RestAPI
+from grapi.api.v1 import API
 
 BACKEND = 'mock'
 
@@ -11,4 +11,4 @@ BACKEND = 'mock'
 # https://falcon.readthedocs.io/en/stable/api/testing.html
 @pytest.fixture(scope='module')
 def client():
-    return testing.TestClient(RestAPI(backends=[BACKEND]))
+    return testing.TestClient(API(backends=[BACKEND]))

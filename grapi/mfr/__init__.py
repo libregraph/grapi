@@ -260,7 +260,12 @@ class Server:
         if WITH_CPROFILE and PROFILE_DIR:
             middleware.append(FalconRequestProfiler())
         backends = options.backends.split(',')
-        app = grapi.RestAPI(options=options, middleware=middleware, backends=backends)
+        app = grapi.API(
+            options=options,
+            middleware=middleware,
+            backends=backends,
+            components=('directory', 'mail', 'calendar', 'reminder')
+        )
         handler = partial(error_handler, with_metrics=options.with_metrics)
         app.add_error_handler(Exception, handler)
         unix_socket_path = os.path.join(socket_path, 'rest%d.sock' % n)
@@ -276,7 +281,12 @@ class Server:
         if PROFILE_DIR and PROFILE_MODE == 'request':
             middleware.append(FalconRequestProfiler())
         backends = options.backends.split(',')
-        app = grapi.NotifyAPI(options=options, middleware=middleware, backends=backends)
+        app = grapi.API(
+            options=options,
+            middleware=middleware,
+            backends=backends,
+            components=('notification',)
+        )
         handler = partial(error_handler, with_metrics=options.with_metrics)
         app.add_error_handler(Exception, handler)
         unix_socket_path = os.path.join(socket_path, 'notify%d.sock' % n)
