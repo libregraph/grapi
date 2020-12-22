@@ -17,6 +17,8 @@ import requests
 import validators
 from MAPI.Struct import MAPIErrorNoSupport
 
+from grapi.api.v1.api import API
+from grapi.api.v1.config import PREFIX
 from grapi.api.v1.resource import Resource, _dumpb_json
 
 from . import utils
@@ -61,6 +63,8 @@ REQUEST_SESSION.max_redirects = 3
 REQUEST_HTTPS_ADAPTER = requests.adapters.HTTPAdapter(pool_maxsize=1024)  # TODO(longsleep): Add configuration for pool sizes.
 REQUEST_SESSION.mount('https://', REQUEST_HTTPS_ADAPTER)
 
+# API to get access to all routes.
+_API = API()
 
 # Record binds subscription and conection information per user for easy painless
 # access to its members.
@@ -70,11 +74,6 @@ class Record:
         self.user = user
         self.store = store
         self.subscriptions = subscriptions
-
-
-PATTERN_MESSAGES = (falcon.routing.compile_uri_template('/me/mailFolders/{folderid}/messages')[1], 'Message')
-PATTERN_CONTACTS = (falcon.routing.compile_uri_template('/me/contactFolders/{folderid}/contacts')[1], 'Contact')
-PATTERN_EVENTS = (falcon.routing.compile_uri_template('/me/calendars/{folderid}/events')[1], 'Event')
 
 
 if PROMETHEUS:
@@ -362,24 +361,70 @@ class SubscriptionSink:
         self.store = None
 
 
-def _subscription_object(store, resource):
-    # specific mail/contacts folder
-    for (pattern, datatype) in (PATTERN_MESSAGES, PATTERN_CONTACTS, PATTERN_EVENTS):
-        match = pattern.match('/'+resource)
-        if match:
-            return utils._folder(store, match.groupdict()['folderid']), None, datatype
+def _detect_data_type(store, resource_name, folderid=None):
+    """Return folder and category based on data type.
 
-    # all mail
-    if resource == 'me/messages':
-        return store.inbox, None, 'Message'
+    Args:
+        store (Store): user's store object.
+        resource_name (str): resource name. It's something like URI (e.g. me/messages).
+        folderid (Union[str,None]): folder ID.
 
-    # all contacts
-    elif resource == 'me/contacts':
-        return store.contacts, None, 'Contact'
+    Returns:
+        Tuple[Folder,list,str,list]: folder object, folder types,
+            data type name, and object types names.
 
-    # all events
-    elif resource in ('me/events', 'me/calendar/events'):
-        return store.calendar, None, 'Event'
+    Raises:
+        ValueError: when resource not found.
+    """
+    if resource_name == "MessageResource":
+        return (
+            store.inbox if folderid is None else utils._folder(store, folderid.lower()),
+            ["mail"], "message", ["item"]
+        )
+    elif resource_name == "EventResource":
+        return (
+            store.calendar if folderid is None else utils._folder(store, folderid.lower()),
+            ["calendar"], "event", ["item"]
+        )
+    elif resource_name == "ContactResource":
+        return (
+            store.contacts if folderid is None else utils._folder(store, folderid.lower()),
+            ["contact"], "contact", ["item"]
+        )
+    else:
+        raise utils.HTTPBadRequest("Invalid resource name")
+
+
+def _subscription_object(store, resource, subscription_id):
+    """Return subscription object and info based on resource.
+
+    Args:
+        store (Store): user's store.
+        resource (str): resource which needs to be tracked.
+        subscription_id (str): generated subscription ID.
+
+    Args:
+        Tuple[Folder,list,str,list]: associated folder, folder types,
+            data type name, and object types names.
+
+    Raises:
+        utils.HTTPBadRequest: when Subscription object is invalid.
+    """
+    # Specific mail/contacts folder.
+    route_data = _API._router_search("{}/{}".format(PREFIX, resource))
+    if route_data:
+        try:
+            return _detect_data_type(
+                store, route_data[0].name, route_data[-2].get("folderid")
+            )
+        except Exception:
+            logging.error(
+                "subscription resource is invalid, id:%s, resource:%s",
+                subscription_id, resource
+            )
+            raise utils.HTTPBadRequest("Subscription resource is invalid.")
+    else:
+        raise utils.HTTPBadRequest("Subscription resource not found.")
 
 
 def _export_subscription(subscription):
@@ -441,11 +486,9 @@ class SubscriptionResource(Resource):
             raise utils.HTTPBadRequest("Subscription validation request failed.")
 
         # Validate subscription data.
-        subscription_object = _subscription_object(store, fields['resource'])
-        if not subscription_object:
-            logging.error('subscription object is invalid, id:%s, resource:%s', id_, fields['resource'])
-            raise utils.HTTPBadRequest("Subscription object invalid.")
-        target, folder_types, data_type = subscription_object
+        folder, folder_types, data_type, object_types = _subscription_object(
+            record.store, fields['resource'], id_
+        )
 
         # Create subscription.
         subscription = fields
@@ -457,7 +500,7 @@ class SubscriptionResource(Resource):
         event_types = [x.strip() for x in subscription['changeType'].split(',')]
 
         try:
-            target.subscribe(sink, object_types=object_types,
+            folder.subscribe(sink, object_types=object_types,
                              event_types=event_types, folder_types=folder_types)
         except MAPIErrorNoSupport:
             # Mhm connection is borked.
@@ -469,7 +512,7 @@ class SubscriptionResource(Resource):
         record.subscriptions[id_] = (subscription, sink, user.userid)
         logging.debug(
             'subscription created, auth_user:%s, id:%s, target:%s, object_types:%s, event_types:%s, folder_types:%s',
-            server.auth_user, id_, target, object_types, event_types, folder_types
+            server.auth_user, id_, folder, object_types, event_types, folder_types
         )
 
         resp.content_type = "application/json"
