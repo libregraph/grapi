@@ -1,11 +1,11 @@
 """REST API endpoints."""
 from grapi.api.common.api import API as BaseAPI
 
+from . import middleware as grapi_middleware
 from .api_resource import BackendResource
 from .batch import BatchResource
 from .config import PREFIX
 from .healthcheck import HealthCheckResource
-from .middleware.resource_patcher import ResourcePatcher
 from .request import Request
 from .utils import suffix_method_caller
 
@@ -50,9 +50,18 @@ class API(BaseAPI):
                 if name in backends and component in backend_components:
                     default_backend[component] = name_backend[name]  # TODO type occurs twice
 
-        middleware = (middleware or []) + [
-            ResourcePatcher(name_backend, default_backend, options)
+        # Middlewares which need be loaded.
+        generic_middlewares = [
+            grapi_middleware.RequestId(),
+            grapi_middleware.RequestBodyExtractor(),
+            grapi_middleware.ResponseHeaders(),
         ]
+
+        middleware = (middleware or []) + [
+            grapi_middleware.ResourcePatcher(name_backend, default_backend, options)
+        ]
+        middleware.extend(generic_middlewares)
+
         super().__init__(media_type=None, request_type=Request, middleware=middleware)
 
         self.req_options.strip_url_path_trailing_slash = True
@@ -205,4 +214,5 @@ class API(BaseAPI):
             subscription_resource = BackendResource(notification, 'SubscriptionResource')
 
             self.add_route(PREFIX + '/subscriptions', subscription_resource)
-            self.add_route(PREFIX + '/subscriptions/{subscriptionid}', subscription_resource)
+            self.add_route(PREFIX + '/subscriptions/{s_id}',
+                           subscription_resource, suffix="subscriptions_by_id")

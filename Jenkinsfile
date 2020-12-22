@@ -55,7 +55,7 @@ pipeline {
 					steps {
 						echo 'Linting..'
 						sh 'make lint | tee pylint.log || true'
-						recordIssues tool: pyLint(pattern: 'pylint.log'), qualityGates: [[threshold: 40, type: 'TOTAL', unstable: true]]
+						recordIssues tool: pyLint(pattern: 'pylint.log'), qualityGates: [[threshold: 35, type: 'TOTAL', unstable: true]]
 					}
 				}
 				stage('Test') {

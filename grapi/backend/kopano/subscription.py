@@ -17,12 +17,12 @@ import requests
 import validators
 from MAPI.Struct import MAPIErrorNoSupport
 
+from grapi.api.v1 import config
 from grapi.api.v1.api import API
-from grapi.api.v1.config import PREFIX
 from grapi.api.v1.resource import Resource, _dumpb_json
+from grapi.api.v1.schema import subscription as subscription_schema
 
 from . import utils
-from .schema import subscription_schema, update_subscription_schema
 
 try:
     from prometheus_client import Counter, Gauge, Histogram
@@ -66,9 +66,13 @@ REQUEST_SESSION.mount('https://', REQUEST_HTTPS_ADAPTER)
 # API to get access to all routes.
 _API = API()
 
-# Record binds subscription and conection information per user for easy painless
-# access to its members.
+
 class Record:
+    """Record binds subscription and conection information per user.
+
+    It's for easy painless access to its members.
+    """
+
     def __init__(self, server, user, store, subscriptions):
         self.server = server
         self.user = user
@@ -98,9 +102,9 @@ def _server(auth_user, auth_pass, oidc=False, reconnect=False):
 
 
 def _basic_auth(username, password):
-        server = _server(username, password)
-        user = server.user(username)
-        return Record(server=server, user=user, store=user.store, subscriptions={})
+    server = _server(username, password)
+    user = server.user(username)
+    return Record(server=server, user=user, store=user.store, subscriptions={})
 
 
 def _record(req, options):
@@ -146,7 +150,7 @@ def _record(req, options):
 
             if oldSubscriptions:
                 # Instantly kill of subscriptions.
-                for subscriptionid, (subscription, sink, userid) in oldSubscriptions.items():
+                for subscriptionid, (_, sink, _) in oldSubscriptions.items():
                     sink.unsubscribe()
                     logging.debug('subscription cleaned up after connection error, id:%s', subscriptionid)
                     if options and options.with_metrics:
@@ -188,10 +192,14 @@ class LastUpdatedOrderedDict(collections.OrderedDict):
 
 
 class SubscriptionProcessor(Thread):
-    def __init__(self, options):
+
+    _queue = None
+
+    def __init__(self, options, queue):
         Thread.__init__(self, name='kopano_subscription_processor')
         utils.set_thread_name(self.name)
         self.options = options
+        self._queue = queue
         self.daemon = True
 
     def _record(self, subscription, notification):
@@ -228,7 +236,9 @@ class SubscriptionProcessor(Thread):
             try:
                 # Get queue entries, either blocking or with timeout. A timeout is used when records
                 # are already pending.
-                store, notification, subscription = QUEUE.get(block=True, timeout=debounceDelay if waitingItems else None)
+                store, notification, subscription = self._queue.get(
+                    block=True, timeout=debounceDelay if waitingItems else None
+                )
                 record = self._record(subscription, notification)
                 # Add record to pending sorted dict. This also changes the position of existing records to the end.
                 pending[record] = True
@@ -262,9 +272,19 @@ class SubscriptionProcessor(Thread):
                     # TODO(longsleep): Make timeout configuration.
                     if with_metrics:
                         with POST_HIST.time():
-                            REQUEST_SESSION.post(record.url, json=self._notification(record), timeout=10, verify=verify)
+                            REQUEST_SESSION.post(
+                                record.url,
+                                json=self._notification(record),
+                                timeout=config.SUBSCRIPTION_NOTIFY_TIMEOUT,
+                                verify=verify
+                            )
                     else:
-                        REQUEST_SESSION.post(record.url, json=self._notification(record), timeout=10, verify=verify)
+                        REQUEST_SESSION.post(
+                            record.url,
+                            json=self._notification(record),
+                            timeout=config.SUBSCRIPTION_NOTIFY_TIMEOUT,
+                            verify=verify
+                        )
                 except Exception:
                     # TODO(longsleep): Retry response errors.
                     if with_metrics:
@@ -277,10 +297,14 @@ class SubscriptionProcessor(Thread):
 
 
 class SubscriptionPurger(Thread):
-    def __init__(self, options):
+
+    _queue = None
+
+    def __init__(self, options, queue):
         Thread.__init__(self, name='kopano_subscription_purger')
         utils.set_thread_name(self.name)
         self.options = options
+        self._queue = queue
         self.daemon = True
         self.exit = Event()
 
@@ -292,14 +316,14 @@ class SubscriptionPurger(Thread):
             # do not get triggerd in multiprocess mode. To get the information
             # we trigger it manually.
             if self.options and self.options.with_metrics:
-                QUEUE_SIZE_GAUGE.set(QUEUE.qsize())
+                QUEUE_SIZE_GAUGE.set(self._queue.qsize())
                 PROCESSOR_POOL_GAUGE.set(len(REQUEST_HTTPS_ADAPTER.poolmanager.pools.keys()))
 
             records = RECORDS
             for auth_username, record in records.items():
                 subscriptions = record.subscriptions
                 now = datetime.datetime.now(tz=datetime.timezone.utc)
-                for subscriptionid, (subscription, sink, userid) in subscriptions.items():
+                for subscriptionid, (subscription, sink, _) in subscriptions.items():
                     expirationDateTime = dateutil.parser.parse(subscription['expirationDateTime'])
                     if expirationDateTime <= now:
                         logging.debug('subscription expired, id:%s', subscriptionid)
@@ -340,20 +364,27 @@ class SubscriptionPurger(Thread):
 
 
 class SubscriptionSink:
-    def __init__(self, store, options, subscription):
+
+    _queue = None
+
+    def __init__(self, store, options, subscription, queue):
         self.store = store
         self.options = options
         self.subscription = subscription
+        self._queue = queue
         self.expired = False
 
     def update(self, notification):
         if self.store is not None:
             while True:
                 try:
-                    QUEUE.put((self.store, notification, self.subscription), timeout=5)  # TODO(longsleep): Add configuration for timeout.
+                    self._queue.put(
+                        (self.store, notification, self.subscription),
+                        timeout=config.SUBSCRIPTION_SINK_UPDATE_TIMEOUT
+                    )
                     break
                 except Full:
-                    logging.warning('subscription sink queue is full: %d', QUEUE.qsize())
+                    logging.warning('subscription sink queue is full: %d', self._queue.qsize())
                     time.sleep(1)
 
     def unsubscribe(self):
@@ -374,7 +405,7 @@ def _detect_data_type(store, resource_name, folderid=None):
             data type name, and object types names.
 
     Raises:
-        ValueError: when resource not found.
+        ValueError: when resource is not found or is invalid.
     """
     if resource_name == "MessageResource":
         return (
@@ -392,7 +423,7 @@ def _detect_data_type(store, resource_name, folderid=None):
             ["contact"], "contact", ["item"]
         )
     else:
-        raise utils.HTTPBadRequest("Invalid resource name")
+        raise ValueError("Invalid resource name")
 
 
 def _subscription_object(store, resource, subscription_id):
@@ -411,13 +442,13 @@ def _subscription_object(store, resource, subscription_id):
         utils.HTTPBadRequest: when Subscription object is invalid.
     """
     # Specific mail/contacts folder.
-    route_data = _API._router_search("{}/{}".format(PREFIX, resource))
+    route_data = _API._router_search("{}/{}".format(config.PREFIX, resource))
     if route_data:
         try:
             return _detect_data_type(
                 store, route_data[0].name, route_data[-2].get("folderid")
             )
-        except Exception:
+        except ValueError:
             logging.error(
                 "subscription resource is invalid, id:%s, resource:%s",
                 subscription_id, resource
@@ -428,138 +459,245 @@ def _subscription_object(store, resource, subscription_id):
 
 
 def _export_subscription(subscription):
-    return dict((a, b) for (a, b) in subscription.items() if not a.startswith('_'))
+    return {a: b for a, b in subscription.items() if not a.startswith('_')}
 
 
 class SubscriptionResource(Resource):
+
+    _queue = None
+    on_post_subscriptions_schema = subscription_schema.create_schema_validator
+    on_patch_subscriptions_s_id_schema = subscription_schema.update_schema_validator
+
     def __init__(self, options):
         super().__init__(options)
+        self._queue = Queue(config.SUBSCRIPTION_QUEUE_MAXSIZE)
+        SubscriptionProcessor(self.options, self._queue).start()
+        SubscriptionPurger(self.options, self._queue).start()
 
-        global QUEUE
-        try:
-            QUEUE
-        except NameError:
-            QUEUE = Queue(1024)  # TODO(longsleep): Add configuration for queue size.
-            SubscriptionProcessor(self.options).start()
-            SubscriptionPurger(self.options).start()
+    @staticmethod
+    def _clean_notification_url(notification_url, verify, subscription_id, auth_user):
+        """Validate and return notification URL.
 
-    def on_post(self, req, resp):
-        record = _record(req, self.options)
-        server = record.server
-        user = record.user
-        store = record.store
-        fields = self.load_json(req)
-        self.validate_json(subscription_schema, fields)
+        Args:
+            notification_url (str): notification URL.
+            verify (bool): is secure or not.
+            subscription_id (str): generated ID for the subscription.
+            auth_user (str): authenticated username.
 
-        id_ = str(uuid.uuid4())
+        Returns:
+            ParseResult: parsed notification URL.
 
-        verify = not self.options or not self.options.insecure
+        Raises:
+            utils.HTTPBadRequest: when the URL is invalid.
+        """
+        # Non-public URL in secure mode must be avoided.
+        if not validators.url(notification_url, public=True):
+            if verify:
+                raise utils.HTTPBadRequest("Subscription notification url is invalid.")
+            else:
+                logging.warning(
+                    "ignored notification url validation error (insecure enabled),"
+                    " auth_user:%s, id:%s, url:%s",
+                    auth_user, subscription_id, notification_url
+                )
 
-        # Validate URL.
-        try:
-            # Enforce URL to valid and to be public, unless running insecure.
-            if not validators.url(fields['notificationUrl'], public=True):
-                if verify:
-                    raise ValueError('url validator failed')
-                else:
-                    logging.warning('ignored notification url validation error (insecure enabled), auth_user:%s, id:%s, url:%s', server.auth_user, id_, fields['notificationUrl'])
-            notificationUrl = urlparse(fields['notificationUrl'])
-            if notificationUrl.scheme != 'https':
-                if not verify and notificationUrl.scheme == 'http':
-                    logging.warning('allowing unencrypted notification url (insecure enabled), auth_user:%s, id:%s, url:%s', server.auth_user, id_, fields['notificationUrl'])
-                else:
-                    raise ValueError('must use https scheme')
-        except Exception:
-            logging.debug('invalid subscription notification url, auth_user:%s, id:%s, url:%s', server.auth_user, id_, fields['notificationUrl'], exc_info=True)
-            raise utils.HTTPBadRequest("Subscription notification url invalid.")
+        notification_url = urlparse(notification_url)
+        if notification_url.scheme != 'https':
+            if not verify and notification_url.scheme == 'http':
+                logging.warning(
+                    "allowing unencrypted notification url (insecure enabled),"
+                    " auth_user:%s, id:%s, url:%s",
+                    auth_user, subscription_id, notification_url
+                )
+            else:
+                # Must use HTTPS scheme.
+                logging.debug(
+                    "invalid subscription notification url, auth_user:%s, id:%s, url:%s",
+                    auth_user, subscription_id, notification_url, exc_info=True
+                )
+                raise utils.HTTPBadRequest("Subscription notification url is invalid.")
+        return notification_url
+
+    @staticmethod
+    def _validate_webhook(notification_url, verify, subscription_id, auth_user):
+        """Webhook validation.
+
+        Args:
+            notification_url (ParseResult): parsed notification URL.
+            verify (bool): is secure or not.
+            subscription_id (str): generated ID for the subscription.
+            auth_user (str): authenticated username.
+
+        Raises:
+            utils.HTTPBadRequest: when subscription validation request failed.
+        """
+        validation_token = str(uuid.uuid4())
+        url = "{}?validationToken={}".format(notification_url.geturl(), validation_token)
 
         # Validate webhook.
-        validationToken = str(uuid.uuid4())
-        try:  # TODO async
-            logging.debug('validating subscription notification url, auth_user:%s, id:%s, url:%s', server.auth_user, id_, fields['notificationUrl'])
-            r = REQUEST_SESSION.post(fields['notificationUrl']+'?validationToken='+validationToken, timeout=10, verify=verify)  # TODO(longsleep): Add timeout configuration.
-            if r.text != validationToken:
-                logging.debug('subscription validation failed, validation token mismatch, id:%s, url:%s', id_, fields['notificationUrl'])
-                raise utils.HTTPBadRequest("Subscription validation request failed.")
+        try:
+            logging.debug(
+                "validating subscription notification url, auth_user:%s, id:%s, url:%s",
+                auth_user, subscription_id, notification_url
+            )
+            response = REQUEST_SESSION.post(
+                url, timeout=config.SUBSCRIPTION_VALIDATION_TIMEOUT, verify=verify
+            )
+            if response.text != validation_token:
+                logging.debug(
+                    "subscription validation failed, validation token mismatch, id:%s, url:%s",
+                    subscription_id, notification_url
+                )
+                raise utils.HTTPBadRequest("Subscription token validation failed.")
         except Exception:
-            logging.exception('subscription validation request error, id:%s, url:%s', id_, fields['notificationUrl'])
-            raise utils.HTTPBadRequest("Subscription validation request failed.")
+            logging.exception(
+                "subscription validation request error, id:%s, url:%s",
+                subscription_id, notification_url
+            )
+            raise utils.HTTPBadRequest("Subscription webhook validation failed.")
+
+    def _add_subscription(self, req, subscription_id, options, verify, json_data):
+        """Add a new subscription.
+
+        Args:
+            req (Request): Falcon request object.
+            subscription_id (str): generated subscription ID.
+            options (Option): deployment option.
+            verify (bool): secure mode is enabled or not.
+            json_data (Dict): parsed request data in JSON format.
+
+        Returns:
+            Tuple[Record,SubscriptionSink]: tuple of processed data.
+        """
+        record = _record(req, options)
+
+        notification_url = self._clean_notification_url(
+            json_data['notificationUrl'], verify, subscription_id, record.server.auth_user
+        )
+
+        # Validate webhook.
+        self._validate_webhook(
+            notification_url, verify, subscription_id, record.server.auth_user
+        )
 
         # Validate subscription data.
         folder, folder_types, data_type, object_types = _subscription_object(
-            record.store, fields['resource'], id_
+            record.store, json_data['resource'], subscription_id
         )
 
         # Create subscription.
-        subscription = fields
-        subscription['id'] = id_
-        subscription['_datatype'] = data_type
+        json_data['id'] = subscription_id
+        json_data['_datatype'] = data_type
 
-        sink = SubscriptionSink(store, self.options, subscription)
-        object_types = ['item']  # TODO folders not supported by graph atm?
-        event_types = [x.strip() for x in subscription['changeType'].split(',')]
+        sink = SubscriptionSink(record.store, self.options, json_data, self._queue)
+        event_types = json_data['changeType'].split(',')
 
-        try:
-            folder.subscribe(sink, object_types=object_types,
-                             event_types=event_types, folder_types=folder_types)
-        except MAPIErrorNoSupport:
-            # Mhm connection is borked.
-            # TODO(longsleep): Clean up and start from new.
-            # TODO(longsleep): Add internal retry, do not throw exception to client.
-            logging.exception('subscription not possible right now, resetting connection')
-            raise falcon.HTTPInternalServerError(description='subscription not possible, please retry')
-
-        record.subscriptions[id_] = (subscription, sink, user.userid)
-        logging.debug(
-            'subscription created, auth_user:%s, id:%s, target:%s, object_types:%s, event_types:%s, folder_types:%s',
-            server.auth_user, id_, folder, object_types, event_types, folder_types
+        folder.subscribe(
+            sink,
+            object_types=object_types,
+            event_types=event_types,
+            folder_types=folder_types
         )
 
-        resp.content_type = "application/json"
-        resp.body = _dumpb_json(_export_subscription(subscription))
+        record.subscriptions[subscription_id] = (json_data, sink, record.user.userid)
+        logging.debug(
+            "subscription created, auth_user:%s, id:%s, target:%s,"
+            " object_types:%s, event_types:%s, folder_types:%s",
+            record.server.auth_user, subscription_id, folder,
+            object_types, event_types, folder_types
+        )
+
+        return record, sink
+
+    def on_post(self, req, resp):
+        """Handle POST request.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+        """
+        subscription_id = req.context.request_id
+        verify = not self.options or not self.options.insecure
+        json_data = req.context.json_data
+
+        max_retry = config.SUBSCRIPTION_INTERNAL_RETRY
+        retry = 0
+        while retry != max_retry:
+            retry += 1
+            try:
+                self._add_subscription(
+                    req, subscription_id, self.options, verify, json_data
+                )
+                break
+            except MAPIErrorNoSupport:
+                logging.exception(
+                    "subscription not possible right now, trying %d/%d",
+                    retry, max_retry
+                )
+                # A short nap for the resetting connection.
+                time.sleep(0.5)
+        else:
+            raise falcon.HTTPInternalServerError(
+                description="subscription is not possible, please retry"
+            )
+
+        # Prepare response.
         resp.status = falcon.HTTP_201
+        resp.content_type = "application/json"
+        resp.body = _dumpb_json(_export_subscription(json_data))
 
         if self.options and self.options.with_metrics:
             SUBSCR_COUNT.inc()
             SUBSCR_ACTIVE.inc()
 
-    def on_get(self, req, resp, subscriptionid=None):
+    def on_get(self, req, resp):
+        """Handle GET request - return all subscriptions.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+        """
         record = _record(req, self.options)
-
-        if subscriptionid:
-            try:
-                subscription, sink, userid = record.subscriptions[subscriptionid]
-            except KeyError:
-                resp.status = falcon.HTTP_404
-                return
-            data = _export_subscription(subscription)
-        else:
-            user = record.user
-            userid = user.userid
-            data = {
+        userid = record.user.userid
+        data = {
                 '@odata.context': req.path,
-                'value': [_export_subscription(subscription) for (subscription, _, uid) in record.subscriptions.values() if uid == userid],  # TODO doesn't scale
-            }
+                'value': [
+                    _export_subscription(subscription)
+                    for subscription, _, uid in record.subscriptions.values()
+                    if uid == userid
+                    ],  # TODO doesn't scale
+                }
 
-        resp.content_type = "application/json"
         resp.body = _dumpb_json(data)
 
-    def on_patch(self, req, resp, subscriptionid=None):
-        if not subscriptionid:
-            raise utils.HTTPBadRequest('missing required subscriptionid')
+    def on_get_subscriptions_by_id(self, req, resp, s_id):
+        """Handle GET request - return by subscription ID.
 
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            subscriptionid (str): subscription ID.
+        """
+        record = _record(req, self.options)
+        try:
+            subscription, sink, userid = record.subscriptions[s_id]
+        except KeyError:
+            raise utils.HTTPNotFound()
+        data = _export_subscription(subscription)
+        resp.body = _dumpb_json(data)
+
+    def on_patch_subscriptions_by_id(self, req, resp, s_id):
         record = _record(req, self.options)
 
         try:
-            subscription, sink, userid = record.subscriptions[subscriptionid]
+            subscription, sink, _ = record.subscriptions[s_id]
         except KeyError:
             resp.status = falcon.HTTP_404
             return
 
-        fields = self.load_json(req)
-        self.validate_json(update_subscription_schema, fields)
+        json_data = req.context.json_data
 
-        for k, v in fields.items():
+        for k, v in json_data.items():
             if v and k == 'expirationDateTime':
                 # NOTE(longsleep): Setting a dict key which is already there is threadsafe in current CPython implementations.
                 try:
@@ -570,26 +708,26 @@ class SubscriptionResource(Resource):
 
         if sink.expired:
             sink.expired = False
-            logging.debug('subscription updated before it expired, id:%s', subscriptionid)
+            logging.debug('subscription updated before it expired, id:%s', s_id)
 
         data = _export_subscription(subscription)
 
         resp.content_type = "application/json"
         resp.body = _dumpb_json(data)
 
-    def on_delete(self, req, resp, subscriptionid):
+    def on_delete_subscriptions_by_id(self, req, resp, s_id):
         record = _record(req, self.options)
         store = record.store
 
         try:
-            subscription, sink, userid = record.subscriptions.pop(subscriptionid)
+            sink = record.subscriptions.pop(s_id)[1]
         except KeyError:
             resp.status = falcon.HTTP_404
             return
 
         store.unsubscribe(sink)
 
-        logging.debug('subscription deleted, id:%s', subscriptionid)
+        logging.debug('subscription deleted, id:%s', s_id)
 
         if self.options and self.options.with_metrics:
             SUBSCR_ACTIVE.dec(1)

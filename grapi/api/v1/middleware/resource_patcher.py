@@ -6,7 +6,7 @@ import falcon
 from MAPI.Struct import MAPIErrorInvalidEntryid
 
 from grapi.api.common import API
-from grapi.api.v1.api import BackendResource
+from grapi.api.v1.api_resource import BackendResource
 from grapi.api.v1.prefer import Prefer
 from grapi.api.v1.timezone import to_timezone
 

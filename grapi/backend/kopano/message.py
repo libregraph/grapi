@@ -140,7 +140,7 @@ class MessageResource(ItemResource):
             resp (Response): Falcon response object.
             folderid (str): folder ID.
         """
-        fields = self.load_json(req)
+        fields = req.context.json_data
         self.validate_json(message_schema, fields)
 
         _, store, _ = req.context.server_store

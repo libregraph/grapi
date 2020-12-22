@@ -179,7 +179,7 @@ class MailFolderResource(FolderResource):
         Raises:
             HTTPConflict: when the folder already exists.
         """
-        fields = self.load_json(req)
+        fields = req.context.json_data
         self.validate_json(folder_schema, fields)
 
         store = req.context.server_store[1]
@@ -228,7 +228,7 @@ class MailFolderResource(FolderResource):
             falcon.HTTPNotFound: when the origin or destination folder not found.
             falcon.HTTPConflict: when some items already exists in the destination.
         """
-        fields = self.load_json(req)
+        fields = req.context.json_data
         self.validate_json(destination_id_schema, fields)
 
         folder = _folder(store, folderid)
@@ -264,7 +264,7 @@ class MailFolderResource(FolderResource):
         Raises:
             HTTPConflict: when the folder already exists.
         """
-        fields = self.load_json(req)
+        fields = req.context.json_data
         self.validate_json(folder_schema, fields)
 
         store = req.context.server_store[1]
@@ -291,7 +291,7 @@ class MailFolderResource(FolderResource):
         Raises:
             falcon.HTTPNotFound: when folder not found.
         """
-        fields = self.load_json(req)
+        fields = req.context.json_data
         self.validate_json(folder_schema, fields)
 
         store = req.context.server_store[1]
@@ -311,7 +311,7 @@ class MailFolderResource(FolderResource):
             folderid (str): parent folder ID.
             childid (str): child folder ID which should be updated.
         """
-        fields = self.load_json(req)
+        fields = req.context.json_data
         self.validate_json(folder_schema, fields)
 
         child = self._get_child_folder_by_id(req, folderid, childid)[1]

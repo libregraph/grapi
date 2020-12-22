@@ -119,7 +119,7 @@ class ContactResource(ItemResource):
 
     @experimental
     def on_post_contacts(self, req, resp):
-        fields = self.load_json(req)
+        fields = req.context.json_data
         _, store, _ = req.context.server_store
         item = self.create_message(store.contacts, fields, ContactResource.set_fields)
         self.respond(req, resp, item, ContactResource.fields)

@@ -80,7 +80,8 @@ class Resource:
         resp.set_header('Content-Length', '0')  # https://github.com/jonashaag/bjoern/issues/139
         resp.status = falcon.HTTP_204
 
-    def load_json(self, req):
+    @staticmethod
+    def load_json(req):
         try:
             return _loadb_json(req.stream.read(req.content_length or 0))
         except ValueError:

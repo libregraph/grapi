@@ -203,5 +203,5 @@ class UserResource(Resource):
             raise HTTPBadRequest("Unsupported in user")
 
         server, store, userid = req.context.server_store
-        fields = self.load_json(req)
+        fields = req.context.json_data
         handler(req, resp, fields=fields, store=store)

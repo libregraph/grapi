@@ -283,7 +283,7 @@ class EventResource(ItemResource):
         """
         if not req.content_length:
             raise HTTPBadRequest("request has empty payload")
-        fields = self.load_json(req)
+        fields = req.context.json_data
         self.validate_json(event_schema, fields)
 
         store = req.context.server_store[1]
@@ -319,7 +319,7 @@ class EventResource(ItemResource):
         self._create_event(req, resp, folderid)
 
     def _accept_event(self, req, resp, folderid, eventid):
-        fields = self.load_json(req)
+        fields = req.context.json_data
         self.validate_json(mr_schema, fields)
         _ = req.context.i18n.gettext
         store = req.context.server_store[1]
@@ -341,7 +341,7 @@ class EventResource(ItemResource):
         resp.status = falcon.HTTP_202
 
     def _decline_event(self, req, resp, folderid, itemid):
-        fields = self.load_json(req)
+        fields = req.context.json_data
         self.validate_json(mr_schema, fields)
         _ = req.context.i18n.gettext
         store = req.context.server_store[1]
@@ -386,7 +386,7 @@ class EventResource(ItemResource):
             folderid (str): folder ID which the event exists in.
             itemid (str): item/event ID which should be updated.
         """
-        fields = self.load_json(req)
+        fields = req.context.json_data
         store = req.context.server_store[1]
         folder = _folder(store, folderid)
         item = self.get_event(folder, itemid)
