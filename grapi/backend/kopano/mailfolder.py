@@ -1,10 +1,13 @@
 """MailFolders resource implementation."""
 # SPDX-License-Identifier: AGPL-3.0-or-later
+from functools import partial
+
 import falcon
 import kopano
+from kopano.query import _query_to_restriction
 from MAPI.Struct import MAPIErrorCollision
 
-from grapi.api.v1.resource import HTTPConflict
+from grapi.api.v1.resource import HTTPConflict, _parse_qs
 
 from .folder import FolderResource
 from .message import MessageResource
@@ -71,6 +74,25 @@ class MailFolderResource(FolderResource):
             raise falcon.HTTPNotFound(description="child folder not found")
         return parent, child
 
+    @staticmethod
+    def _gen_restriction(req, store):
+        """Generate a restriction for folders based on request params.
+
+        Args:
+            req (Request): Falcon request object.
+            store (Store): user's store object.
+
+        Returns:
+            Restriction: generated restriction object.
+            None: when the request has no '$search' param.
+        """
+        args = _parse_qs(req)
+        query = args["$search"] if '$search' in args else None
+        if not query:
+            return None
+
+        return _query_to_restriction(query[0], "folder", store)
+
     def on_get_child_folders(self, req, resp, folderid):
         """Return childFolders list.
 
@@ -80,8 +102,16 @@ class MailFolderResource(FolderResource):
             folderid (str): parent folder ID.
         """
         store = req.context.server_store[1]
-        data = _folder(store, folderid)
-        data = self.generator(req, data.folders, data.subfolder_count_recursive)
+        folder = _folder(store, folderid)
+        restriction = self._gen_restriction(req, store)
+        if not restriction:
+            fn = folder.folders
+            count = folder.subfolder_count_recursive
+        else:
+            fn = partial(folder.folders, restriction=restriction)
+            count = 0
+
+        data = self.generator(req, fn, count)
         self.respond(req, resp, data)
 
     def on_get_mail_folder_by_id(self, req, resp, folderid):
@@ -116,7 +146,12 @@ class MailFolderResource(FolderResource):
             resp (Response): Falcon response object.
         """
         store = req.context.server_store[1]
-        data = self.generator(req, store.mail_folders, 0)
+        restriction = self._gen_restriction(req, store)
+        if not restriction:
+            fn = store.mail_folders
+        else:
+            fn = partial(store.folders, recurse=False, restriction=restriction)
+        data = self.generator(req, fn, 0)
         self.respond(req, resp, data, MailFolderResource.fields)
 
     def on_get_child_folder_by_id(self, req, resp, folderid, childid):
