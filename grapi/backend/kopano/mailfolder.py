@@ -8,10 +8,10 @@ from kopano.query import _query_to_restriction
 from MAPI.Struct import MAPIErrorCollision
 
 from grapi.api.v1.resource import HTTPConflict, _parse_qs
+from grapi.api.v1.schema import folder as folder_schema
 
 from .folder import FolderResource
 from .message import MessageResource
-from .schema import destination_id_schema, folder_schema
 from .utils import _folder, experimental
 
 
@@ -180,7 +180,7 @@ class MailFolderResource(FolderResource):
             HTTPConflict: when the folder already exists.
         """
         fields = req.context.json_data
-        self.validate_json(folder_schema, fields)
+        self.validate_json(folder_schema.create_or_update_schema_validator, fields)
 
         store = req.context.server_store[1]
         folder = _folder(store, folderid)
@@ -229,7 +229,7 @@ class MailFolderResource(FolderResource):
             falcon.HTTPConflict: when some items already exists in the destination.
         """
         fields = req.context.json_data
-        self.validate_json(destination_id_schema, fields)
+        self.validate_json(folder_schema.move_or_copy_schema_validator, fields)
 
         folder = _folder(store, folderid)
         if not folder:
@@ -265,7 +265,7 @@ class MailFolderResource(FolderResource):
             HTTPConflict: when the folder already exists.
         """
         fields = req.context.json_data
-        self.validate_json(folder_schema, fields)
+        self.validate_json(folder_schema.create_or_update_schema_validator, fields)
 
         store = req.context.server_store[1]
         try:
@@ -292,7 +292,7 @@ class MailFolderResource(FolderResource):
             falcon.HTTPNotFound: when folder not found.
         """
         fields = req.context.json_data
-        self.validate_json(folder_schema, fields)
+        self.validate_json(folder_schema.create_or_update_schema_validator, fields)
 
         store = req.context.server_store[1]
         folder = _folder(store, folderid)
@@ -312,7 +312,7 @@ class MailFolderResource(FolderResource):
             childid (str): child folder ID which should be updated.
         """
         fields = req.context.json_data
-        self.validate_json(folder_schema, fields)
+        self.validate_json(folder_schema.create_or_update_schema_validator, fields)
 
         child = self._get_child_folder_by_id(req, folderid, childid)[1]
         child.name = fields["displayName"]

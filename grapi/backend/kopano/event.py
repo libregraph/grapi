@@ -5,9 +5,10 @@ import dateutil.parser
 import falcon
 import kopano
 
+from grapi.api.v1.schema import event as event_schema
+
 from .item import ItemResource, get_body, get_email, set_body
 from .resource import _date, _start_end, _tzdate, set_date
-from .schema import event_schema, mr_schema
 from .utils import HTTPBadRequest, HTTPNotFound, _folder, experimental
 
 pattern_map = {
@@ -284,7 +285,7 @@ class EventResource(ItemResource):
         if not req.content_length:
             raise HTTPBadRequest("request has empty payload")
         fields = req.context.json_data
-        self.validate_json(event_schema, fields)
+        self.validate_json(event_schema.create_schema_validator, fields)
 
         store = req.context.server_store[1]
         folder = _folder(store, folderid)
@@ -320,7 +321,7 @@ class EventResource(ItemResource):
 
     def _accept_event(self, req, resp, folderid, eventid):
         fields = req.context.json_data
-        self.validate_json(mr_schema, fields)
+        self.validate_json(event_schema.action_schema_validator, fields)
         _ = req.context.i18n.gettext
         store = req.context.server_store[1]
         folder = _folder(store, folderid)
@@ -336,16 +337,16 @@ class EventResource(ItemResource):
 
     def handle_post_tentativelyAccept(self, req, resp, fields, item):
         _ = req.context.i18n.gettext
-        self.validate_json(mr_schema, fields)
+        self.validate_json(event_schema.action_schema_validator, fields)
         item.accept(comment=fields.get('comment'), tentative=True, respond=(fields.get('sendResponse', True)), subject_prefix=_("Tentatively accepted"))
         resp.status = falcon.HTTP_202
 
     def _decline_event(self, req, resp, folderid, itemid):
         fields = req.context.json_data
-        self.validate_json(mr_schema, fields)
+        self.validate_json(event_schema.action_schema_validator, fields)
         _ = req.context.i18n.gettext
         store = req.context.server_store[1]
-        self.validate_json(mr_schema, fields)
+        self.validate_json(event_schema.action_schema_validator, fields)
         folder = _folder(store, folderid)
         item = self.get_event(folder, itemid)
         item.decline(comment=fields.get('comment'), respond=(fields.get('sendResponse', True)), subject_prefix=_("Declined"))

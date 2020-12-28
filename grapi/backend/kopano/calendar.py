@@ -4,10 +4,11 @@ import logging
 
 from kopano.errors import NotFoundError
 
+from grapi.api.v1.schema import calendar as calendar_schema
+
 from .event import EventResource
 from .folder import FolderResource
 from .resource import _dumpb_json, _start_end, _tzdate, parse_datetime_timezone
-from .schema import get_schedule_schema
 from .utils import HTTPBadRequest, _folder, _server_store, experimental
 
 
@@ -87,7 +88,7 @@ class CalendarResource(FolderResource):
     @experimental
     def handle_post_schedule(self, req, resp, folder):
         fields = req.context.json_data
-        self.validate_json(get_schedule_schema, fields)
+        self.validate_json(calendar_schema.get_schedule_schema_validator, fields)
 
         freebusytimes = []
 

@@ -6,10 +6,10 @@ from functools import partial
 
 import falcon
 
+from grapi.api.v1.schema import attachment as attachment_schema
+
 from . import message
 from .resource import DEFAULT_TOP, Resource, _date
-from .schema import (file_attachment_schema, item_attachment_schema,
-                     reference_attachment_schema)
 from .utils import HTTPBadRequest, _folder, _item, experimental
 
 
@@ -316,15 +316,15 @@ class AttachmentResource(Resource):
             raise HTTPBadRequest("Unsupported attachment @odata.type: '%s'" % odata_type)
 
         if attachment_type == AttachmentType.FILE:
-            self.validate_json(file_attachment_schema, fields)
+            self.validate_json(attachment_schema.file_attachment_schema_validator, fields)
             att = item.create_attachment(fields['name'], base64.urlsafe_b64decode(fields['contentBytes']))
             self.respond(req, resp, att, self.fields)
             resp.status = falcon.HTTP_201
         elif attachment_type == AttachmentType.ITEM:
-            self.validate_json(fields, item_attachment_schema)
+            self.validate_json(attachment_schema.item_attachment_schema_validator, fields)
             raise falcon.HTTPNotAcceptable(description="itemAttachment is not supported yet")
         elif attachment_type == AttachmentType.REFERENCE:
-            self.validate_json(fields, reference_attachment_schema)
+            self.validate_json(attachment_schema.reference_attachment_schema_validator, fields)
             raise falcon.HTTPNotAcceptable(description="referenceAttachment is not supported yet")
 
     # DELETE

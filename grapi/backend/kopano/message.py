@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import falcon
 
+from grapi.api.v1.schema import message as message_schema
+
 from . import attachment  # import as module since this is a circular import
 from .item import ItemResource, get_body, get_email, set_body
 from .resource import _date
-from .schema import message_schema
 from .utils import HTTPBadRequest, _folder, _item, experimental
 
 
@@ -157,7 +158,7 @@ class MessageResource(ItemResource):
             folderid (str): folder ID.
         """
         fields = req.context.json_data
-        self.validate_json(message_schema, fields)
+        self.validate_json(message_schema.create_schema_validator, fields)
 
         _, store, _ = req.context.server_store
 
