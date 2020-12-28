@@ -68,7 +68,7 @@ class ContactFolderResource(FolderResource):
 
     def handle_post_contacts(self, req, resp, store, folderid):
         folder = _folder(store, folderid)
-        fields = self.load_json(req)
+        fields = req.context.json_data
         item = self.create_message(folder, fields, ContactResource.set_fields)
 
         self.respond(req, resp, item, ContactResource.fields)

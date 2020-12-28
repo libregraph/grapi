@@ -372,7 +372,7 @@ class EventResource(ItemResource):
         server, store, userid = req.context.server_store
         folder = _folder(store, folderid or 'calendar')
         item = self.get_event(folder, itemid)
-        fields = self.load_json(req)
+        fields = req.context.json_data
         handler(req, resp, fields=fields, item=item)
 
     # PATCH

@@ -121,7 +121,7 @@ class MessageResource(ItemResource):
         self._handle_post_copyOrMove(req, resp, store=store, item=item, move=True)
 
     def _handle_post_copyOrMove(self, req, resp, store, item, move=False):
-        fields = self.load_json(req)
+        fields = req.context.json_data
         to_folder = store.folder(entryid=fields['destinationId'].encode('ascii'))  # TODO ascii?
         if not move:
             item = item.copy(to_folder)
@@ -207,7 +207,7 @@ class MessageResource(ItemResource):
 
     def handle_patch(self, req, resp, store, folder, itemid):
         item = _item(folder, itemid)
-        fields = self.load_json(req)
+        fields = req.context.json_data
 
         for field, value in fields.items():
             if field in self.set_fields:

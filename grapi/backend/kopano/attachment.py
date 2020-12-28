@@ -308,7 +308,7 @@ class AttachmentResource(Resource):
         Raises:
             HTTPBadRequest: unsupported attachment.
         """
-        fields = self.load_json(req)
+        fields = req.context.json_data
         odata_type = fields.get('@odata.type', None)
         try:
             attachment_type = get_attachment_type(odata_type)

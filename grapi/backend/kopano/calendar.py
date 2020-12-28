@@ -77,7 +77,7 @@ class CalendarResource(FolderResource):
 
     @experimental
     def handle_post_schedule(self, req, resp, folder):
-        fields = self.load_json(req)
+        fields = req.context.json_data
         self.validate_json(get_schedule_schema, fields)
 
         freebusytimes = []

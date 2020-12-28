@@ -139,7 +139,7 @@ class BatchResource(Resource):
             req (Request): Falcon request object.
             resp (Response): Falcon response object.
         """
-        data = self.load_json(req)
+        data = req.context.json_data
         self.validate_json(schema_validator, data)
 
         # Processing on requests to generate graph and data map.
