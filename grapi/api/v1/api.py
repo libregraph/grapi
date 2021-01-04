@@ -264,6 +264,10 @@ class API(BaseAPI):
                 self.add_route(user + '/events/{itemid}/accept', events, suffix="accept_event")
                 self.add_route(user + '/events/{itemid}/decline', events, suffix="decline_event")
                 self.add_route(user + '/events/{itemid}/instances', events, suffix="instances")
+                self.add_route(user + '/events/{itemid}/tentativelyAccept',
+                               events, suffix="tentatively_accept_by_eventid")
+                self.add_route(user + '/calendar/events/{itemid}/tentativelyAccept',
+                               events, suffix="tentatively_accept_by_eventid")
 
                 self.add_route(user + '/calendar/events', events, suffix="events")
                 self.add_route(user + '/calendar/events/{itemid}', events, suffix="by_eventid")
@@ -278,7 +282,10 @@ class API(BaseAPI):
                                suffix="decline_event_by_folderid")
                 self.add_route(user + '/calendars/{folderid}/events/{itemid}/instances', events,
                                suffix="instances_by_folderid")
-                self.add_route(user + '/calendars/{folderid}/events/{itemid}', events, suffix="by_folderid_eventid")
+                self.add_route(user + '/calendars/{folderid}/events/{itemid}/tentativelyAccept',
+                               events, suffix="tentatively_accept_by_folderid_eventid")
+                self.add_route(user + '/calendars/{folderid}/events/{itemid}',
+                               events, suffix="by_folderid_eventid")
 
                 # Event attachments
                 self.add_route(user + '/events/{itemid}/attachments',

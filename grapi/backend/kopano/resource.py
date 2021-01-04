@@ -2,6 +2,7 @@
 import datetime
 import logging
 import time
+from collections.abc import Callable
 
 import dateutil.parser
 import pytz
@@ -150,6 +151,8 @@ class Resource(BaseResource):
         for f in fields:
             accessor = all_fields.get(f, None)
             if accessor is not None:
+                if not isinstance(accessor, Callable):
+                    continue
                 if accessor.__code__.co_argcount == 1:
                     # TODO(longsleep): Remove this mode of operation.
                     result[f] = accessor(obj)
@@ -204,6 +207,53 @@ class Resource(BaseResource):
             logging.exception("failed to marshal %s JSON response", req.path)
         yield b'\n  ]\n}'
 
+    def serialize_tuple(self, req, items, top, skip, delta_link, add_count=False):
+        """Serialize tuple data structure for streaming out.
+
+        Args:
+            req (Request): Falcon request object.
+            items (Tuple[Tuple[Item,Dict]]): items data.
+            top (int): $top number.
+            skip (int): $skip number.
+            delta_link (str): delta link.
+            add_count (bool): adding count of result items.
+
+        Returns:
+            yield of generated data which is suitable for streaming out.
+        """
+        header = b'{\n'
+        header += b'  "@odata.context": "%s",\n' % req.path.encode('utf-8')
+        if add_count:
+            header += b'  "@odata.count": "%d",\n' % len(items)
+        if delta_link:
+            header += b'  "@odata.deltaLink": "%s",\n' % delta_link
+        else:
+            if req.query_string:
+                args = self.parse_qs(req)
+                if '$skip' in args:
+                    del args['$skip']
+            else:
+                args = {}
+            args['$skip'] = skip + top
+            next_link = req.path + '?' + _encode_qs(list(args.items()))
+            header += b'  "@odata.nextLink": "%s",\n' % (_dumpb_json(next_link)[1:-1])
+        header += b'  "value": [\n'
+        yield header
+
+        first = True
+        try:
+            for item in items:
+                item_data, item_fields = item
+                if not first:
+                    yield b',\n'
+                first = False
+                fields = item_fields.keys()
+                wa = self.json(req, item_data, fields, item_fields, multi=True)
+                yield b'\n'.join([b'    ' + line for line in wa.splitlines()])
+        except TypeError:
+            logging.exception("failed to marshal %s JSON response", req.path)
+        yield b'\n  ]\n}'
+
     def _get_fields(self, data, is_select_query=False):
         """Return fields based on fetched data.
 
@@ -238,7 +288,6 @@ class Resource(BaseResource):
         if all_fields is None:
             all_fields = self._get_fields(obj, is_select_query)
 
-        resp.content_type = "application/json"
         prefer_body_content_type = req.context.prefer.get('outlook.body-content-type', raw=True)
         if prefer_body_content_type in ('text', 'html'):
             req.context.prefer.update('outlook.body-content-type', prefer_body_content_type)
@@ -247,8 +296,16 @@ class Resource(BaseResource):
         if isinstance(obj, tuple):
             obj, top, skip, count = obj
             add_count = '$count' in args and args['$count'][0] == 'true'
+            resp.stream = self.json_multi(
+                req, obj, fields, all_fields, top, skip, count, deltalink, add_count
+            )
 
-            resp.stream = self.json_multi(req, obj, fields, all_fields, top, skip, count, deltalink, add_count)
+        elif isinstance(obj, list):
+            add_count = '$count' in args and args['$count'][0] == 'true'
+            top, skip, count, *items = obj
+            resp.stream = self.serialize_tuple(
+                req, items, top, skip, deltalink, add_count
+            )
 
         # single object
         else:
