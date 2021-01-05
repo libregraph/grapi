@@ -12,7 +12,6 @@ import socket
 import sys
 import threading
 import time
-import warnings
 from functools import partial
 
 import bjoern
@@ -383,7 +382,7 @@ class Server:
             logging.debug("translations available for: '%s'", ', '.join(self.translations.keys()))
 
         if not UJSON:
-            warnings.warning('ujson module is not available, falling back to slower stdlib json implementation')
+            logging.warning('ujson module is not available, falling back to slower stdlib json implementation')
 
         logging.info('starting kopano-mfr')
 
