@@ -670,7 +670,7 @@ class SubscriptionResource(Resource):
 
         resp.body = _dumpb_json(data)
 
-    def on_get_subscriptions_by_id(self, req, resp, s_id):
+    def on_get_subscriptions_by_id(self, req, resp, subscriptionid):
         """Handle GET request - return by subscription ID.
 
         Args:
@@ -680,17 +680,27 @@ class SubscriptionResource(Resource):
         """
         record = _record(req, self.options)
         try:
-            subscription, sink, userid = record.subscriptions[s_id]
+            subscription, sink, userid = record.subscriptions[subscriptionid]
         except KeyError:
             raise utils.HTTPNotFound()
         data = _export_subscription(subscription)
         resp.body = _dumpb_json(data)
 
-    def on_patch_subscriptions_by_id(self, req, resp, s_id):
+    def on_patch_subscriptions_by_id(self, req, resp, subscriptionid):
+        """Handle PATCH request on the defined subscription.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            subscriptionid (str): subscription ID.
+
+        Raises:
+            utils.HTTPBadRequest: when expirationDateTime doesn't have a valid format.
+        """
         record = _record(req, self.options)
 
         try:
-            subscription, sink, _ = record.subscriptions[s_id]
+            subscription, sink, _ = record.subscriptions[subscriptionid]
         except KeyError:
             resp.status = falcon.HTTP_404
             return
@@ -708,26 +718,33 @@ class SubscriptionResource(Resource):
 
         if sink.expired:
             sink.expired = False
-            logging.debug('subscription updated before it expired, id:%s', s_id)
+            logging.debug('subscription updated before it expired, id:%s', subscriptionid)
 
         data = _export_subscription(subscription)
 
         resp.content_type = "application/json"
         resp.body = _dumpb_json(data)
 
-    def on_delete_subscriptions_by_id(self, req, resp, s_id):
+    def on_delete_subscriptions_by_id(self, req, resp, subscriptionid):
+        """Handle DELETE request on the defined subscription.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            subscriptionid (str): subscription ID.
+        """
         record = _record(req, self.options)
         store = record.store
 
         try:
-            sink = record.subscriptions.pop(s_id)[1]
+            sink = record.subscriptions.pop(subscriptionid)[1]
         except KeyError:
             resp.status = falcon.HTTP_404
             return
 
         store.unsubscribe(sink)
 
-        logging.debug('subscription deleted, id:%s', s_id)
+        logging.debug('subscription deleted, id:%s', subscriptionid)
 
         if self.options and self.options.with_metrics:
             SUBSCR_ACTIVE.dec(1)

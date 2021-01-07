@@ -214,5 +214,5 @@ class API(BaseAPI):
             subscription_resource = BackendResource(notification, 'SubscriptionResource')
 
             self.add_route(PREFIX + '/subscriptions', subscription_resource)
-            self.add_route(PREFIX + '/subscriptions/{s_id}',
+            self.add_route(PREFIX + '/subscriptions/{subscriptionid}',
                            subscription_resource, suffix="subscriptions_by_id")
