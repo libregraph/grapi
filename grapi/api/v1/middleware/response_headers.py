@@ -7,7 +7,7 @@ class ResponseHeaders:
 
     def process_response(self, req, resp, resource, req_succeeded):
         """Built-in Falcon middleware method."""
-        if resp.status == falcon.HTTP_204:
+        if resp.status == falcon.HTTP_204 or resp.status == falcon.HTTP_404:
             return
 
         resp.content_type = "application/json"
