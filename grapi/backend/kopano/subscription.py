@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+"""Subscription implementation."""
 import codecs
 import collections
 import datetime
@@ -30,7 +31,6 @@ try:
 except ImportError:  # pragma: no cover
     PROMETHEUS = False
 
-
 # TODO don't block on sending updates
 # TODO async subscription validation
 # TODO restarting app/server?
@@ -44,13 +44,14 @@ kopano.set_bin_encoding('base64')
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
-# threadLock is a global lock which can be used to protect the global
+# thread_lock is a global lock which can be used to protect the global
 # states in this file.
-threadLock = Lock()
+thread_lock = Lock()
 
 # RECORDS hold the named tuple Record values for users which have active
 # subscriptions.
 RECORDS = {}
+
 # RECORD_INDEX is incremented whenever a active subscription gets replaced
 # and the incremented value is appended to the key of the record in RECRODS
 # to allow it to be cleaned up later.
@@ -58,26 +59,29 @@ RECORD_INDEX = 0
 
 # Global request session, to reuse connections.
 REQUEST_SESSION = requests.Session()
-REQUEST_SESSION.cookies = requests.cookies.RequestsCookieJar(http.cookiejar.DefaultCookiePolicy(allowed_domains=[]))
-REQUEST_SESSION.max_redirects = 3
-REQUEST_HTTPS_ADAPTER = requests.adapters.HTTPAdapter(pool_maxsize=1024)  # TODO(longsleep): Add configuration for pool sizes.
-REQUEST_SESSION.mount('https://', REQUEST_HTTPS_ADAPTER)
+REQUEST_SESSION.cookies = requests.cookies.RequestsCookieJar(
+    http.cookiejar.DefaultCookiePolicy(allowed_domains=[])
+)
+REQUEST_SESSION.max_redirects = config.SUBSCRIPTION_REQUEST_MAX_REDIRECT
+REQUEST_HTTPS_ADAPTER = requests.adapters.HTTPAdapter(
+    pool_maxsize=config.SUBSCRIPTION_REQUEST_POOL_MAXSIZE
+)
+REQUEST_SESSION.mount(
+    config.SUBSCRIPTION_REQUEST_SESSION_PREFIX, REQUEST_HTTPS_ADAPTER
+)
 
 # API to get access to all routes.
 _API = API()
 
-
-class Record:
-    """Record binds subscription and conection information per user.
-
-    It's for easy painless access to its members.
-    """
-
-    def __init__(self, server, user, store, subscriptions):
-        self.server = server
-        self.user = user
-        self.store = store
-        self.subscriptions = subscriptions
+NotificationRecord = collections.namedtuple('NotificationRecord', [
+    'subscriptionId',
+    'clientState',
+    'changeType',
+    'resource',
+    'dataType',
+    'url',
+    'id',
+])
 
 
 if PROMETHEUS:
@@ -93,24 +97,76 @@ if PROMETHEUS:
     PROCESSOR_POOL_GAUGE = Gauge('kopano_mfr_kopano_webhook_pools', 'Current number of webhook pools')
 
 
-def _server(auth_user, auth_pass, oidc=False, reconnect=False):
-    server = kopano.Server(auth_user=auth_user, auth_pass=auth_pass,
-                           notifications=True, parse_args=False, store_cache=False, oidc=oidc, config={})
-    logging.info('server connection established, server:%s, auth_user:%s', server, server.auth_user)
+class Record:
+    """Record binds subscription and conection information per user."""
 
+    def __init__(self, server, user, store, subscriptions):
+        """Python built-in method.
+
+        Args:
+            server (Server): Kopano server instance.
+            user (User): user object.
+            store (Store): user's store object.
+            subscriptions (Dict): subscriptions data.
+        """
+        self.server = server
+        self.user = user
+        self.store = store
+        self.subscriptions = subscriptions
+
+
+def _server(auth_user, auth_pass, oidc=False):
+    """Connect to a Kopano server.
+
+    Args:
+        auth_user (str): authentication username.
+        auth_pass (str): authentication password.
+        oidc (bool): is it OIDC or not. Defaults to False.
+
+    Returns:
+        kopano.Server: a instance of the Kopano Server.
+    """
+    server = kopano.server(
+        auth_user=auth_user,
+        auth_pass=auth_pass,
+        notifications=True,
+        parse_args=False,
+        store_cache=False,
+        oidc=oidc,
+        config={}
+    )
+    logging.info(
+        "server connection established, server:%s, auth_user:%s", server, server.auth_user
+    )
     return server
 
 
 def _basic_auth(username, password):
+    """Basic authentication.
+
+    Args:
+        username (str): authentication username.
+        password (str): authentication password.
+
+    Returns:
+        Record: authenticated data (e.g. store, user, and ...)
+    """
     server = _server(username, password)
     user = server.user(username)
     return Record(server=server, user=user, store=user.store, subscriptions={})
 
 
 def _record(req, options):
-    """
-    Return the record matching the provided request. If no record is found, a
-    new one is created.
+    """Return the record matching the provided request.
+
+    If no record is found, a new one is created.
+
+    Args:
+        req (Request): Falcon request object.
+        options (Options): deployment options.
+
+    Returns:
+        Record: record matching the provided request.
     """
     global RECORD_INDEX
     global RECORDS
@@ -130,33 +186,38 @@ def _record(req, options):
     elif auth['method'] == 'basic':  # basic auth for tests
         return _basic_auth(codecs.decode(auth['user'], 'utf8'), auth['password'])
 
-    with threadLock:
+    with thread_lock:
         record = RECORDS.get(auth_userid)
     if record is not None:
         try:
             user = record.server.user(userid=auth_userid)
             return record
-        except Exception:  # server restart: try to reconnect TODO check kc_session_restore (incl. notifs!)
-            logging.exception('network or session error while getting user from server, reconnect automatically')
-            oldRecord = None
-            oldSubscriptions = None
-            with threadLock:
-                oldRecord = RECORDS.pop(auth_userid, None)
-                if oldRecord:
-                    oldSubscriptions = oldRecord.subscriptions.copy()
-                    oldRecord.subscriptions.clear()
+        except Exception:
+            # server restart: try to reconnect TODO check kc_session_restore (incl. notifs!)
+            logging.exception(
+                "network or session error while getting user from server, reconnect automatically"
+            )
+            old_record = None
+            old_subscriptions = None
+            with thread_lock:
+                old_record = RECORDS.pop(auth_userid, None)
+                if old_record:
+                    old_subscriptions = old_record.subscriptions.copy()
+                    old_record.subscriptions.clear()
                     RECORD_INDEX += 1
-                    RECORDS['{}_dangle_{}'.format(auth_userid, RECORD_INDEX)] = oldRecord
+                    RECORDS['{}_dangle_{}'.format(auth_userid, RECORD_INDEX)] = old_record
 
-            if oldSubscriptions:
+            if old_subscriptions:
                 # Instantly kill of subscriptions.
-                for subscriptionid, (_, sink, _) in oldSubscriptions.items():
+                for subscriptionid, (_, sink, _) in old_subscriptions.items():
                     sink.unsubscribe()
-                    logging.debug('subscription cleaned up after connection error, id:%s', subscriptionid)
+                    logging.debug(
+                        'subscription cleaned up after connection error, id:%s', subscriptionid
+                    )
                     if options and options.with_metrics:
                         SUBSCR_ACTIVE.dec(1)
-                oldSubscriptions = None
-            if oldRecord and options and options.with_metrics:
+                old_subscriptions = None
+            if old_record and options and options.with_metrics:
                 DANGLING_COUNT.inc()
 
     logging.debug('creating subscription session for user %s', auth_userid)
@@ -165,25 +226,13 @@ def _record(req, options):
     store = user.store
 
     record = Record(server=server, user=user, store=store, subscriptions={})
-    with threadLock:
+    with thread_lock:
         RECORDS.update({auth_userid: record})
-
         return RECORDS.get(auth_userid)
 
 
-NotificationRecord = collections.namedtuple('NotificationRecord', [
-    'subscriptionId',
-    'clientState',
-    'changeType',
-    'resource',
-    'dataType',
-    'url',
-    'id',
-])
-
-
 class LastUpdatedOrderedDict(collections.OrderedDict):
-    '''Store items in the order the keys were last added.'''
+    """Store items in the order the keys were last added."""
 
     def __setitem__(self, key, value):
         if key in self:
@@ -191,70 +240,106 @@ class LastUpdatedOrderedDict(collections.OrderedDict):
         collections.OrderedDict.__setitem__(self, key, value)
 
 
+def new_record(subscription, notification):
+    """Create and return a new notification record.
+
+    Args:
+        subscription (Dict): subscription info.
+        notification (Notification): an instance of a notification.
+
+    Returns:
+        NotificationRecord: new notification record.
+    """
+    if subscription['_datatype'] == 'event':
+        event_id = notification.object.eventid
+    else:
+        event_id = notification.object.entryid
+
+    return NotificationRecord(
+        subscriptionId=subscription['id'],
+        clientState=subscription['clientState'],
+        changeType=notification.event_type,
+        resource=subscription['resource'],
+        dataType=subscription['_datatype'],
+        url=subscription['notificationUrl'],
+        id=event_id,
+    )
+
+
+def gen_notification(record):
+    """Return notification data structure based on record.
+
+    Args:
+        record (Record): an instance of a record.
+
+    Returns:
+        Dict: notification data.
+    """
+    return {
+        'subscriptionId': record.subscriptionId,
+        'clientState': record.clientState,
+        'changeType': record.changeType,
+        'resource': record.resource,
+        'resourceData': {
+            '@data.type': '#Microsoft.Graph.%s' % record.dataType,
+            'id': record.id,
+        },
+    }
+
+
 class SubscriptionProcessor(Thread):
+    """Process tasks in background."""
 
     _queue = None
 
     def __init__(self, options, queue):
-        Thread.__init__(self, name='kopano_subscription_processor')
-        utils.set_thread_name(self.name)
+        """Built-in Python method.
+
+        Args:
+            options (Namespace): deployment options.
+            queue (Queue): task queue.
+        """
         self.options = options
         self._queue = queue
+
+        Thread.__init__(self, name='kopano_subscription_processor')
+        utils.set_thread_name(self.name)
         self.daemon = True
-
-    def _record(self, subscription, notification):
-        return NotificationRecord(
-            subscriptionId=subscription['id'],
-            clientState=subscription['clientState'],
-            changeType=notification.event_type,
-            resource=subscription['resource'],
-            dataType=subscription['_datatype'],
-            url=subscription['notificationUrl'],
-            id=notification.object.eventid if subscription['_datatype'] == 'Event' else notification.object.entryid,
-        )
-
-    def _notification(self, record):
-        return {
-            'subscriptionId': record.subscriptionId,
-            'clientState': record.clientState,
-            'changeType': record.changeType,
-            'resource': record.resource,
-            'resourceData': {
-                '@data.type': '#Microsoft.Graph.%s' % record.dataType,
-                'id': record.id,
-            },
-        }
 
     def run(self):
         # Store all pending records in their order.
         pending = LastUpdatedOrderedDict()
-        # Ts is used to keep track of the last action, allowing debounce.
+        # ts is used to keep track of the last action, allowing debounce.
         ts = 0
-        debounceDelay = 1
+        debounce_delay = 1
+
         while True:
-            waitingItems = len(pending)
+            waiting_items = len(pending)
             try:
                 # Get queue entries, either blocking or with timeout. A timeout is used when records
                 # are already pending.
-                store, notification, subscription = self._queue.get(
-                    block=True, timeout=debounceDelay if waitingItems else None
+                _, notification, subscription = self._queue.get(
+                    timeout=debounce_delay if waiting_items else None
                 )
-                record = self._record(subscription, notification)
-                # Add record to pending sorted dict. This also changes the position of existing records to the end.
+                record = _record(subscription, notification)
+
+                # Add record to pending sorted dict.
+                # This also changes the position of existing records to the end.
                 pending[record] = True
                 now = time.monotonic()
-                if not waitingItems:
+                if not waiting_items:
                     # Nothing was waiting before, reset ts and wait.
                     ts = now
                     continue
-                if now - ts < debounceDelay:
+                if now - ts < debounce_delay:
                     # Delay is not reached, wait longer.
                     continue
                 # If we get here, all pending records will be processed.
             except Empty:
-                if not waitingItems:
+                if not waiting_items:
                     continue
-                # If we get here, it means items are pending and no more have been coming, pending records will be processed.
+                # If we get here, it means items are pending and no more have been coming,
+                # pending records will be processed.
 
             verify = not self.options or not self.options.insecure
             with_metrics = self.options and self.options.with_metrics
@@ -267,21 +352,23 @@ class SubscriptionProcessor(Thread):
                 try:
                     if with_metrics:
                         POST_COUNT.inc()
-                    logging.debug('subscription notification, id:%s, url:%s', record.subscriptionId, record.url)
+                    logging.debug(
+                        'subscription notification, id:%s, url:%s',
+                        record.subscriptionId, record.url
+                    )
                     # TODO(longsleep): This must be asynchronous or a queue per notificationUrl.
-                    # TODO(longsleep): Make timeout configuration.
                     if with_metrics:
                         with POST_HIST.time():
                             REQUEST_SESSION.post(
                                 record.url,
-                                json=self._notification(record),
+                                json=gen_notification(record),
                                 timeout=config.SUBSCRIPTION_NOTIFY_TIMEOUT,
                                 verify=verify
                             )
                     else:
                         REQUEST_SESSION.post(
                             record.url,
-                            json=self._notification(record),
+                            json=gen_notification(record),
                             timeout=config.SUBSCRIPTION_NOTIFY_TIMEOUT,
                             verify=verify
                         )
@@ -289,7 +376,10 @@ class SubscriptionProcessor(Thread):
                     # TODO(longsleep): Retry response errors.
                     if with_metrics:
                         POST_ERRORS.inc()
-                    logging.exception('subscription notification failed, id:%s, url:%s', record.subscriptionId, record.url)
+                    logging.exception(
+                        "subscription notification failed, id:%s, url:%s",
+                        record.subscriptionId, record.url
+                    )
 
             # All done, clear for next round.
             pending.clear()
@@ -297,21 +387,30 @@ class SubscriptionProcessor(Thread):
 
 
 class SubscriptionPurger(Thread):
+    """Subscription cleaner."""
 
     _queue = None
 
     def __init__(self, options, queue):
-        Thread.__init__(self, name='kopano_subscription_purger')
-        utils.set_thread_name(self.name)
+        """Built-in Python method.
+
+        Args:
+            options (Namespace): deployment options.
+            queue (Queue): task queue.
+        """
         self.options = options
         self._queue = queue
+
+        Thread.__init__(self, name='kopano_subscription_purger')
+        utils.set_thread_name(self.name)
         self.daemon = True
         self.exit = Event()
 
     def run(self):
+        """Built-in Thread method."""
         expired = {}
         purge = []
-        while not self.exit.wait(timeout=60):
+        while not self.exit.wait(timeout=config.SUBSCRIPTION_EXIT_WAIT_TIMEOUT):
             # NOTE(longsleep): Periodically update some metrics since callbacks
             # do not get triggerd in multiprocess mode. To get the information
             # we trigger it manually.
@@ -319,8 +418,7 @@ class SubscriptionPurger(Thread):
                 QUEUE_SIZE_GAUGE.set(self._queue.qsize())
                 PROCESSOR_POOL_GAUGE.set(len(REQUEST_HTTPS_ADAPTER.poolmanager.pools.keys()))
 
-            records = RECORDS
-            for auth_username, record in records.items():
+            for auth_username, record in RECORDS.items():
                 subscriptions = record.subscriptions
                 now = datetime.datetime.now(tz=datetime.timezone.utc)
                 for subscriptionid, (subscription, sink, _) in subscriptions.items():
@@ -342,16 +440,20 @@ class SubscriptionPurger(Thread):
                                 SUBSCR_EXPIRED.inc()
                                 SUBSCR_ACTIVE.dec(1)
                         except Exception:
-                            logging.exception('failed to clean up subscription, id:%s', subscriptionid)
+                            logging.exception(
+                                'failed to clean up subscription, id:%s', subscriptionid
+                            )
                 if len(subscriptions) == 0:
-                    logging.debug('cleaning up user without any subscriptions, auth_user:%s', auth_username)
+                    logging.debug(
+                        'cleaning up user without any subscriptions, auth_user:%s', auth_username
+                    )
                     purge.append((auth_username, record))
 
-            with threadLock:
+            with thread_lock:
                 for (auth_username, record) in purge:
-                    currentRecord = records[auth_username]
+                    currentRecord = RECORDS[auth_username]
                     if currentRecord is record:
-                        del records[auth_username]
+                        del RECORDS[auth_username]
                     # NOTE(longsleep): Clear record references to ensure that
                     # the associated objects can be destroyed and the notification
                     # thread is stopped.
@@ -360,21 +462,34 @@ class SubscriptionPurger(Thread):
                     record.server = None
 
             expired.clear()
-            del purge[:]
+            purge.clear()
 
 
 class SubscriptionSink:
+    """Main observer class which needs to be passed to 'subscribe' method of a folder."""
 
     _queue = None
 
     def __init__(self, store, options, subscription, queue):
+        """Built-in Python method.
+
+        Args:
+            store (Store): user store object.
+            options (Option): deployment options.
+        """
         self.store = store
         self.options = options
         self.subscription = subscription
         self._queue = queue
+
         self.expired = False
 
     def update(self, notification):
+        """Update method will be executed in each notifying action.
+
+        Args:
+            notification (Notification): notification action.
+        """
         if self.store is not None:
             while True:
                 try:
@@ -388,6 +503,7 @@ class SubscriptionSink:
                     time.sleep(1)
 
     def unsubscribe(self):
+        """Drop out an item from subscriptions list."""
         self.store.unsubscribe(self)
         self.store = None
 
@@ -459,16 +575,32 @@ def _subscription_object(store, resource, subscription_id):
 
 
 def _export_subscription(subscription):
+    """Export subscription.
+
+    Args:
+        subscription (Dict): list of subscriptions.
+
+    Returns:
+        Dict: generated an export subscription.
+    """
     return {a: b for a, b in subscription.items() if not a.startswith('_')}
 
 
 class SubscriptionResource(Resource):
+    """Subscription resource."""
 
     _queue = None
+
+    # Input schema validators.
     on_post_subscriptions_schema = subscription_schema.create_schema_validator
     on_patch_subscriptions_s_id_schema = subscription_schema.update_schema_validator
 
     def __init__(self, options):
+        """Built-in Python method.
+
+        Args:
+            options (Namespace): deployment options.
+        """
         super().__init__(options)
         self._queue = Queue(config.SUBSCRIPTION_QUEUE_MAXSIZE)
         SubscriptionProcessor(self.options, self._queue).start()
@@ -660,17 +792,18 @@ class SubscriptionResource(Resource):
         record = _record(req, self.options)
         userid = record.user.userid
         data = {
-                '@odata.context': req.path,
-                'value': [
-                    _export_subscription(subscription)
-                    for subscription, _, uid in record.subscriptions.values()
-                    if uid == userid
-                    ],  # TODO doesn't scale
-                }
+            '@odata.context': req.path,
+            'value': [
+                _export_subscription(subscription)
+                for subscription, _, uid in record.subscriptions.values()
+                if uid == userid
+            ],  # TODO doesn't scale
+        }
 
         resp.body = _dumpb_json(data)
+        resp.status = falcon.HTTP_200
 
-    def on_get_subscriptions_by_id(self, req, resp, subscriptionid):
+    def on_get_subscriptions_by_id(self, req, resp, s_id):
         """Handle GET request - return by subscription ID.
 
         Args:
@@ -680,27 +813,25 @@ class SubscriptionResource(Resource):
         """
         record = _record(req, self.options)
         try:
-            subscription, sink, userid = record.subscriptions[subscriptionid]
+            subscription = record.subscriptions[s_id][0]
         except KeyError:
             raise utils.HTTPNotFound()
         data = _export_subscription(subscription)
         resp.body = _dumpb_json(data)
+        resp.status = falcon.HTTP_200
 
-    def on_patch_subscriptions_by_id(self, req, resp, subscriptionid):
-        """Handle PATCH request on the defined subscription.
+    def on_patch_subscriptions_by_id(self, req, resp, s_id):
+        """Handle PATCH request.
 
         Args:
             req (Request): Falcon request object.
             resp (Response): Falcon response object.
             subscriptionid (str): subscription ID.
-
-        Raises:
-            utils.HTTPBadRequest: when expirationDateTime doesn't have a valid format.
         """
         record = _record(req, self.options)
 
         try:
-            subscription, sink, _ = record.subscriptions[subscriptionid]
+            subscription, sink, _ = record.subscriptions[s_id]
         except KeyError:
             resp.status = falcon.HTTP_404
             return
@@ -718,15 +849,14 @@ class SubscriptionResource(Resource):
 
         if sink.expired:
             sink.expired = False
-            logging.debug('subscription updated before it expired, id:%s', subscriptionid)
+            logging.debug('subscription updated before it expired, id:%s', s_id)
 
         data = _export_subscription(subscription)
-
-        resp.content_type = "application/json"
         resp.body = _dumpb_json(data)
+        resp.status = falcon.HTTP_200
 
-    def on_delete_subscriptions_by_id(self, req, resp, subscriptionid):
-        """Handle DELETE request on the defined subscription.
+    def on_delete_subscriptions_by_id(self, req, resp, s_id):
+        """Handle DELETE request for a specific subscription ID.
 
         Args:
             req (Request): Falcon request object.
@@ -737,14 +867,14 @@ class SubscriptionResource(Resource):
         store = record.store
 
         try:
-            sink = record.subscriptions.pop(subscriptionid)[1]
+            sink = record.subscriptions.pop(s_id)[1]
         except KeyError:
             resp.status = falcon.HTTP_404
             return
 
         store.unsubscribe(sink)
 
-        logging.debug('subscription deleted, id:%s', subscriptionid)
+        logging.debug('subscription deleted, id:%s', s_id)
 
         if self.options and self.options.with_metrics:
             SUBSCR_ACTIVE.dec(1)
