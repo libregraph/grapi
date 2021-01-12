@@ -409,17 +409,17 @@ def _detect_data_type(store, resource_name, folderid=None):
     """
     if resource_name == "MessageResource":
         return (
-            store.inbox if folderid is None else utils._folder(store, folderid.lower()),
+            store.inbox if folderid is None else utils._folder(store, folderid),
             ["mail"], "message", ["item"]
         )
     elif resource_name == "EventResource":
         return (
-            store.calendar if folderid is None else utils._folder(store, folderid.lower()),
+            store.calendar if folderid is None else utils._folder(store, folderid),
             ["calendar"], "event", ["item"]
         )
     elif resource_name == "ContactResource":
         return (
-            store.contacts if folderid is None else utils._folder(store, folderid.lower()),
+            store.contacts if folderid is None else utils._folder(store, folderid),
             ["contact"], "contact", ["item"]
         )
     else:
