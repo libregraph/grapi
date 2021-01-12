@@ -230,24 +230,35 @@ class MessageResource(ItemResource):
 
     # DELETE
 
-    def handle_delete(self, req, resp, store, itemid):
+    def on_delete_message_by_itemid(self, req, resp, itemid):
+        """Handle DELETE request on a specific message without defining folder ID.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            itemid (str): message ID.
+        """
+        store = req.context.server_store[1]
         item = _item(store, itemid)
-
         store.delete(item)
-
         self.respond_204(resp)
 
-    def on_delete(self, req, resp, userid=None, folderid=None, itemid=None, method=None):
-        handler = None
+    def on_delete_message_by_folderid(self, req, resp, folderid, itemid):
+        """Handle DELETE request on a specific message on a defined folder ID.
 
-        if not method:
-            handler = self.handle_delete
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): folder ID which contains the item ID.
+            itemid (str): message ID.
 
-        else:
-            raise HTTPBadRequest("Unsupported message segment '%s'" % method)
-
-        server, store, userid = req.context.server_store
-        handler(req, resp, store=store, itemid=itemid)
+        Note:
+            Based on MS Explorer result, it never validate folderid. So, we ignore it.
+        """
+        store = req.context.server_store[1]
+        item = _item(store, itemid)
+        store.delete(item)
+        self.respond_204(resp)
 
 
 class EmbeddedMessageResource(MessageResource):

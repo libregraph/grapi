@@ -128,7 +128,8 @@ class API(BaseAPI):
                 self.add_route(user + '/mailFolders/{folderid}/messages', messages, suffix="messages_by_folderid")
                 self.add_route(user + '/mailFolders(\'{folderid}\')/messages',
                                messages, suffix="messages_by_folderid")
-                self.add_route(user + '/mailFolders/{folderid}/messages/{itemid}', messages)
+                self.add_route(user + '/mailFolders/{folderid}/messages/{itemid}',
+                               messages, suffix="message_by_folderid")
 
                 # Message attachments
                 self.add_route(user + '/messages/{itemid}/attachments',
