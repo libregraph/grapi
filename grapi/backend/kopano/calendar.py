@@ -70,8 +70,17 @@ class CalendarResource(FolderResource):
         data = self.generator(req, yielder)
         self.respond(req, resp, data, EventResource.fields)
 
-    def on_get(self, req, resp, userid=None, folderid=None):
-        raise HTTPBadRequest("Unsupported in calendar")
+    def on_get_calendar_by_folderid(self, req, resp, folderid):
+        """Get a calendar folder by folder ID.
+
+        Args:
+            req (Request): Falcon request object.
+            req (Response): Falcon response object.
+            folderid (str): folder ID.
+        """
+        store = req.context.server_store[1]
+        folder = _folder(store, folderid)
+        self.respond(req, resp, folder, self.fields)
 
     # POST
 

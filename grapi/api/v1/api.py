@@ -165,7 +165,8 @@ class API(BaseAPI):
             for user in (PREFIX + '/me', PREFIX + '/users/{userid}'):
                 self.add_route(user + '/calendar', calendars, suffix="calendar")
                 self.add_route(user + '/calendars', calendars, suffix="calendars")
-                self.add_route(user + '/calendars/{folderid}', calendars)
+                self.add_route(user + '/calendars/{folderid}',
+                               calendars, suffix="calendar_by_folderid")
 
                 self.add_route(user + '/events', events, suffix="events")
                 self.add_route(user + '/events/{itemid}', events, suffix="by_eventid")
