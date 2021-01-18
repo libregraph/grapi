@@ -16,7 +16,7 @@ create_schema = {
         },
         "lifecycleNotificationUrl": {
             "type": "string",
-            "pattern": "https://\\w+",
+            "pattern": "http(s)?://\\w+",
         },
         "resource": {
             "type": "string",
