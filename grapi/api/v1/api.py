@@ -178,6 +178,7 @@ class API(BaseAPI):
                 self.add_route(user + '/calendar/events/{itemid}', events, suffix="by_eventid")
                 self.add_route(user + '/calendar/events/{itemid}/accept', events, suffix="accept_event")
                 self.add_route(user + '/calendar/events/{itemid}/decline', events, suffix="decline_event")
+                self.add_route(user + '/calendar/events/{itemid}/instances', events, suffix="instances")
 
                 self.add_route(user + '/calendars/{folderid}/events', events, suffix="by_folderid")
                 self.add_route(user + '/calendars/{folderid}/events/{itemid}/accept', events,
