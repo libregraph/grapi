@@ -98,6 +98,22 @@ class MessageResource(ItemResource):
         item = _item(store.inbox, itemid)
         self.respond(req, resp, item)
 
+    def on_get_message_by_folderid(self, req, resp, folderid, itemid):
+        """Get a message by folder ID.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): folder ID.
+            itemid (str): message ID.
+
+        Note:
+            Based on MS Explorer result, it never validate folderid. So, we ignore it.
+        """
+        store = req.context.server_store[1]
+        item = _item(store, itemid)
+        self.respond(req, resp, item)
+
     def on_get_messages_by_folderid(self, req, resp, folderid):
         store = req.context.server_store[1]
         data = _folder(store, folderid)
@@ -205,8 +221,8 @@ class MessageResource(ItemResource):
 
     # PATCH
 
-    def handle_patch(self, req, resp, store, folder, itemid):
-        item = _item(folder, itemid)
+    def _handle_patch(self, req, resp, store, itemid):
+        item = _item(store, itemid)
         fields = req.context.json_data
 
         for field, value in fields.items():
@@ -215,18 +231,31 @@ class MessageResource(ItemResource):
 
         self.respond(req, resp, item, MessageResource.fields)
 
-    def on_patch(self, req, resp, userid=None, folderid=None, itemid=None, method=None):
-        handler = None
+    def on_patch_message_by_folderid(self, req, resp, folderid, itemid):
+        """Patch a message by folder ID.
 
-        if not method:
-            handler = self.handle_patch
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): folder ID.
+            itemid (str): message ID.
 
-        else:
-            raise HTTPBadRequest("Unsupported message segment '%s'" % method)
+        Note:
+            Based on MS Explorer result, it never validate folderid. So, we ignore it.
+        """
+        store = req.context.server_store[1]
+        self._handle_patch(req, resp, store, itemid)
 
-        server, store, userid = req.context.server_store
-        folder = _folder(store, folderid or 'inbox')  # TODO all folders?
-        handler(req, resp, store=store, folder=folder, itemid=itemid)
+    def on_patch_message_by_itemid(self, req, resp, itemid):
+        """Patch a message by folder ID.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            itemid (str): message ID.
+        """
+        store = req.context.server_store[1]
+        self._handle_patch(req, resp, store, itemid)
 
     # DELETE
 
