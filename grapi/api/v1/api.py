@@ -196,10 +196,14 @@ class API(BaseAPI):
                                attachments, suffix="by_id")
                 self.add_route(user + '/events/{itemid}/attachments/{attachmentid}/$value',
                                attachments, suffix="binary_by_id")
+
+                self.add_route(user + '/calendar/events/{itemid}/attachments',
+                               attachments, suffix="by_id")
                 self.add_route(user + '/calendar/events/{itemid}/attachments/{attachmentid}',
                                attachments, suffix="by_id")
                 self.add_route(user + '/calendar/events/{itemid}/attachments/{attachmentid}/$value',
                                attachments, suffix="binary_by_id")
+
                 self.add_route(user + '/calendars/{folderid}/events/{itemid}/attachments',
                                attachments, suffix="in_folder_by_id")
                 self.add_route(user + '/calendars/{folderid}/events/{itemid}/attachments/{attachmentid}',
