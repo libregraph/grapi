@@ -14,7 +14,7 @@ KOPANO_SOCKET = 'file:///var/run/kopano/server.sock'
 
 def main(userid, socket, ssl_keyfile, ssl_pass):
     try:
-        server = kopano.Server(server_socket=socket, sslkey_file=ssl_keyfile, sslkey_pass=ssl_pass, parse_args=False)
+        server = kopano.server(server_socket=socket, sslkey_file=ssl_keyfile, sslkey_pass=ssl_pass, parse_args=False)
     except Exception as excinfo:
         print("Unable to connect to '{}', '{}'".format(socket, excinfo))
         sys.exit(-1)

@@ -167,7 +167,7 @@ def _server(req, options, forceReconnect=False):
 
         if not sessiondata:
             logging.debug('creating session for bearer token user %s', userid)
-            server = kopano.Server(auth_user=userid, auth_pass=token,
+            server = kopano.server(auth_user=userid, auth_pass=token,
                                    parse_args=False, store_cache=False, oidc=True, config={})
             store = kopano.Store(server=server, mapiobj=server.mapistore)
             record = Record(server=server, store=store)
@@ -186,7 +186,7 @@ def _server(req, options, forceReconnect=False):
 
     elif auth['method'] == 'basic':
         logging.debug('creating session for basic auth user %s', auth['user'])
-        server = kopano.Server(auth_user=auth['user'], auth_pass=auth['password'],
+        server = kopano.server(auth_user=auth['user'], auth_pass=auth['password'],
                                parse_args=False, store_cache=False, config={})
         store = kopano.Store(server=server, mapiobj=server.mapistore)
         if options and options.with_metrics:
@@ -224,7 +224,7 @@ def _server(req, options, forceReconnect=False):
 
         if not sessiondata:
             logging.debug('creating session for passthrough user %s', userid)
-            server = kopano.Server(userid=userid, auth_pass='',
+            server = kopano.server(userid=userid, auth_pass='',
                                    parse_args=False, store_cache=False, config={})
             store = kopano.Store(server=server, mapiobj=server.mapistore)
             record = Record(server=server, store=store)
