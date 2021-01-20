@@ -593,7 +593,7 @@ class SubscriptionResource(Resource):
 
     # Input schema validators.
     on_post_subscriptions_schema = subscription_schema.create_schema_validator
-    on_patch_subscriptions_s_id_schema = subscription_schema.update_schema_validator
+    on_patch_subscriptions_subscriptionid_schema = subscription_schema.update_schema_validator
 
     def __init__(self, options):
         """Built-in Python method.
@@ -803,7 +803,7 @@ class SubscriptionResource(Resource):
         resp.body = _dumpb_json(data)
         resp.status = falcon.HTTP_200
 
-    def on_get_subscriptions_by_id(self, req, resp, s_id):
+    def on_get_subscriptions_by_id(self, req, resp, subscriptionid):
         """Handle GET request - return by subscription ID.
 
         Args:
@@ -813,14 +813,14 @@ class SubscriptionResource(Resource):
         """
         record = _record(req, self.options)
         try:
-            subscription = record.subscriptions[s_id][0]
+            subscription = record.subscriptions[subscriptionid][0]
         except KeyError:
             raise utils.HTTPNotFound()
         data = _export_subscription(subscription)
         resp.body = _dumpb_json(data)
         resp.status = falcon.HTTP_200
 
-    def on_patch_subscriptions_by_id(self, req, resp, s_id):
+    def on_patch_subscriptions_by_id(self, req, resp, subscriptionid):
         """Handle PATCH request.
 
         Args:
@@ -831,7 +831,7 @@ class SubscriptionResource(Resource):
         record = _record(req, self.options)
 
         try:
-            subscription, sink, _ = record.subscriptions[s_id]
+            subscription, sink, _ = record.subscriptions[subscriptionid]
         except KeyError:
             resp.status = falcon.HTTP_404
             return
@@ -849,13 +849,13 @@ class SubscriptionResource(Resource):
 
         if sink.expired:
             sink.expired = False
-            logging.debug('subscription updated before it expired, id:%s', s_id)
+            logging.debug('subscription updated before it expired, id:%s', subscriptionid)
 
         data = _export_subscription(subscription)
         resp.body = _dumpb_json(data)
         resp.status = falcon.HTTP_200
 
-    def on_delete_subscriptions_by_id(self, req, resp, s_id):
+    def on_delete_subscriptions_by_id(self, req, resp, subscriptionid):
         """Handle DELETE request for a specific subscription ID.
 
         Args:
@@ -867,14 +867,14 @@ class SubscriptionResource(Resource):
         store = record.store
 
         try:
-            sink = record.subscriptions.pop(s_id)[1]
+            sink = record.subscriptions.pop(subscriptionid)[1]
         except KeyError:
             resp.status = falcon.HTTP_404
             return
 
         store.unsubscribe(sink)
 
-        logging.debug('subscription deleted, id:%s', s_id)
+        logging.debug('subscription deleted, id:%s', subscriptionid)
 
         if self.options and self.options.with_metrics:
             SUBSCR_ACTIVE.dec(1)
