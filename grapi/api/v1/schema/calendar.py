@@ -20,7 +20,7 @@ _get_schedule_schema = {
     },
     "properties": {
         "availabilityViewInterval": {
-            "type": "number",
+            "type": "integer",
             "minimum": 5,
             "maximum": 1440,
         },
