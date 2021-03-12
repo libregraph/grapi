@@ -158,6 +158,23 @@ def event_type(item):
         return 'singleInstance'
 
 
+def event_field_setter(event, attr_name, value):
+    """Event field setter.
+
+    Args:
+        event (Event): event object.
+        attr_name (str): attribute name.
+        value (Any): attribute's value.
+
+    Raises:
+        AttributeError: invalid attribute for an event.
+    """
+    if hasattr(event, attr_name):
+        setattr(event, attr_name, value)
+    else:
+        raise AttributeError("invalid event attribute: %s" % attr_name)
+
+
 class EventResource(ItemResource):
     fields = ItemResource.fields.copy()
     fields.update({
@@ -199,6 +216,7 @@ class EventResource(ItemResource):
         'recurrence': recurrence_set,
         'isAllDay': lambda item, arg: setattr(item, 'all_day', arg),
         'isReminderOn': lambda item, arg: setattr(item, 'reminder', arg),
+        'categories': lambda item, arg: event_field_setter(item, 'categories', arg),
         'reminderMinutesBeforeStart': lambda item, arg: setattr(item, 'reminder_minutes', arg),
         # 8.7.x does not have onlinemeetingurl attribute, so we must check if its there for compatibility
         'onlineMeetingUrl': lambda item, arg: setattr(item, 'onlinemeetingurl', arg) if hasattr(item, 'onlinemeetingurl') else None,

@@ -54,6 +54,13 @@ _create_schema = {
                 "unknown",
             ],
         },
+        "categories": {
+            "type": "array",
+            "uniqueItems": True,
+            "items": {
+                "type": "string"
+            },
+        },
     },
     "required": [
         "subject",

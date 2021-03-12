@@ -2,7 +2,7 @@
     "recurrence": null,
     "importance": "normal",
     "sensitivity": "normal",
-    "categories": [],
+    "categories": ["cat1", "cat2"],
     "isReminderOn": true,
     "iCalUId": null,
     "reminderMinutesBeforeStart": 30,
