@@ -321,7 +321,7 @@ class SubscriptionProcessor(Thread):
                 _, notification, subscription = self._queue.get(
                     timeout=debounce_delay if waiting_items else None
                 )
-                record = _record(subscription, notification)
+                record = new_record(subscription, notification)
 
                 # Add record to pending sorted dict.
                 # This also changes the position of existing records to the end.
