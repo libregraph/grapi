@@ -288,7 +288,14 @@ def gen_notification(record):
 
 
 class SubscriptionProcessor(Thread):
-    """Process tasks in background."""
+    """Process tasks in background.
+
+    This single worker thread is responsible for gathering all notifications
+    from the subscription queue and debouncing them before posting these
+    notifications to the corresponding notification url.
+
+    The queue is filled with notifications by the SubscriptionSink.
+    """
 
     _queue = None
 
@@ -387,7 +394,11 @@ class SubscriptionProcessor(Thread):
 
 
 class SubscriptionPurger(Thread):
-    """Subscription cleaner."""
+    """Subscription purger.
+
+    Cleans up expired subscriptions based on the subscriptions
+    expirationDateTime. One worker thread is spawned per grapi worker.
+    """
 
     _queue = None
 
