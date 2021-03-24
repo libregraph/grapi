@@ -602,9 +602,10 @@ class SubscriptionResource(Resource):
             options (Namespace): deployment options.
         """
         super().__init__(options)
-        self._queue = Queue(config.SUBSCRIPTION_QUEUE_MAXSIZE)
-        SubscriptionProcessor(self.options, self._queue).start()
-        SubscriptionPurger(self.options, self._queue).start()
+        if self.__class__._queue is None:
+            self.__class__._queue = Queue(config.SUBSCRIPTION_QUEUE_MAXSIZE)
+            SubscriptionProcessor(self.options, self.__class__._queue).start()
+            SubscriptionPurger(self.options, self.__class__._queue).start()
 
     @staticmethod
     def _clean_notification_url(notification_url, verify, subscription_id, auth_user):
