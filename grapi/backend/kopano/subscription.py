@@ -432,7 +432,7 @@ class SubscriptionPurger(Thread):
             for auth_username, record in RECORDS.items():
                 subscriptions = record.subscriptions
                 now = datetime.datetime.now(tz=datetime.timezone.utc)
-                for subscriptionid, (subscription, sink, _) in subscriptions.items():
+                for subscriptionid, (subscription, sink, _) in list(subscriptions.items()):
                     expirationDateTime = dateutil.parser.parse(subscription['expirationDateTime'])
                     if expirationDateTime <= now:
                         logging.debug('subscription expired, id:%s', subscriptionid)
