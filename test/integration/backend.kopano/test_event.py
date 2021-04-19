@@ -26,6 +26,7 @@ def test_create_event(client, user, json_event, url):
     assert response.status_code == 200
     assert 'id' in response.json
     assert response.json['@odata.context'] == url
+    assert response.json['showAs'] == 'busy'
 
 
 @pytest.mark.parametrize("url", URLS)

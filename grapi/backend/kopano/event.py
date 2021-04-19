@@ -220,6 +220,7 @@ class EventResource(ItemResource):
         'reminderMinutesBeforeStart': lambda item, arg: setattr(item, 'reminder_minutes', arg),
         # 8.7.x does not have onlinemeetingurl attribute, so we must check if its there for compatibility
         'onlineMeetingUrl': lambda item, arg: setattr(item, 'onlinemeetingurl', arg) if hasattr(item, 'onlinemeetingurl') else None,
+        'showAs': lambda item, arg: setattr(item, 'busystatus', arg)
     }
 
     # TODO delta functionality seems to include expanding recurrences!? check with MSGE
