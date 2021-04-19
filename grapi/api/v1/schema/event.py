@@ -17,6 +17,46 @@ _create_schema = {
                 },
             },
         },
+        "physical_address": {
+            "type": "object",
+            "properties": {
+                "city": {
+                    "type": "string",
+                },
+                "countryOrRegion": {
+                    "type": "string",
+                },
+                "postalCode": {
+                    "type": "string",
+                },
+                "state": {
+                    "type": "string",
+                },
+                "street": {
+                    "type": "string",
+                },
+            },
+        },
+        "coordinates": {
+            "type": "object",
+            "properties": {
+                "accuracy": {
+                    "type": "number",
+                },
+                "altitude": {
+                    "type": "number",
+                },
+                "altitudeAccuracy": {
+                    "type": "number",
+                },
+                "latitude": {
+                    "type": "number",
+                },
+                "longitude": {
+                    "type": "number",
+                },
+            }
+        }
     },
     "properties": {
         "subject": {
@@ -59,6 +99,35 @@ _create_schema = {
             "uniqueItems": True,
             "items": {
                 "type": "string"
+            },
+        },
+        "location": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "$ref": "#/definitions/physical_address",
+                },
+                "coordinates": {
+                    "$ref": "#/definitions/coordinates",
+                },
+                "displayName": {
+                    "type": "string"
+                },
+                "locationEmailAddress": {
+                    "type": "string"
+                },
+                "locationUri": {
+                    "type": "string"
+                },
+                "locationType": {
+                    "type": "string"
+                },
+                "uniqueId": {
+                    "type": "string"
+                },
+                "uniqueIdType": {
+                    "type": "string"
+                },
             },
         },
     },
