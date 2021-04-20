@@ -270,6 +270,12 @@ class SessionPurger(Thread):
 
 
 def _server_store(req, userid, options, forceReconnect=False):
+    """Obtains the server and store based on the passed req and options.
+    When a userid is provided the user and store object is resolved to
+    the userid's user and store. The resolved user/store can be different from
+    the logged in user/store for example for the /users/$username/events endpoint.
+    """
+
     try:
         try:
             record = _server(req, options, forceReconnect=forceReconnect)
