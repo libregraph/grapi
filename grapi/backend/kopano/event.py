@@ -471,12 +471,19 @@ class EventResource(ItemResource):
         server, store, userid = req.context.server_store
         folder = _folder(store, folderid)
         event = self.get_event(folder, itemid)
+        userstore = req.context.user_store
+
+        try:
+            delegate = store.user.delegation(userstore.user)
+        except kopano.errors.NotFoundError:
+            delegate = None
 
         # # If meeting is organised, sent cancellation
         if self.fields['isOrganizer'](req, event):
             event.cancel()
             # TODO: implemented sending a cancellation as delegate using it's outbox folder.
-            event.send()
+            if not delegate:
+                event.send()
 
         folder.delete(event)
         self.respond_204(resp)
