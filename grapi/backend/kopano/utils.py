@@ -316,7 +316,7 @@ def _server_store(req, userid, options, forceReconnect=False):
             logging.exception('network or session (%s) error while getting store for user %s, forcing reconnect', id(server), userid)
             return _server_store(req, userid, options, forceReconnect=True)
 
-        return server, store, userid
+        return server, store, userid, record.store
 
     except (kopano.LogonError, kopano.NotFoundError, MAPIErrorNoAccess, MAPIErrorUnconfigured):
         logging.info('logon failed for user %s for request %s', req.context.userid, req.path, exc_info=True)

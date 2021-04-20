@@ -175,6 +175,25 @@ def event_field_setter(event, attr_name, value):
         raise AttributeError("invalid event attribute: %s" % attr_name)
 
 
+def is_event_organizer(req, item):
+    """Set to true if the calendar owner is the organizer of the event.
+    This also applies if a delegate organized the event on behalf of the owner.
+    """
+
+    if item.from_.email != item.sender.email:
+        return False
+
+    userstore = req.context.user_store
+    if userstore == item.store:
+        return True
+
+    try:
+        item.store.user.delegation(userstore.user)
+        return True
+    except kopano.errors.NotFoundError:
+        return False
+
+
 class EventResource(ItemResource):
     fields = ItemResource.fields.copy()
     fields.update({
@@ -199,7 +218,7 @@ class EventResource(ItemResource):
         'responseRequested': lambda item: item.response_requested,
         'iCalUId': lambda item: kopano.hex(kopano.bdec(item.icaluid)) if item.icaluid else None,  # graph uses hex!?
         'organizer': lambda item: get_email(item.from_),
-        'isOrganizer': lambda item: item.from_.email == item.sender.email,
+        'isOrganizer': lambda req, item: is_event_organizer(req, item),
         'isCancelled': lambda item: item.canceled,
         'responseStatus': lambda item: responsestatus_json(item),
         # 8.7.x does not have onlinemeetingurl attribute, so we must check if its there for compatibility
@@ -453,9 +472,10 @@ class EventResource(ItemResource):
         folder = _folder(store, folderid)
         event = self.get_event(folder, itemid)
 
-        # If meeting is organised, sent cancellation
-        if self.fields['isOrganizer'](event):
+        # # If meeting is organised, sent cancellation
+        if self.fields['isOrganizer'](req, event):
             event.cancel()
+            # TODO: implemented sending a cancellation as delegate using it's outbox folder.
             event.send()
 
         folder.delete(event)

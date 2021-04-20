@@ -62,7 +62,7 @@ class ResourcePatcher:
             utils = API.import_backend("{}.utils".format(backend_name), None)
             userid = params.pop('userid') if 'userid' in params else None
             try:
-                server, store, userid = utils._server_store(req, userid, self.options)
+                server, store, userid, userstore = utils._server_store(req, userid, self.options)
             except MAPIErrorInvalidEntryid:
                 raise falcon.HTTPBadRequest("Invalid entryid provided")
             # User should have store.
@@ -71,6 +71,9 @@ class ResourcePatcher:
 
             # Todo(mort), store User object in the Context instead of userid.
             req.context.server_store = server, store, userid
+
+            # The logged in user store
+            req.context.user_store = userstore
 
         # result: eg ldap.UserResource() or kopano.MessageResource()
         req.context.resource = resource_cls(self.options)
