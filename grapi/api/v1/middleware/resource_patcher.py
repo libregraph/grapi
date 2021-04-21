@@ -59,7 +59,7 @@ class ResourcePatcher:
         # Add server store object for the user to the resource instance.
         if hasattr(resource_cls, "need_store") and resource_cls.need_store:
             backend_name = next(iter(self.name_backend))
-            utils = API.import_backend("{}.utils".format(backend_name), None)
+            utils = API.import_backend("{}.utils".format(backend_name))
             userid = params.pop('userid') if 'userid' in params else None
             try:
                 server, store, userid, userstore = utils._server_store(req, userid, self.options)

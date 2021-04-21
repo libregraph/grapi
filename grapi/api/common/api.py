@@ -152,18 +152,13 @@ class API(FalconAPI):
         self._router.add_route(uri_template, method_map, resource, *args, **kwargs)
 
     @staticmethod
-    def import_backend(name, options):
+    def import_backend(name):
         """Import backend modules.
 
         :param name: module name.
         :type name: str
-        :param options: options object that should be passed to the 'initialize' function.
-        :type options: object
 
         :return: backend module.
         :rtype: module
         """
-        backend = importlib.import_module('grapi.backend.%s' % name)
-        if hasattr(backend, 'initialize'):
-            backend.initialize(options)
-        return backend
+        return importlib.import_module('grapi.backend.%s' % name)

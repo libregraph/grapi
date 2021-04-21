@@ -31,7 +31,10 @@ class API(BaseAPI):
 
         name_backend = {}
         for name in backends:
-            backend = self.import_backend(name, options)
+            backend = self.import_backend(name)
+            # Call initializer of a backend, should only be called once.
+            if hasattr(backend, 'initialize'):
+                backend.initialize(self, options)
             name_backend[name] = backend
 
         # TODO(jelle): make backends define their types by introducting a constant in grapi.api

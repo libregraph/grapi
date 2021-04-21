@@ -29,7 +29,7 @@ for handler in logger.handlers:
     logger.removeHandler(handler)
 
 
-def initialize(options):
+def initialize(api, options):
     '''Backend initialize function, should be called only once.'''
     log_level = options.log_level if options else 'INFO'
     numeric_level = getattr(logging, log_level.upper(), None)
