@@ -12,7 +12,6 @@ from grapi.api.v1.resource import Resource as BaseResource
 from grapi.api.v1.resource import _dumpb_json, _encode_qs, _parse_qs
 from grapi.api.v1.timezone import to_timezone
 
-from .utils import _handle_exception
 
 UTC = pytz.utc
 LOCAL = tzlocal.get_localzone()
@@ -141,9 +140,6 @@ class Resource(BaseResource):
     # For instance, the individual fields of a user can be its 'birthday', 'preferredName',
     # and etc which are not exists in the other fields.
     individual_fields = {}
-
-    def exceptionHandler(self, ex, req, resp, **params):
-        _handle_exception(ex, req)
 
     def get_fields(self, req, obj, fields, all_fields):
         fields = fields or all_fields or self.fields

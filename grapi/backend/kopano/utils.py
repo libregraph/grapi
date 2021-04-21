@@ -370,11 +370,3 @@ def _get_group_by_id(server, groupid, default=_marker):
     if default is _marker:
         raise falcon.HTTPNotFound(description='No such group: %s' % groupid)
     return default
-
-
-def _handle_exception(ex, req):
-    try:
-        raise ex
-    except MAPIErrorNoAccess:
-        logging.debug('access forbidden for user %s for request %s', req.context.userid, req.path, exc_info=True)
-        raise falcon.HTTPForbidden(title='No access', description=None)
