@@ -4,6 +4,8 @@ import binascii
 import dateutil.parser
 import falcon
 import kopano
+from kopano.pidlid import PidLidAppointmentStateFlags
+from kopano.defs import ASF_MEETING
 
 from grapi.api.v1.schema import event as event_schema
 
@@ -478,8 +480,9 @@ class EventResource(ItemResource):
         except kopano.errors.NotFoundError:
             delegate = None
 
-        # # If meeting is organised, sent cancellation
-        if self.fields['isOrganizer'](req, event):
+        # If meeting is organised, sent cancellation
+        # TODO(jelle): python-kopano should expose a method to indicate if an event/appointment is a meeting
+        if self.fields['isOrganizer'](req, event) and event.prop(PidLidAppointmentStateFlags).value & ASF_MEETING == ASF_MEETING:
             event.cancel()
             # TODO: implemented sending a cancellation as delegate using it's outbox folder.
             if not delegate:
