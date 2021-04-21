@@ -265,8 +265,14 @@ class Server:
             backends=backends,
             components=('directory', 'mail', 'calendar', 'reminder')
         )
+
+        # Add our own exception handler and backend specific error handlers,
+        # error handlers in falcon adhere to LIFO order, meaning our generic
+        # exception handler should always be inserted first.
         handler = partial(error_handler, with_metrics=options.with_metrics)
         app.add_error_handler(Exception, handler)
+        app.initialize_backends_error_handlers()
+
         unix_socket_path = os.path.join(socket_path, 'rest%d.sock' % n)
 
         # Run server, this blocks.
@@ -286,8 +292,14 @@ class Server:
             backends=backends,
             components=('notification',)
         )
+
+        # Add our own exception handler and backend specific error handlers,
+        # error handlers in falcon adhere to LIFO order, meaning our generic
+        # exception handler should always be inserted first.
         handler = partial(error_handler, with_metrics=options.with_metrics)
         app.add_error_handler(Exception, handler)
+        app.initialize_backends_error_handlers()
+
         unix_socket_path = os.path.join(socket_path, 'notify%d.sock' % n)
 
         # Run server, this blocks.

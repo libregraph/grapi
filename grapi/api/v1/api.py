@@ -26,6 +26,8 @@ class API(BaseAPI):
         if backends is None:
             backends = ['kopano']
 
+        self.backends = backends
+
         if components is None:
             components = ('directory', 'mail', 'calendar', 'reminder', 'notification')
 
@@ -226,3 +228,12 @@ class API(BaseAPI):
             self.add_route(PREFIX + '/subscriptions', subscription_resource)
             self.add_route(PREFIX + '/subscriptions/{subscriptionid}',
                            subscription_resource, suffix="subscriptions_by_id")
+
+    def initialize_backends_error_handlers(self):
+        """Call 'initialize_error_handlers' for all backends to setup erorr handlers.
+        Should be called after the generic Exception handler has been set up.
+        """
+        for name in self.backends:
+            backend = self.import_backend(name)
+            if hasattr(backend, 'initialize_error_handlers'):
+                backend.initialize_error_handlers(self)

@@ -2,8 +2,10 @@
 
 import logging
 
+import falcon
 import kopano
 import kopano.log
+from MAPI.Struct import MAPIErrorNoAccess
 
 from .attachment import AttachmentResource  # noqa: F401
 from .calendar import CalendarResource  # noqa: F401
@@ -29,6 +31,10 @@ for handler in logger.handlers:
     logger.removeHandler(handler)
 
 
+def no_access_error_handler(ex, req, resp, params):
+    raise falcon.HTTPError(status=falcon.HTTP_403, description="access denied")
+
+
 def initialize(api, options):
     '''Backend initialize function, should be called only once.'''
     log_level = options.log_level if options else 'INFO'
@@ -40,3 +46,8 @@ def initialize(api, options):
     from .utils import SessionPurger
 
     SessionPurger(options).start()
+
+
+def initialize_error_handlers(api):
+    """Initialize MAPI Error Handlers"""
+    api.add_error_handler(MAPIErrorNoAccess, no_access_error_handler)
