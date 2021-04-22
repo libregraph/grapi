@@ -227,7 +227,7 @@ class Runner:
     def start(self, *args, **kwargs):
         try:
             self.worker(*args, **kwargs)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             logging.critical('error in %s %d worker with pid %s', self.name, self.n, os.getpid(), exc_info=True)
             self.queue.task_done()  # Mark queue as done, to indicate exit.
 
@@ -495,7 +495,7 @@ class Server:
         if self.running:
             try:
                 logging.critical('child was terminated unexpectedly, initiating abnormal shutdown')
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 pass
             self.running = False
             self.abnormal_shutdown = True
@@ -503,6 +503,6 @@ class Server:
     def sigterm(self, *args):
         try:
             logging.info('process received shutdown signal')
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             pass
         self.running = False
