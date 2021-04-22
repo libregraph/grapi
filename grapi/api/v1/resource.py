@@ -68,7 +68,6 @@ class HTTPConflict(falcon.HTTPConflict):
         super().__init__(title=None, description=msg)
 
 
-
 class Resource:
     def __init__(self, options):
         self.options = options
