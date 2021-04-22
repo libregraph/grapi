@@ -8,7 +8,7 @@ import kopano
 from . import group  # import as module since this is a circular import
 from .contact import ContactResource
 from .message import MessageResource
-from .resource import DEFAULT_TOP, Resource, _start_end
+from .resource import DEFAULT_TOP, Resource
 from .utils import HTTPBadRequest, HTTPNotFound, experimental
 
 
