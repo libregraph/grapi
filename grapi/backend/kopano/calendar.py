@@ -98,7 +98,7 @@ class CalendarResource(FolderResource):
         start = parse_datetime_timezone(fields['startTime'], 'startTime')
         end = parse_datetime_timezone(fields['endTime'], 'endTime')
         # TODO: implement availabilityView https://docs.microsoft.com/en-us/graph/outlook-get-free-busy-schedule
-        availability_view_interval = fields.get('availabilityViewInterval', 60)
+        # availability_view_interval = fields.get('availabilityViewInterval', 60)
 
         for address in email_addresses:
             try:
