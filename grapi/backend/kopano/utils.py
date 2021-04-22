@@ -25,7 +25,6 @@ except ImportError:
     PROMETHEUS = False
 
 
-
 PERSISTENCY_PATH = os.getenv('GRAPI_PERSISTENCY_PATH', '')
 
 experimental = experimentalDecorator
