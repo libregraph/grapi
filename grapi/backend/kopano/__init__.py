@@ -5,7 +5,7 @@ import logging
 import falcon
 import kopano
 import kopano.log
-from MAPI.Struct import MAPIErrorNoAccess
+from MAPI.Struct import MAPIErrorStoreFull, MAPIErrorNoAccess
 
 from .attachment import AttachmentResource  # noqa: F401
 from .calendar import CalendarResource  # noqa: F401
@@ -35,6 +35,10 @@ def no_access_error_handler(ex, req, resp, params):
     raise falcon.HTTPError(status=falcon.HTTP_403, description="access denied")
 
 
+def store_full_error_handler(ex, req, resp, params):
+    raise falcon.HTTPInsufficientStorage("user storage is full")
+
+
 def initialize(api, options):
     '''Backend initialize function, should be called only once.'''
     log_level = options.log_level if options else 'INFO'
@@ -51,3 +55,4 @@ def initialize(api, options):
 def initialize_error_handlers(api):
     """Initialize MAPI Error Handlers"""
     api.add_error_handler(MAPIErrorNoAccess, no_access_error_handler)
+    api.add_error_handler(MAPIErrorStoreFull, store_full_error_handler)
