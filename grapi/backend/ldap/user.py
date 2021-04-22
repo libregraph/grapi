@@ -146,7 +146,7 @@ class UserResource(Resource):
 
             rtype, rdata, rmsgid, serverctrls = l.result3(msgid, all=1)
 
-            for dn, attrs in rdata:
+            for _, attrs in rdata:
                 count += 1
                 if skip and count <= skip:
                     continue
