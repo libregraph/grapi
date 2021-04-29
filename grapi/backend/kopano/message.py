@@ -112,16 +112,10 @@ class MessageResource(ItemResource):
     def handle_get(self, req, resp, store, folder, itemid):
         if itemid == 'delta':  # TODO move to MailFolder resource somehow?
             self._handle_get_delta(req, resp, store=store, folder=folder)
-        else:
-            self._handle_get_with_itemid(req, resp, store=store, folder=folder, itemid=itemid)
 
     def _handle_get_delta(self, req, resp, store, folder):
         req.context.deltaid = '{itemid}'
         self.delta(req, resp, folder=folder)
-
-    def _handle_get_with_itemid(self, req, resp, store, folder, itemid):
-        item = _item(folder, itemid)
-        self.respond(req, resp, item)
 
     @experimental
     def on_get_messages(self, req, resp):
@@ -135,23 +129,23 @@ class MessageResource(ItemResource):
         data = self.folder_gen(req, store.inbox)
         self.respond(req, resp, data, MessageResource.fields)
 
-    def on_get_message_by_itemid(self, req, resp, itemid):
-        store = req.context.server_store[1]
-        item = _item(store.inbox, itemid)
-        self.respond(req, resp, item)
-
-    def on_get_message_by_folderid(self, req, resp, folderid, itemid):
+    def on_get_item(self, req, resp, folderid=None, itemid=None):
         """Get a message by folder ID.
 
         Args:
             req (Request): Falcon request object.
             resp (Response): Falcon response object.
-            folderid (str): folder ID.
-            itemid (str): message ID.
+            folderid (str): folder ID. Defaults to None.
+            itemid (str): message ID. Defaults to None. itemid value is mandatory.
+
+        Raises:
+            HTTPNotFound: when itemid is None.
 
         Note:
             Based on MS Explorer result, it never validate folderid. So, we ignore it.
         """
+        if itemid is None:
+            raise HTTPNotFound()
         store = req.context.server_store[1]
         item = _item(store, itemid)
         self.respond(req, resp, item)

@@ -117,6 +117,23 @@ def test_on_post_folder(client, user, json_message, url):
     assert 'id' in response.json
 
 
+@pytest.mark.parametrize("url", FOLDER_MESSAGES_URLS)
+def test_on_get_item(client, user, url, json_message):
+    """Test on_get_item endpoint(s)."""
+    folderid = get_folder_id(client, user, "inbox")
+
+    # Get a messageid.
+    url = url.format(userid=user.userid, folderid=folderid)
+    response = client.simulate_get(url, headers=user.auth_header)
+    message_id = response.json["value"][0]["id"]
+
+    # Get the message data.
+    response = client.simulate_get("{}/{}".format(url, message_id), headers=user.auth_header)
+    message = response.json
+
+    check_created_messages([message], json_message)
+
+
 @pytest.mark.parametrize(
     [
         "url",
