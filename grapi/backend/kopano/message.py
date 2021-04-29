@@ -349,31 +349,23 @@ class MessageResource(ItemResource):
 
     # DELETE
 
-    def on_delete_message_by_itemid(self, req, resp, itemid):
+    def on_delete_item(self, req, resp, folderid=None, itemid=None):
         """Handle DELETE request on a specific message without defining folder ID.
 
         Args:
             req (Request): Falcon request object.
             resp (Response): Falcon response object.
-            itemid (str): message ID.
-        """
-        store = req.context.server_store[1]
-        item = _item(store, itemid)
-        store.delete(item)
-        self.respond_204(resp)
+            folderid (str): folder ID. Defaults to None.
+            itemid (str): message ID. Defaults to None. itemid value is mandatory.
 
-    def on_delete_message_by_folderid(self, req, resp, folderid, itemid):
-        """Handle DELETE request on a specific message on a defined folder ID.
-
-        Args:
-            req (Request): Falcon request object.
-            resp (Response): Falcon response object.
-            folderid (str): folder ID which contains the item ID.
-            itemid (str): message ID.
+        Raises:
+            HTTPNotFound: when itemid is None.
 
         Note:
             Based on MS Explorer result, it never validate folderid. So, we ignore it.
         """
+        if itemid is None:
+            raise HTTPNotFound()
         store = req.context.server_store[1]
         item = _item(store, itemid)
         store.delete(item)

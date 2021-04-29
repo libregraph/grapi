@@ -246,3 +246,44 @@ def test_on_patch_item(client, user, url, json_message):
     json_message["bodyPreview"] = updated_fields["body"]["content"]
     json_message["replyTo"] = []
     check_created_messages([message], json_message)
+
+
+@pytest.mark.parametrize(
+    [
+        "url",
+        "count_of_messages_exists",
+        "count_of_messages_removed",
+    ],
+    [
+        (FOLDER_MESSAGES_URLS[0], 4, 2),
+        (FOLDER_MESSAGES_URLS[1], 2, 2),
+    ]
+)
+def test_on_delete_item(
+    client,
+    user,
+    json_message,
+    url,
+    count_of_messages_exists,
+    count_of_messages_removed
+):
+    """Test on_delete_item endpoint(s)."""
+    folderid = get_folder_id(client, user, "junk e-mail")
+
+    url = url.format(userid=user.userid, folderid=folderid)
+
+    # Before.
+    assert get_count_of_messages(client, user, url, folderid) == count_of_messages_exists
+
+    response = client.simulate_get(url, headers=user.auth_header)
+    messages = response.json["value"][:count_of_messages_removed]
+    for message in messages:
+        response = client.simulate_delete(
+            "{}/{}".format(url, message["id"]),
+            headers=user.auth_header
+        )
+        assert response.status_code == 204
+
+    # After.
+    expected_count = count_of_messages_exists - count_of_messages_removed
+    assert get_count_of_messages(client, user, url, folderid) == expected_count
