@@ -3,11 +3,12 @@
 import base64
 import json
 import os
+import gettext
 
 import kopano
 import pytest
 from falcon.testing import TestClient
-
+from grapi.mfr import FalconLabel
 from grapi.api.v1 import API
 
 DATA_DIR = '{}/data'.format(os.path.dirname(os.path.realpath(__file__)))
@@ -35,7 +36,8 @@ def create_auth_header(username, password):
 # https://falcon.readthedocs.io/en/stable/api/testing.html
 @pytest.fixture(scope='module')
 def client():
-    return TestClient(API(options=Options(), backends=[BACKEND]))
+    middlewares = [FalconLabel({'en': gettext.NullTranslations(None)})]
+    return TestClient(API(options=Options(), middleware=middlewares, backends=[BACKEND]))
 
 
 @pytest.fixture(scope='module')

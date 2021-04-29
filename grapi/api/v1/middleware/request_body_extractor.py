@@ -30,7 +30,12 @@ class RequestBodyExtractor:
 
     def process_request(self, req, resp):
         """Built-in Falcon method for middleware."""
+        if not req.content_length:
+            req.context.json_data = {}
+            return
+
         if req.method not in self._methods_schema:
+            req.context.json_data = {}
             return
 
         try:

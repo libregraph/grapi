@@ -55,7 +55,7 @@ def test_create_recurrence_weekly(client, user, json_event_weekly, url):
 def test_post_event_accept_not_data(client, user, json_event, url):
     id_ = assert_create_event(client, user, json_event, url)
     response = client.simulate_post(url + '/{}/accept'.format(id_), headers=user.auth_header)
-    assert response.status_code == 400
+    assert response.status_code == 202
 
 
 @pytest.mark.parametrize("url", URLS)
