@@ -6,7 +6,7 @@ from grapi.api.v1.schema import message as message_schema
 from . import attachment  # import as module since this is a circular import
 from .item import ItemResource, get_body, get_email, set_body
 from .resource import _date
-from .utils import HTTPBadRequest, HTTPNotFound,_folder, _item, experimental
+from .utils import HTTPBadRequest, HTTPNotFound, _folder, _item, experimental
 
 
 def set_torecipients(item, arg):
@@ -153,20 +153,6 @@ class MessageResource(ItemResource):
         self.respond(req, resp, item.reply(all=True))
         resp.status = falcon.HTTP_201
 
-    def handle_post_copy(self, req, resp, store, folder, item):
-        self._handle_post_copyOrMove(req, resp, store=store, item=item)
-
-    def handle_post_move(self, req, resp, store, folder, item):
-        self._handle_post_copyOrMove(req, resp, store=store, item=item, move=True)
-
-    def _handle_post_copyOrMove(self, req, resp, store, item, move=False):
-        fields = req.context.json_data
-        to_folder = store.folder(entryid=fields['destinationId'].encode('ascii'))  # TODO ascii?
-        if not move:
-            item = item.copy(to_folder)
-        else:
-            item = item.move(to_folder)
-
     def handle_post_send(self, req, resp, store, folder, item):
         item.send()
         resp.status = falcon.HTTP_202
@@ -213,6 +199,65 @@ class MessageResource(ItemResource):
         """
         self._create_message(req, resp, folderid)
 
+    def _handle_copy_or_move(self, req, resp, itemid, is_move):
+        """Copy or move item into another folder.
+
+        Args:
+            req (Request): Falcon request object.
+            req (Response): Falcon response object.
+            itemid (str): message ID.
+            is_move (bool): True means 'move', False means 'copy'.
+
+        Raises:
+            HTTPNotFound: when itemid is None.
+        """
+        if itemid is None:
+            raise HTTPNotFound()
+        json_data = req.context.json_data
+        self.validate_json(message_schema.move_or_copy_schema_validator, json_data)
+        store = req.context.server_store[1]
+        item = _item(store, itemid)
+        to_folder = _folder(store, json_data["destinationId"])
+        if is_move:
+            item = item.move(to_folder)
+        else:
+            item = item.copy(to_folder)
+        self.respond(req, resp, item, self.fields)
+        resp.status = falcon.HTTP_201
+
+    def on_post_copy(self, req, resp, folderid=None, itemid=None):
+        """Handle POST request on 'copy' action.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): folder ID or a well-known folder name which the message resides there.
+                For a list of supported well-known folder names, see mailFolder resource type.
+                Defaults to None.
+            itemid (str): message ID. Defaults to None. itemid value is mandatory.
+
+        Note:
+            Based on MS Explorer result, it never validate folderid. So, we ignore it.
+        """
+        self._handle_copy_or_move(req, resp, itemid, False)
+
+    def on_post_move(self, req, resp, folderid=None, itemid=None):
+        """Handle POST request on 'move' action.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): folder ID or a well-known folder name which the message resides there.
+                For a list of supported well-known folder names, see mailFolder resource type.
+                Defaults to None.
+            itemid (str): message ID. itemid value is mandatory and it shouldn't be None.
+                Defaults to None.
+
+        Note:
+            Based on MS Explorer result, it never validate folderid. So, we ignore it.
+        """
+        self._handle_copy_or_move(req, resp, itemid, True)
+
     def on_post(self, req, resp, userid=None, folderid=None, itemid=None, method=None):
         handler = None
 
@@ -221,12 +266,6 @@ class MessageResource(ItemResource):
 
         elif method == 'createReplyAll':
             handler = self.handle_post_createReplyAll
-
-        elif method == 'copy':
-            handler = self.handle_post_copy
-
-        elif method == 'move':
-            handler = self.handle_post_move
 
         elif method == 'send':
             handler = self.handle_post_send

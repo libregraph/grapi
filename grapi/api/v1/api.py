@@ -166,6 +166,26 @@ class API(BaseAPI):
                     messages, suffix="value"
                 )
 
+                # Message copy.
+                self.add_route(
+                    user + '/messages/{itemid}/copy',
+                    messages, suffix="copy"
+                )
+                self.add_route(
+                    user + '/mailFolders/{folderid}/messages/{itemid}/copy',
+                    messages, suffix="copy"
+                )
+
+                # Message move.
+                self.add_route(
+                    user + '/messages/{itemid}/move',
+                    messages, suffix="move"
+                )
+                self.add_route(
+                    user + '/mailFolders/{folderid}/messages/{itemid}/move',
+                    messages, suffix="move"
+                )
+
         calendar = default_backend.get('calendar')
         reminder = default_backend.get('reminder')
         if calendar:

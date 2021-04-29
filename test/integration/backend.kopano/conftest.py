@@ -38,7 +38,7 @@ def client():
     return TestClient(API(options=Options(), backends=[BACKEND]))
 
 
-@pytest.fixture()
+@pytest.fixture(scope='module')
 def user():
     server = kopano.server(parse_args=False, auth_user=USERNAME1, auth_pass=PASSWORD1)
     user = server.user(USERNAME1)
