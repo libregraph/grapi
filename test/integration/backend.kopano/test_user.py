@@ -95,7 +95,7 @@ def test_create_contact(client, user, json_contact):
 def test_list_contacts(client, user):
     result = client.simulate_get('/api/gc/v1/me/contacts', headers=user.auth_header)
     assert result.status_code == 200
-    assert len(result.json['value']) == 0
+    assert len(result.json['value']) == 1
 
 
 def test_calendar(client, user):

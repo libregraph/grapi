@@ -47,10 +47,20 @@ def test_create_folder(client, user):
 
 
 def test_delete(client, user):
-    url = '/api/gc/v1/me/mailFolders/{}'
     name = 'grapi'
-    id_ = assert_create_folder(client, user, name)
+    folders = client.simulate_get(
+        "/api/gc/v1/me/mailFolders/inbox/childFolders",
+        params={"$select": "displayName"},
+        headers=user.auth_header
+    )
+    for folder in folders.json["value"]:
+        if folder["displayName"] == name:
+            id_ = folder["id"]
+            break
+    else:
+        assert False, "'grapi' folder not found"
 
+    url = '/api/gc/v1/me/mailFolders/inbox/childFolders/{}'
     response = client.simulate_delete(url.format(id_), headers=user.auth_header)
     assert response.status_code == 204
 
@@ -115,13 +125,13 @@ def test_copy(client, user):
 
 
 def test_move(client, user):
-    folder1 = assert_create_folder(client, user, 'folder1')
-    dest = assert_create_folder(client, user, 'destination')
+    folder2 = assert_create_folder(client, user, 'folder2')
+    dest = assert_create_folder(client, user, 'destination2')
     data = {
         'destinationId': dest
     }
 
-    url = '/api/gc/v1/me/mailFolders/{}/move'.format(folder1)
+    url = '/api/gc/v1/me/mailFolders/{}/move'.format(folder2)
     response = client.simulate_post(url, headers=user.auth_header, json=data)
     assert response.status_code == 200
 
@@ -132,4 +142,4 @@ def test_move(client, user):
     # Original folder moved
     response = client.simulate_get('/api/gc/v1/me/mailFolders/inbox', headers=user.auth_header)
     assert response.status_code == 200
-    assert response.json['childFolderCount'] == 1
+    assert response.json['childFolderCount'] == 3
