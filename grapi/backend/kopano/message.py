@@ -6,7 +6,7 @@ from grapi.api.v1.schema import message as message_schema
 from . import attachment  # import as module since this is a circular import
 from .item import ItemResource, get_body, get_email, set_body
 from .resource import _date
-from .utils import HTTPBadRequest, _folder, _item, experimental
+from .utils import HTTPBadRequest, HTTPNotFound,_folder, _item, experimental
 
 
 def set_torecipients(item, arg):
@@ -120,6 +120,28 @@ class MessageResource(ItemResource):
         data = _folder(store, folderid)
         data = self.folder_gen(req, data)
         self.respond(req, resp, data, MessageResource.fields)
+
+    def on_get_value(self, req, resp, folderid=None, itemid=None):
+        """Get a message as RFC-2822 by folder ID.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): folder ID. Defaults to None.
+            itemid (str): message ID. Defaults to None. itemid value is mandatory.
+
+        Raises:
+            HTTPNotFound: when itemid is None.
+
+        Note:
+            Based on MS Explorer result, it never validate folderid. So, we ignore it.
+        """
+        if itemid is None:
+            raise HTTPNotFound()
+        store = req.context.server_store[1]
+        item = _item(store, itemid)
+        resp.body = item.eml()
+        resp.content_type = "text/plain"
 
     # POST
 

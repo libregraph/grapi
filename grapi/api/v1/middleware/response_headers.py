@@ -10,4 +10,5 @@ class ResponseHeaders:
         if resp.status == falcon.HTTP_204 or resp.status == falcon.HTTP_404:
             return
 
-        resp.content_type = "application/json"
+        if not resp.content_type:
+            resp.content_type = "application/json"

@@ -159,6 +159,13 @@ class API(BaseAPI):
                 self.add_route(user + '/mailFolders/{folderid}/messages/{itemid}/attachments/{attachmentid}/$value',
                                attachments, suffix="binary_in_folder_by_id")
 
+                # Message $value.
+                self.add_route(user + '/messages/{itemid}/$value', messages, suffix="value")
+                self.add_route(
+                    user + '/mailFolders/{folderid}/messages/{itemid}/$value',
+                    messages, suffix="value"
+                )
+
         calendar = default_backend.get('calendar')
         reminder = default_backend.get('reminder')
         if calendar:
