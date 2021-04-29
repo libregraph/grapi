@@ -166,6 +166,16 @@ class API(BaseAPI):
                     messages, suffix="value"
                 )
 
+                # Message item.
+                self.add_route(
+                    user + '/messages/{itemid}',
+                    messages, suffix="item"
+                )
+                self.add_route(
+                    user + '/mailFolders/{folderid}/messages/{itemid}',
+                    messages, suffix="item"
+                )
+
                 # Message copy.
                 self.add_route(
                     user + '/messages/{itemid}/copy',

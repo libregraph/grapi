@@ -9,12 +9,51 @@ from .resource import _date
 from .utils import HTTPBadRequest, HTTPNotFound, _folder, _item, experimental
 
 
-def set_torecipients(item, arg):
+def set_recipients(item, recipients, field="to"):
+    """Set recipients field in an item.
+
+    Args:
+        item (Item): item object.
+        recipients (list): recipients list.
+        field (str): item's field name. Defaults to "to".
+    """
     addrs = []
-    for a in arg:
-        a = a['emailAddress']
-        addrs.append('%s <%s>' % (a.get('name', a['address']), a['address']))
-    item.to = ';'.join(addrs)
+    for recipient in recipients:
+        email_address = recipient['emailAddress']
+        addrs.append(
+            '{} <{}>'.format(
+                email_address.get('name', email_address['address']),
+                email_address['address']
+            )
+        )
+    setattr(item, field, ';'.join(addrs))
+
+
+def set_user_email(item, attr_name, user_email):
+    """Set user email field in an item.
+
+    Args:
+        item (Item): item object.
+        attr_name (str): item's attribute name.
+        user_email (Dict): user email info.
+    """
+    email_address = user_email['emailAddress']
+    attr_value = '{} <{}>'.format(
+        email_address.get('name', email_address['address']),
+        email_address['address']
+    )
+    setattr(item, attr_name, attr_value)
+
+
+def update_attr_value(item, attr_name, value):
+    """Update attribute value of an item.
+
+    Args:
+        item (Item): item object.
+        attr_name (str): item's attribute name.
+        value (Any): attribute value.
+    """
+    setattr(item, attr_name, value)
 
 
 class DeletedMessageResource(ItemResource):
@@ -43,7 +82,7 @@ class MessageResource(ItemResource):
         'receivedDateTime': lambda item: _date(item.received) if item.received else None,
         'hasAttachments': lambda item: item.has_attachments,
         'internetMessageId': lambda item: item.messageid,
-        'importance': lambda item: item.urgency,
+        'importance': lambda item: item.urgency.title(),
         'parentFolderId': lambda item: item.folder.entryid,
         'conversationId': lambda item: item.conversationid,
         'isRead': lambda item: item.read,
@@ -54,10 +93,12 @@ class MessageResource(ItemResource):
     })
 
     set_fields = {
-        'subject': lambda item, arg: setattr(item, 'subject', arg),
+        'subject': lambda item, value: update_attr_value(item, "subject", value),
         'body': set_body,
-        'toRecipients': set_torecipients,
-        'isRead': lambda item, arg: setattr(item, 'read', arg),
+        'toRecipients': set_recipients,
+        'from': lambda item, arg: set_user_email(item, 'from_', arg),
+        'sender': lambda item, arg: set_user_email(item, 'sender', arg),
+        'isRead': lambda item, value: update_attr_value(item, "read", value),
     }
 
     deleted_resource = DeletedMessageResource
@@ -283,41 +324,34 @@ class MessageResource(ItemResource):
 
     # PATCH
 
-    def _handle_patch(self, req, resp, store, itemid):
-        item = _item(store, itemid)
-        fields = req.context.json_data
-
-        for field, value in fields.items():
-            if field in self.set_fields:
-                self.set_fields[field](item, value)
-
-        self.respond(req, resp, item, MessageResource.fields)
-
-    def on_patch_message_by_folderid(self, req, resp, folderid, itemid):
-        """Patch a message by folder ID.
+    def on_patch_item(self, req, resp, folderid=None, itemid=None):
+        """Handle PATCH request on a specific message by ID.
 
         Args:
             req (Request): Falcon request object.
             resp (Response): Falcon response object.
-            folderid (str): folder ID.
-            itemid (str): message ID.
+            folderid (str): folder ID. Defaults to None.
+            itemid (str): message ID. Defaults to None. itemid value is mandatory.
+
+        Raises:
+            HTTPNotFound: when itemid is None.
 
         Note:
             Based on MS Explorer result, it never validate folderid. So, we ignore it.
         """
-        store = req.context.server_store[1]
-        self._handle_patch(req, resp, store, itemid)
+        if itemid is None:
+            raise HTTPNotFound()
+        json_data = req.context.json_data
+        self.validate_json(message_schema.update_schema_validator, json_data)
 
-    def on_patch_message_by_itemid(self, req, resp, itemid):
-        """Patch a message by folder ID.
-
-        Args:
-            req (Request): Falcon request object.
-            resp (Response): Falcon response object.
-            itemid (str): message ID.
-        """
         store = req.context.server_store[1]
-        self._handle_patch(req, resp, store, itemid)
+        item = _item(store, itemid)
+
+        for field, value in json_data.items():
+            if field in self.set_fields:
+                self.set_fields[field](item, value)
+
+        self.respond(req, resp, item, self.fields)
 
     # DELETE
 

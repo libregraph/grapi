@@ -77,6 +77,27 @@ def get_count_of_messages(client, user, base_url, folderid):
     return len(response.json["value"])
 
 
+def check_created_messages(messages, json_message):
+    """Check created messages by the sample one.
+
+    Args:
+        messages (List[Dict]): list of messages.
+        json_message (Dict): sample message content to compare with.
+    """
+    for message in messages:
+        for key, value in json_message.items():
+            # Ignore datetime and IDs and changeKey.
+            if key.endswith("DateTime") or "id" in key.lower() or key == "changeKey":
+                continue
+
+            # isRead should be true.
+            if key == "isRead":
+                assert message[key]
+                continue
+
+            assert message[key] == value
+
+
 @pytest.mark.parametrize("url", MESSAGES_URLS)
 def test_on_post_messages(client, user, json_message, url):
     """Test on_post_messages endpoint(s)."""
@@ -155,3 +176,56 @@ def test_on_post_copy_and_move(
     )
     assert origin_folder_messages_count == origin_folder_messages_count_expected_after
     assert destination_folder_messages_count == destination_folder_messages_count_expected_after
+
+
+@pytest.mark.parametrize("url", FOLDER_MESSAGES_URLS)
+def test_on_patch_item(client, user, url, json_message):
+    """Test on_patch_item endpoint(s)."""
+    folderid = get_folder_id(client, user, "inbox")
+
+    # Get a message ID.
+    url = url.format(userid=user.userid, folderid=folderid)
+    response = client.simulate_get(url, headers=user.auth_header)
+    message_id = response.json["value"][0]["id"]
+
+    updated_fields = {
+        "subject": "new subject",
+        "body": {
+            "contentType": "html",
+            "content": "new content",
+        },
+        "from": {
+            "emailAddress": {
+                "name": "New user",
+                "address": "user@domain.com",
+            },
+        },
+        "replyTo": [],
+    }
+
+    # Patch the message data with new data.
+    response = client.simulate_patch(
+        "{}/{}".format(url, message_id),
+        headers=user.auth_header,
+        json=updated_fields
+    )
+    assert response.status_code == 200
+    message = response.json
+    json_message.update(**updated_fields)
+    json_message["bodyPreview"] = updated_fields["body"]["content"]
+    json_message["replyTo"] = []
+    check_created_messages([message], json_message)
+
+    # Patch the message data with new data but with empty replyTo.
+    updated_fields["replyTo"] = []
+    response = client.simulate_patch(
+        "{}/{}".format(url, message_id),
+        headers=user.auth_header,
+        json=updated_fields
+    )
+    assert response.status_code == 200
+    message = response.json
+    json_message.update(**updated_fields)
+    json_message["bodyPreview"] = updated_fields["body"]["content"]
+    json_message["replyTo"] = []
+    check_created_messages([message], json_message)
