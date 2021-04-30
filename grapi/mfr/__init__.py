@@ -423,7 +423,7 @@ class Server:
 
         if args.with_metrics:
             if PROMETHEUS:
-                if os.environ.get('prometheus_multiproc_dir'):
+                if os.environ.get('prometheus_multiproc_dir') or os.environ.get('PROMETHEUS_MULTIPROC_DIR'):
                     # Spawn the metrics process later, so we can pass along worker name and pids.
                     monitor_workers = [(worker.name, worker.pid) for worker in workers]
                     # Include master process.
