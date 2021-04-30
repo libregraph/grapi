@@ -147,7 +147,9 @@ def binary_response(resp, attachment):
         resp (Response): Falcon response object.
         attachment (Attachment): attachment object.
     """
-    resp.content_type = attachment.mimetype
+
+    # Python-kopano returns an empty string if the mimetype property does not exists
+    resp.content_type = attachment.mimetype or 'application/octet-stream'
     resp.data = attachment.data
 
 
