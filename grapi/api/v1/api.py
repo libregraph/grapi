@@ -206,6 +206,16 @@ class API(BaseAPI):
                     messages, suffix="createReply"
                 )
 
+                # Message createReplyAll.
+                self.add_route(
+                    user + '/messages/{itemid}/createReplyAll',
+                    messages, suffix="createReplyAll"
+                )
+                self.add_route(
+                    user + '/mailFolders/{folderid}/messages/{itemid}/createReplyAll',
+                    messages, suffix="createReplyAll"
+                )
+
         calendar = default_backend.get('calendar')
         reminder = default_backend.get('reminder')
         if calendar:

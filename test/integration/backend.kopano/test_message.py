@@ -307,3 +307,23 @@ def test_createReply(client, user, json_message, url):
     response = client.simulate_post(url, headers=user.auth_header)
     assert response.status_code == 201
     assert 'id' in response.json
+
+
+@pytest.mark.parametrize(
+    [
+        "url",
+    ],
+    [
+        (ACTION_MESSAGE_URLS[0],),
+        (ACTION_MESSAGE_URLS[1],),
+    ]
+)
+def test_createReplyAll(client, user, json_message, url):
+    folderid = get_folder_id(client, user, "inbox")
+    messages_url = FOLDER_MESSAGES_URLS[0]
+    message_id = get_a_message(client, user, messages_url, folderid, 0)
+    url = url.format(userid=user.userid, folderid=folderid, messageid=message_id, action='createReplyAll')
+
+    response = client.simulate_post(url, headers=user.auth_header)
+    assert response.status_code == 201
+    assert 'id' in response.json
