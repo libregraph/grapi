@@ -200,7 +200,21 @@ class MessageResource(ItemResource):
 
     # POST
 
-    def handle_post_createReply(self, req, resp, store, folder, item):
+    def on_post_createReply(self, req, resp, folderid=None, itemid=None):
+        """Handle POST request on 'createReply' action.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): folder ID or a well-known folder name which the message resides there.
+                For a list of supported well-known folder names, see mailFolder resource type.
+                Defaults to None.
+            itemid (str): message ID. itemid value is mandatory and it shouldn't be None.
+                Defaults to None.
+        """
+
+        store = req.context.server_store[1]
+        item = _item(store, itemid)
         self.respond(req, resp, item.reply())
         resp.status = falcon.HTTP_201
 
@@ -316,10 +330,7 @@ class MessageResource(ItemResource):
     def on_post(self, req, resp, userid=None, folderid=None, itemid=None, method=None):
         handler = None
 
-        if method == 'createReply':
-            handler = self.handle_post_createReply
-
-        elif method == 'createReplyAll':
+        if method == 'createReplyAll':
             handler = self.handle_post_createReplyAll
 
         elif method == 'send':
