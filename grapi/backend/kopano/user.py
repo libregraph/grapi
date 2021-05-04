@@ -7,11 +7,9 @@ import kopano
 
 from grapi.api.v1.schema import user as user_schema
 
-from . import group  # import as module since this is a circular import
-from .contact import ContactResource
 from .message import MessageResource
 from .resource import DEFAULT_TOP, Resource
-from .utils import HTTPBadRequest, HTTPNotFound, experimental
+from .utils import HTTPNotFound, experimental
 
 
 class UserImporter:
@@ -71,15 +69,6 @@ class UserResource(Resource):
         deltalink = b"%s?$deltatoken=%s" % (req.path.encode('utf-8'), codecs.encode(newstate, 'ascii'))
         self.respond(req, resp, data, UserResource.fields, deltalink=deltalink)
 
-    def handle_get(self, req, resp, store, server, userid):
-        if userid:
-            if userid == 'delta':
-                self._handle_get_delta(req, resp, server=server)
-            else:
-                self._handle_get_with_userid(req, resp, server=server, userid=userid)
-        else:
-            self._handle_get_without_userid(req, resp, server=server)
-
     @experimental
     def _handle_get_delta(self, req, resp, server):
         req.context.deltaid = '{userid}'
@@ -105,17 +94,6 @@ class UserResource(Resource):
             yield from company.users(hidden=False, inactive=False, query=query, **kwargs)
         data = self.generator(req, yielder)
         self.respond(req, resp, data)
-
-    @experimental
-    def handle_get_contacts(self, req, resp, store, server, userid):
-        data = self.folder_gen(req, store.contacts)
-        self.respond(req, resp, data, ContactResource.fields)
-
-    @experimental
-    def handle_get_memberOf(self, req, resp, store, server, userid):
-        user = server.user(userid=userid)
-        data = (user.groups(), DEFAULT_TOP, 0, 0)
-        self.respond(req, resp, data, group.GroupResource.fields)
 
     def on_get_me(self, req, resp):
         """Return 'me' user info.
@@ -153,29 +131,18 @@ class UserResource(Resource):
         server = req.context.server_store[0]
         self._handle_get_with_userid(req, resp, server, userid)
 
-    # TODO redirect to other resources?
-    def on_get(self, req, resp, userid=None, method=None):
-        handler = None
-
-        if not method:
-            handler = self.handle_get
-
-        elif method == 'contacts':
-            handler = self.handle_get_contacts
-
-        elif method == 'memberOf':
-            handler = self.handle_get_memberOf
-
-        elif method:
-            raise HTTPBadRequest("Unsupported user segment '%s'" % method)
-
-        else:
-            raise HTTPBadRequest("Unsupported in user")
-
+    def on_get(self, req, resp, userid=None):
         server, store, userid = req.context.server_store
         if not userid and req.path.split('/')[-1] != 'users':
             userid = kopano.Store(server=server, mapiobj=server.mapistore).user.userid
-        handler(req, resp, store=store, server=server, userid=userid)
+
+        if userid:
+            if userid == 'delta':
+                self._handle_get_delta(req, resp, server=server)
+            else:
+                self._handle_get_with_userid(req, resp, server=server, userid=userid)
+        else:
+            self._handle_get_without_userid(req, resp, server=server)
 
     # POST
 
@@ -189,22 +156,3 @@ class UserResource(Resource):
         copy_to_sentmail = fields.get('saveToSentItems', 'true') == 'true'
         message.send(copy_to_sentmail=copy_to_sentmail)
         resp.status = falcon.HTTP_202
-
-    @experimental
-    def handle_post_contacts(self, req, resp, fields, store):
-        item = self.create_message(store.contacts, fields, ContactResource.set_fields)
-        self.respond(req, resp, item, ContactResource.fields)
-
-    # TODO redirect to other resources?
-    def on_post(self, req, resp, userid=None, method=None):
-        handler = None
-
-        if method:
-            raise HTTPBadRequest("Unsupported user segment '%s'" % method)
-
-        else:
-            raise HTTPBadRequest("Unsupported in user")
-
-        server, store, userid = req.context.server_store
-        fields = req.context.json_data
-        handler(req, resp, fields=fields, store=store)
