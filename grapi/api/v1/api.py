@@ -275,6 +275,7 @@ class API(BaseAPI):
                 self.add_route(user + '/calendars/{folderid}/events/{itemid}/attachments/{attachmentid}/$value',
                                attachments, suffix="binary_in_folder_by_id")
 
+                self.add_route(user + '/calendar/getSchedule', calendars, suffix="getSchedule")
                 self.add_route(user + '/calendars/{folderid}/calendarView', calendars,
                                suffix="calendar_view_by_folderid")
                 self.add_route(user + '/calendarView', calendars, suffix="calendar_view")

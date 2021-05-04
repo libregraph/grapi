@@ -86,13 +86,12 @@ class CalendarResource(FolderResource):
     # POST
 
     @experimental
-    def handle_post_schedule(self, req, resp, folder):
+    def on_post_getSchedule(self, req, resp, userid=None):
         fields = req.context.json_data
         self.validate_json(calendar_schema.get_schedule_schema_validator, fields)
 
+        server = req.context.server_store[0]
         freebusytimes = []
-
-        server, store, userid = _server_store(req, None, self.options)
 
         email_addresses = fields['schedules']
         start = parse_datetime_timezone(fields['startTime'], 'startTime')
@@ -131,19 +130,3 @@ class CalendarResource(FolderResource):
         }
         resp.content_type = 'application/json'
         resp.body = _dumpb_json(data)
-
-    def on_post(self, req, resp, userid=None, folderid=None, method=None):
-        handler = None
-
-        if method == 'getSchedule':
-            handler = self.handle_post_schedule
-
-        elif method:
-            raise HTTPBadRequest("Unsupported calendar segment '%s'" % method)
-
-        else:
-            raise HTTPBadRequest("Unsupported in calendar")
-
-        server, store, userid = req.context.server_store
-        folder = _folder(store, folderid or 'calendar')
-        handler(req, resp, folder=folder)
