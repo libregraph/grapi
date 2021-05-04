@@ -134,6 +134,8 @@ class API(BaseAPI):
                 self.add_route(user + '/mailFolders/{folderid}/childFolders/{childid}',
                                mailfolders, suffix="child_folder_by_id")
 
+                self.add_route(user + '/sendMail', users, suffix="sendMail")
+
                 self.add_route(user + '/mailFolders/{folderid}/copy', mailfolders, suffix="copy_folder")
                 self.add_route(user + '/mailFolders/{folderid}/move', mailfolders, suffix="move_folder")
 

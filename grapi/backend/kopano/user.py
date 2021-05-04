@@ -5,6 +5,8 @@ import logging
 import falcon
 import kopano
 
+from grapi.api.v1.schema import user as user_schema
+
 from . import group  # import as module since this is a circular import
 from .contact import ContactResource
 from .message import MessageResource
@@ -178,7 +180,11 @@ class UserResource(Resource):
     # POST
 
     @experimental
-    def handle_post_sendMail(self, req, resp, fields, store):
+    def on_post_sendMail(self, req, resp):
+        store = req.context.server_store[1]
+        fields = req.context.json_data
+        self.validate_json(user_schema.sendmail_schema_validator, fields)
+
         message = self.create_message(store.outbox, fields['message'], MessageResource.set_fields)
         copy_to_sentmail = fields.get('SaveToSentItems', 'true') == 'true'
         message.send(copy_to_sentmail=copy_to_sentmail)
@@ -193,10 +199,7 @@ class UserResource(Resource):
     def on_post(self, req, resp, userid=None, method=None):
         handler = None
 
-        if method == 'sendMail':
-            handler = self.handle_post_sendMail
-
-        elif method:
+        if method:
             raise HTTPBadRequest("Unsupported user segment '%s'" % method)
 
         else:
