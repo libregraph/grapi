@@ -186,7 +186,7 @@ class UserResource(Resource):
         self.validate_json(user_schema.sendmail_schema_validator, fields)
 
         message = self.create_message(store.outbox, fields['message'], MessageResource.set_fields)
-        copy_to_sentmail = fields.get('SaveToSentItems', 'true') == 'true'
+        copy_to_sentmail = fields.get('saveToSentItems', 'true') == 'true'
         message.send(copy_to_sentmail=copy_to_sentmail)
         resp.status = falcon.HTTP_202
 
