@@ -276,9 +276,6 @@ class EventResource(ItemResource):
     def on_get_instances(self, req, resp, itemid):
         self._get_event_instances(req, resp, "calendar", itemid)
 
-    def handle_get(self, req, resp, event):
-        self.respond(req, resp, event)
-
     @experimental
     def on_get_events(self, req, resp):
         store = req.context.server_store[1]
@@ -305,9 +302,6 @@ class EventResource(ItemResource):
         folder = _folder(store, folderid)
         event = self.get_event(folder, itemid)
         self.respond(req, resp, event, self.fields)
-
-    def on_get(self, req, resp, userid=None, folderid=None, itemid=None):
-        raise HTTPBadRequest("Unsupported in event")
 
     # POST
 
