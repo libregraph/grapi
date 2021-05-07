@@ -125,6 +125,10 @@ class Resource(BaseResource):
     # Field map for $orderby query.
     sorting_field_map = {}
 
+    # Field map for $select query. Fields which are only available in a $select
+    # query
+    select_field_map = {}
+
     # Fields are needed when we're refering to a list of items.
     # It should contain basic fields which are needed.
     # For instance, the fields of users can be 'givenName', 'jobTitle', and etc.
@@ -214,10 +218,13 @@ class Resource(BaseResource):
         if isinstance(data, tuple):
             if is_select_query:
                 # Users should be able to select in both fields (standard and complementary).
-                return {**self.fields, **self.complementary_fields}
+                return {**self.fields, **self.complementary_fields, **self.select_field_map}
             return self.fields
 
-        return {**self.fields, **self.complementary_fields, **self.individual_fields}
+        if is_select_query:
+            return {**self.fields, **self.complementary_fields, **self.individual_fields, **self.select_field_map}
+        else:
+            return {**self.fields, **self.complementary_fields, **self.individual_fields}
 
     def respond(self, req, resp, obj, all_fields=None, deltalink=None):
         # determine fields

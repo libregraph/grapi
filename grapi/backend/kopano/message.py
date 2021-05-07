@@ -56,6 +56,22 @@ def update_attr_value(item, attr_name, value):
     setattr(item, attr_name, value)
 
 
+def get_internet_headers(item):
+    """Format the RFC5322 Message Headers as specified by Microsoft Graph
+
+    Args:
+        item (Item): item object.
+    Returns:
+        List: list of headers formatted as dictionary
+    """
+
+    headers = item.headers()
+    if not headers:
+        return {}
+
+    return [{"name": key, "value": value} for key, value in headers.items()]
+
+
 class DeletedMessageResource(ItemResource):
     fields = {
         '@odata.type': lambda item: '#microsoft.graph.message',  # TODO
@@ -91,6 +107,10 @@ class MessageResource(ItemResource):
         'replyTo': lambda item: [get_email(to) for to in item.replyto],
         'bodyPreview': lambda item: item.body_preview,
     })
+
+    select_field_map = {
+        'internetMessageHeaders': lambda item: get_internet_headers(item),
+    }
 
     set_fields = {
         'subject': lambda item, value: update_attr_value(item, "subject", value),
