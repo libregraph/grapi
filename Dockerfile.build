@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: LGPL-3.0-or-later
+# Copyright 2021, Kopano and its licensors
+
+# Kopano Grapi Dockerfile
+#
+# Build command:
+# `docker build . -f Dockerfile.build -t grapi-builder`
+#
+# Run command:
+# `docker run -it --rm -v $(pwd):/build -u $(id -u) grapi-builder`
+
+FROM debian:buster
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# Build args
+ARG EXTRA_PACKAGES=
+ARG REPO_URL=https://download.kopano.io/supported/core:/master/Debian_10/
+
+# Noninteractive for package manager
+ENV DEBIAN_FRONTEND noninteractive
+
+# Lang for tests
+ENV LANG C.UTF-8
+ENV LC_ALL C.UTF-8
+
+# Install curl before adding dependency-repository
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    apt-utils \
+    curl \
+    gnupg2
+
+# Add kopano repository
+RUN echo "deb [trusted=yes] ${REPO_URL} ./" > /etc/apt/sources.list.d/kopanocore.list
+
+# Install buildttime dependencies
+RUN apt-get update -y \
+	&& apt-get install -y --no-install-recommends \
+		build-essential \
+		g++ \
+		pkg-config \
+		libcap-dev \
+		libdb-dev \
+		libev-dev \
+		libldap2-dev \
+		libpcap-dev \
+		libsasl2-dev \
+		python3-dev \
+		python3-pip \
+		python3-pytest \
+		python3-pytest-cov \
+		python3-wheel \
+		python3-kopano \
+        $EXTRA_PACKAGES \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+ENV WORKSPACE=/build
+WORKDIR ${WORKSPACE}
+
+# Create build user
+RUN groupadd -r -g 1000 builder && useradd -l -r -u 1000 -g builder builder
+
+USER builder
+
+CMD [ "/bin/true" ]
