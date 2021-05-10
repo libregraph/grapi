@@ -21,7 +21,7 @@ services:
       - /tmp
 
   db:
-    image: mariadb:10.3.10-bionic
+    image: mariadb:10.6.0-focal
     restart: always
     volumes:
       - mysql:/var/lib/mysql
