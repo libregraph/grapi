@@ -119,6 +119,7 @@ class MessageResource(ItemResource):
         'from': lambda item, arg: set_user_email(item, 'from_', arg),
         'sender': lambda item, arg: set_user_email(item, 'sender', arg),
         'isRead': lambda item, value: update_attr_value(item, "read", value),
+        'categories': lambda item, value: update_attr_value(item, 'categories', value),
     }
 
     deleted_resource = DeletedMessageResource
