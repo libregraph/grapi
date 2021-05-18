@@ -147,6 +147,9 @@ class API(BaseAPI):
                 self.add_route(user + '/mailFolders/{folderid}/messages/{itemid}',
                                messages, suffix="message_by_folderid")
 
+                # Delta sync directory
+                self.add_route(user + '/mailFolders/{folderid}/messages/delta', messages, suffix="delta")
+
                 # Message attachments
                 self.add_route(user + '/messages/{itemid}/attachments',
                                attachments, suffix="by_id")
