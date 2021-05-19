@@ -101,6 +101,7 @@ class API(BaseAPI):
 
             self.add_route(PREFIX + '/groups', groups)
             self.add_route(PREFIX + '/groups/{groupid}', groups)
+            self.add_route(PREFIX + '/groups/{groupid}/members', groups, suffix="members")
 
             for user in (PREFIX + '/me', PREFIX + '/users/{userid}'):
                 self.add_route(user + '/contactFolders/', contactfolders, suffix="contact_folders")

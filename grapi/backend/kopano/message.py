@@ -161,10 +161,8 @@ class MessageResource(ItemResource):
         Raises:
             HTTPNotFound: when folderid is None.
         """
-
         if folderid is None:
             raise HTTPNotFound()
-
         store = req.context.server_store[1]
         folder = _folder(store, folderid)
         self._handle_get_delta(req, resp, store=store, folder=folder)
