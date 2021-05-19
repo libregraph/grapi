@@ -274,6 +274,7 @@ class MessageResource(ItemResource):
         """
         if itemid is None:
             raise HTTPNotFound()
+
         store = req.context.server_store[1]
         item = _item(store, itemid)
         item.send()

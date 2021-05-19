@@ -201,6 +201,16 @@ class API(BaseAPI):
                     messages, suffix="move"
                 )
 
+                # Message send.
+                self.add_route(
+                    user + '/messages/{itemid}/send',
+                    messages, suffix="send"
+                )
+                self.add_route(
+                    user + '/mailFolders/{folderid}/messages/{itemid}/send',
+                    messages, suffix="send"
+                )
+
                 # Message createReply.
                 self.add_route(
                     user + '/messages/{itemid}/createReply',
