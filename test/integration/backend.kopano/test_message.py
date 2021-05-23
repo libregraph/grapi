@@ -195,6 +195,20 @@ def test_on_post_copy_and_move(
     assert destination_folder_messages_count == destination_folder_messages_count_expected_after
 
 
+def test_on_post_send(client, user):
+    """Test on_post_send endpoint(s)."""
+    for index, action_messages_url in enumerate(ACTION_MESSAGE_URLS):
+        folder_id = get_folder_id(client, user, "inbox")
+
+        # /me
+        message_id = get_a_message(client, user, FOLDER_MESSAGES_URLS[index], "inbox", 0)
+        send_url = action_messages_url.format(
+            userid=user.userid, folderid=folder_id, messageid=message_id, action="send"
+        )
+        response = client.simulate_post(send_url, headers=user.auth_header)
+        assert response.status_code == 202
+
+
 @pytest.mark.parametrize("url", FOLDER_MESSAGES_URLS)
 def test_on_patch_item(client, user, url, json_message):
     """Test on_patch_item endpoint(s)."""

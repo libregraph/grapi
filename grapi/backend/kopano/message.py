@@ -6,7 +6,7 @@ from grapi.api.v1.schema import message as message_schema
 from . import attachment  # import as module since this is a circular import
 from .item import ItemResource, get_body, get_email, set_body
 from .resource import _date
-from .utils import HTTPBadRequest, HTTPNotFound, _folder, _item, experimental
+from .utils import HTTPNotFound, _folder, _item, experimental
 
 
 def set_recipients(item, recipients, field="to"):
@@ -236,7 +236,25 @@ class MessageResource(ItemResource):
         self.respond(req, resp, item.reply(all=True))
         resp.status = falcon.HTTP_201
 
-    def handle_post_send(self, req, resp, store, folder, item):
+    def on_post_send(self, req, resp, folderid=None, itemid=None):
+        """Handle POST request on 'send' action.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): folder ID which the message resides there. Defaults to None.
+            itemid (str): message ID. Defaults to None. itemid value is mandatory.
+
+        Raises:
+            HTTPNotFound: when itemid is None.
+
+        Note:
+            Based on MS Explorer result, it never validate folderid. So, we ignore it.
+        """
+        if itemid is None:
+            raise HTTPNotFound()
+        store = req.context.server_store[1]
+        item = _item(store, itemid)
         item.send()
         resp.status = falcon.HTTP_202
 
@@ -340,23 +358,6 @@ class MessageResource(ItemResource):
             Based on MS Explorer result, it never validate folderid. So, we ignore it.
         """
         self._handle_copy_or_move(req, resp, itemid, True)
-
-    def on_post(self, req, resp, userid=None, folderid=None, itemid=None, method=None):
-        handler = None
-
-        if method == 'send':
-            handler = self.handle_post_send
-
-        elif method:
-            raise HTTPBadRequest("Unsupported message segment '%s'" % method)
-
-        else:
-            raise HTTPBadRequest("Unsupported in message")
-
-        server, store, userid = req.context.server_store
-        folder = _folder(store, folderid or 'inbox')  # TODO all folders?
-        item = _item(folder, itemid)
-        handler(req, resp, store=store, folder=folder, item=item)
 
     # PATCH
 
