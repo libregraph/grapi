@@ -19,6 +19,10 @@ ACTION_MESSAGE_URLS = [
     '/api/gc/v1/me/mailFolders/{folderid}/messages/{messageid}/{action}',
     '/api/gc/v1/users/{userid}/mailFolders/{folderid}/messages/{messageid}/{action}',
 ]
+SEND_MAIL_URLS = [
+    '/api/gc/v1/me/sendMail',
+    '/api/gc/v1/users/{userid}/sendMail',
+]
 
 
 def get_folder_id(client, user, display_name):
@@ -207,6 +211,29 @@ def test_on_post_send(client, user):
         )
         response = client.simulate_post(send_url, headers=user.auth_header)
         assert response.status_code == 202
+
+
+@pytest.mark.parametrize(
+    [
+        "url",
+        "save_to_sent_items",
+    ],
+    [
+        (SEND_MAIL_URLS[0], True),
+        (SEND_MAIL_URLS[0], False),
+        (SEND_MAIL_URLS[1], True),
+        (SEND_MAIL_URLS[1], False),
+    ]
+)
+def test_on_post_send_mail(client, user, json_message, url, save_to_sent_items):
+    """Test on_post_send_mail endpoint(s)."""
+    json_message = {
+        "message": json_message,
+        "saveToSentItems": save_to_sent_items
+    }
+    url = url.format(userid=user.userid)
+    response = client.simulate_post(url, headers=user.auth_header, json=json_message)
+    assert response.status_code == 202
 
 
 @pytest.mark.parametrize("url", FOLDER_MESSAGES_URLS)

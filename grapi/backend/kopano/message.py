@@ -258,6 +258,25 @@ class MessageResource(ItemResource):
         item.send()
         resp.status = falcon.HTTP_202
 
+    @experimental
+    def on_post_send_mail(self, req, resp):
+        """Handle POST request on sendMail.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+        """
+        json_data = req.context.json_data
+        self.validate_json(message_schema.send_mail_schema_validator, json_data)
+        store = req.context.server_store[1]
+        message = self.create_message(
+            store.outbox,
+            json_data['message'],
+            self.set_fields
+        )
+        message.send(copy_to_sentmail=json_data.get('saveToSentItems', True))
+        resp.status = falcon.HTTP_202
+
     def _create_message(self, req, resp, folderid):
         """Create a new message in a defined folder.
 

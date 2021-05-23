@@ -218,6 +218,9 @@ class API(BaseAPI):
                     messages, suffix="createReplyAll"
                 )
 
+                # Message sendMail.
+                self.add_route(user + '/sendMail', messages, suffix="send_mail")
+
                 # Message send.
                 self.add_route(
                     user + '/messages/{itemid}/send',
