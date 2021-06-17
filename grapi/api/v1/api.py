@@ -101,6 +101,7 @@ class API(BaseAPI):
 
             self.add_route(PREFIX + '/groups', groups)
             self.add_route(PREFIX + '/groups/{groupid}', groups)
+            self.add_route(PREFIX + '/groups/{groupid}/members', groups, suffix="members")
 
             for user in (PREFIX + '/me', PREFIX + '/users/{userid}'):
                 self.add_route(user + '/contactFolders/', contactfolders, suffix="contact_folders")
@@ -146,6 +147,9 @@ class API(BaseAPI):
                                messages, suffix="messages_by_folderid")
                 self.add_route(user + '/mailFolders/{folderid}/messages/{itemid}',
                                messages, suffix="message_by_folderid")
+
+                # Delta sync directory
+                self.add_route(user + '/mailFolders/{folderid}/messages/delta', messages, suffix="delta")
 
                 # Message attachments
                 self.add_route(user + '/messages/{itemid}/attachments',
@@ -196,6 +200,16 @@ class API(BaseAPI):
                 self.add_route(
                     user + '/mailFolders/{folderid}/messages/{itemid}/move',
                     messages, suffix="move"
+                )
+
+                # Message send.
+                self.add_route(
+                    user + '/messages/{itemid}/send',
+                    messages, suffix="send"
+                )
+                self.add_route(
+                    user + '/mailFolders/{folderid}/messages/{itemid}/send',
+                    messages, suffix="send"
                 )
 
                 # Message createReply.

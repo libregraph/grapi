@@ -51,6 +51,17 @@ class GroupResource(Resource):
         data = (user.groups(), DEFAULT_TOP, 0, 0)
         self.respond(req, resp, data, self.fields)
 
+    def on_get_members(self, req, resp, groupid):
+        """Return members by group ID.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            groupid (str): group ID.
+        """
+        server = req.context.server_store[0]
+        self.handle_get_members(req, resp, server, groupid)
+
     def on_get(self, req, resp, userid=None, groupid=None, method=None):
         handler = None
 
