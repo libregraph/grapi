@@ -3,7 +3,6 @@ import jsonschema
 
 from .message import _create_schema
 
-
 _sendmail_schema = {
     "$schema": "http://json-schema.org/draft-04/schema#",
     "type": "object",

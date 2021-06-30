@@ -10,7 +10,6 @@ from email.mime.text import MIMEText
 from email.utils import formatdate
 
 import kopano
-
 from icalendar import Alarm, Calendar, Event, vCalAddress, vText
 
 DATEFORMAT = '%Y-%m-%d'

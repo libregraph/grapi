@@ -20,7 +20,7 @@ SEARCH_SEARCH_FILTER_TEMPLATE = "(|({emailAttribute}=*%(search)s*)({givenNameAtt
 
 
 class UserResource(Resource):
-    l = None
+    ldap_obj = None
 
     uri = "ldap://127.0.0.1:389"
     baseDN = ""
@@ -92,13 +92,13 @@ class UserResource(Resource):
             raise RuntimeError("missing LDAP_URI or LDAP_BASEDN in environment")
 
         try:
-            self.l = ldap.ldapobject.ReconnectLDAPObject(self.uri, retry_max=self.retryMax, retry_delay=self.retryDelay)
+            self.ldap_obj = ldap.ldapobject.ReconnectLDAPObject(self.uri, retry_max=self.retryMax, retry_delay=self.retryDelay)
         except ldap.LDAPError:
             logging.error("unable to connect to LDAP server", exc_info=True)
 
         if self.bindDN is not None:
             try:
-                self.l.simple_bind_s(self.bindDN, self.bindPW)
+                self.ldap_obj.simple_bind_s(self.bindDN, self.bindPW)
             except ldap.LDAPError as excinfo:
                 logging.error("unable to authenticate with LDAP server: %s" % excinfo)
 
@@ -111,7 +111,7 @@ class UserResource(Resource):
             if not userid:
                 raise HTTPBadRequest('No user')
 
-        l = self.l
+        ldap_obj = self.ldap_obj
 
         value = []
 
@@ -136,7 +136,7 @@ class UserResource(Resource):
 
         lc = SimplePagedResultsControl(True, size=size, cookie='')
         while True:
-            msgid = l.search_ext(
+            msgid = ldap_obj.search_ext(
                 self.baseDN,
                 self.searchScope,
                 searchFilter,
@@ -144,7 +144,7 @@ class UserResource(Resource):
                 serverctrls=[lc]
             )
 
-            rtype, rdata, rmsgid, serverctrls = l.result3(msgid, all=1)
+            rtype, rdata, rmsgid, serverctrls = ldap_obj.result3(msgid, all=1)
 
             for _, attrs in rdata:
                 count += 1

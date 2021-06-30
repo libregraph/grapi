@@ -50,7 +50,7 @@ class ItemImporter:
 
 class ItemResource(Resource):
     fields = {
-        '@odata.etag': lambda item: 'W/"'+item.changekey+'"',
+        '@odata.etag': lambda item: 'W/"' + item.changekey + '"',
         'id': lambda item: item.entryid,
         'changeKey': lambda item: item.changekey,
         'createdDateTime': lambda item: _date(item.created),

@@ -5,7 +5,7 @@ import logging
 import falcon
 import kopano
 import kopano.log
-from MAPI.Struct import MAPIErrorStoreFull, MAPIErrorNoAccess
+from MAPI.Struct import MAPIErrorNoAccess, MAPIErrorStoreFull
 
 from .attachment import AttachmentResource  # noqa: F401
 from .calendar import CalendarResource  # noqa: F401

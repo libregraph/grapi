@@ -12,7 +12,6 @@ from grapi.api.v1.resource import Resource as BaseResource
 from grapi.api.v1.resource import _dumpb_json, _encode_qs, _parse_qs
 from grapi.api.v1.timezone import to_timezone
 
-
 UTC = pytz.utc
 LOCAL = tzlocal.get_localzone()
 
@@ -185,7 +184,7 @@ class Resource(BaseResource):
                     del args['$skip']
             else:
                 args = {}
-            args['$skip'] = skip+top
+            args['$skip'] = skip + top
             nextLink = path + '?' + _encode_qs(list(args.items()))
             header += b'  "@odata.nextLink": "%s",\n' % (_dumpb_json(nextLink)[1:-1])
         header += b'  "value": [\n'
@@ -200,7 +199,7 @@ class Resource(BaseResource):
                     yield b',\n'
                 first = False
                 wa = self.json(req, o, fields, all_fields, multi=True)
-                yield b'\n'.join([b'    '+line for line in wa.splitlines()])
+                yield b'\n'.join([b'    ' + line for line in wa.splitlines()])
         except Exception:
             logging.exception("failed to marshal %s JSON response", req.path)
         yield b'\n  ]\n}'
@@ -291,7 +290,7 @@ class Resource(BaseResource):
         skip = int(args['$skip'][0]) if '$skip' in args else 0
         order = args['$orderby'][0].split(',') if '$orderby' in args else None
         if order:
-            order = tuple(('-' if len(o.split()) > 1 and o.split()[1] == 'desc' else '')+o.split()[0] for o in order)
+            order = tuple(('-' if len(o.split()) > 1 and o.split()[1] == 'desc' else '') + o.split()[0] for o in order)
 
         return generator(page_start=skip, page_limit=top, order=order), top, skip, count
 

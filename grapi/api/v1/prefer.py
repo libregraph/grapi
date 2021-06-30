@@ -33,4 +33,4 @@ class Prefer:
 
     def set_headers(self, resp):
         if self._applied:
-            resp.set_header('Preference-Applied', ','.join([name for name in self._applied]))
+            resp.set_header('Preference-Applied', ','.join(name for name in self._applied))

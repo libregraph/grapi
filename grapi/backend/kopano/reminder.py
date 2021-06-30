@@ -13,7 +13,7 @@ class ReminderResource(Resource):
         'eventStartTime': lambda req, occ: _tzdate(occ.start, occ.tzinfo, req),
         'eventEndTime': lambda req, occ: _tzdate(occ.end, occ.tzinfo, req),
         'eventLocation': lambda occ: occ.location,
-        'reminderFireTime': lambda req, occ: _tzdate(occ.start-datetime.timedelta(minutes=occ.reminder_minutes), occ.tzinfo, req),
+        'reminderFireTime': lambda req, occ: _tzdate(occ.start - datetime.timedelta(minutes=occ.reminder_minutes), occ.tzinfo, req),
     }
 
     @experimental

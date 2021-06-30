@@ -1,15 +1,16 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import base64
+import gettext
 import json
 import os
-import gettext
 
 import kopano
 import pytest
 from falcon.testing import TestClient
-from grapi.mfr import FalconLabel
+
 from grapi.api.v1 import API
+from grapi.mfr import FalconLabel
 
 DATA_DIR = '{}/data'.format(os.path.dirname(os.path.realpath(__file__)))
 BACKEND = 'kopano'

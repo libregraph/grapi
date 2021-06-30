@@ -24,7 +24,6 @@ try:
 except ImportError:
     PROMETHEUS = False
 
-
 PERSISTENCY_PATH = os.getenv('GRAPI_PERSISTENCY_PATH', '')
 
 experimental = experimentalDecorator
@@ -73,16 +72,17 @@ if PROMETHEUS:
 try:
     import prctl
 
-    def set_thread_name(name): prctl.set_name(name)
+    def set_thread_name(name):
+        prctl.set_name(name)
 except ImportError:  # pragma: no cover
-    def set_thread_name(name): pass
+    def set_thread_name(name):
+        pass
 
 
 def _auth(req, options):
     auth_header = req.get_header('Authorization')
 
-    if (auth_header and auth_header.startswith('Bearer ') and
-            (not options or options.auth_bearer)):
+    if (auth_header and auth_header.startswith('Bearer ') and (not options or options.auth_bearer)):
         token = codecs.encode(auth_header[7:], 'ascii')
         return {
             'method': 'bearer',
@@ -91,8 +91,7 @@ def _auth(req, options):
             'token': token,
         }
 
-    elif (auth_header and auth_header.startswith('Basic ') and
-            (not options or options.auth_basic)):
+    elif (auth_header and auth_header.startswith('Basic ') and (not options or options.auth_basic)):
         user, password = codecs.decode(codecs.encode(auth_header[6:], 'ascii'),
                                        'base64').split(b':')
         return {

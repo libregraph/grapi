@@ -4,12 +4,12 @@ import jsonschema
 # attachments
 _base_attachment_schema_fields = {
     "@odata.type": {
-      "type": "string",
-      "enum": [
-          "#microsoft.graph.fileAttachment",
-          "#microsoft.graph.itemAttachment",
-          "#microsoft.graph.referenceAttachment",
-      ],
+        "type": "string",
+        "enum": [
+            "#microsoft.graph.fileAttachment",
+            "#microsoft.graph.itemAttachment",
+            "#microsoft.graph.referenceAttachment",
+        ],
     },
     "contentType": {
         "type": "string",
