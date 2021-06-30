@@ -4,8 +4,8 @@ import binascii
 import dateutil.parser
 import falcon
 import kopano
-from kopano.pidlid import PidLidAppointmentStateFlags
 from kopano.defs import ASF_MEETING
+from kopano.pidlid import PidLidAppointmentStateFlags
 
 from grapi.api.v1.schema import event as event_schema
 
@@ -21,14 +21,14 @@ pattern_map = {
     'yearly': 'absoluteYearly',
     'yearly_rel': 'relativeYearly',
 }
-pattern_map_rev = dict((b, a) for (a, b) in pattern_map.items())
+pattern_map_rev = {b: a for a, b in pattern_map.items()}
 
 range_end_map = {
     'end_date': 'endDate',
     'forever': 'noEnd',
     'count': 'numbered',
 }
-range_end_map_rev = dict((b, a) for (a, b) in range_end_map.items())
+range_end_map_rev = {b: a for a, b in range_end_map.items()}
 
 show_as_map = {
     'free': 'free',
@@ -127,7 +127,7 @@ def location_json(item):
 
 def location_set(item, arg):
     # TODO(longsleep): Support storing locationType.
-    setattr(item, 'location', arg.get('displayName', ''))
+    item.location = arg.get('displayName', '')
 
 
 def attendees_set(item, arg):

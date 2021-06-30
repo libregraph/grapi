@@ -9,7 +9,7 @@ from grapi.api.v1.schema import calendar as calendar_schema
 from .event import EventResource
 from .folder import FolderResource
 from .resource import _dumpb_json, _start_end, _tzdate, parse_datetime_timezone
-from .utils import HTTPBadRequest, _folder, _server_store, experimental
+from .utils import _folder, experimental
 
 
 def get_fbinfo(req, block):
@@ -97,7 +97,7 @@ class CalendarResource(FolderResource):
         start = parse_datetime_timezone(fields['startTime'], 'startTime')
         end = parse_datetime_timezone(fields['endTime'], 'endTime')
         # TODO: implement availabilityView https://docs.microsoft.com/en-us/graph/outlook-get-free-busy-schedule
-        # availability_view_interval = fields.get('availabilityViewInterval', 60)
+        # CODE: the 'fields' variable contains "availabilityViewInterval". Defaults to 60.
 
         for address in email_addresses:
             try:
