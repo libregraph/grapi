@@ -28,7 +28,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements-dev.txt
-          make lint |& grep 'violations and reported' | [ $(awk '{print $NF}') -le 32 ] && true
+          make lint
       -
         name: Build and Run Kopanocore
         run: |
