@@ -209,3 +209,86 @@ def test_update_instance(client, user, calendar_entryid, json_event_daily, url):
     assert response.status_code == 200
     occ = response.json['value'][0]
     assert occ['subject'] == 'new subject'
+
+
+@pytest.mark.parametrize("url", URLS)
+def test_tentatively_accept(client, user, json_event_daily, url):
+    event_id = assert_create_event(client, user, json_event_daily, url)
+    tentatively_accept_url = "{}/{}/tentativelyAccept".format(url, event_id)
+    data = {
+        "comment": "test comment",
+        "sendResponse": True,
+    }
+    resp = client.simulate_post(tentatively_accept_url, headers=user.auth_header, json=data)
+    assert resp.status_code == 202
+
+
+@pytest.mark.parametrize("url", URLS)
+def test_tentatively_accept_with_new_proposed_time(client, user, json_event_daily, url):
+    event_id = assert_create_event(client, user, json_event_daily, url)
+    tentatively_accept_url = "{}/{}/tentativelyAccept".format(url, event_id)
+    data = {
+        "comment": "test comment",
+        "sendResponse": True,
+        "proposedNewTime": {
+            "start": {
+                "dateTime": "2021-01-01T12:00:00+00:00",
+                "timeZone": "UTC"
+            },
+            "end": {
+                "dateTime": "2021-01-01T13:00:00+00:00",
+                "timeZone": "UTC"
+            }
+        }
+    }
+    resp = client.simulate_post(tentatively_accept_url, headers=user.auth_header, json=data)
+    assert resp.status_code == 202
+
+
+@pytest.mark.parametrize("url", URLS)
+def test_tentatively_accept_with_new_proposed_time_error(client, user, json_event_daily, url):
+    json_event_daily["sendResponse"] = False
+    event_id = assert_create_event(client, user, json_event_daily, url)
+    tentatively_accept_url = "{}/{}/tentativelyAccept".format(url, event_id)
+    data = {
+        "comment": "test comment",
+        "sendResponse": True,
+        "proposedNewTime": {
+            "start": {
+                "dateTime": "2021-01-01T12:00:00+00:00",
+                "timeZone": "UTC"
+            },
+            "end": {
+                "dateTime": "2021-01-01T13:00:00+00:00",
+                "timeZone": "UTC"
+            }
+        }
+    }
+    resp = client.simulate_post(tentatively_accept_url, headers=user.auth_header, json=data)
+    assert resp.status_code == 400
+    assert resp.json == {"title": "400 Bad Request", "description": "Event disabled sendResponse"}
+
+
+@pytest.mark.parametrize("url", URLS)
+def test_tentatively_accept_error(client, user, json_event_daily, url):
+    json_event_daily["allowNewTimeProposals"] = False
+    event_id = assert_create_event(client, user, json_event_daily, url)
+    tentatively_accept_url = "{}/{}/tentativelyAccept".format(url, event_id)
+    data = {
+        "comment": "test comment",
+        "sendResponse": True,
+        "proposedNewTime": {
+            "start": {
+                "dateTime": "2021-01-01T12:00:00+00:00",
+                "timeZone": "UTC"
+            },
+            "end": {
+                "dateTime": "2021-01-01T13:00:00+00:00",
+                "timeZone": "UTC"
+            }
+        }
+    }
+    resp = client.simulate_post(tentatively_accept_url, headers=user.auth_header, json=data)
+    assert resp.status_code == 400
+    assert resp.json == {"title":"400 Bad Request", "description":"Event disabled requesting proposedNewTime"}
+

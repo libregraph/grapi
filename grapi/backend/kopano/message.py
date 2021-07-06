@@ -85,8 +85,6 @@ class MessageResource(ItemResource):
     fields = ItemResource.fields.copy()
     fields.update({
         # TODO pyko shortcut for event messages
-        # TODO eventMessage resource?
-        '@odata.type': lambda item: '#microsoft.graph.eventMessage' if item.message_class.startswith('IPM.Schedule.Meeting.') else None,
         'subject': lambda item: item.subject,
         'body': lambda req, item: get_body(req, item),
         'from': lambda item: get_email(item.from_),
@@ -191,9 +189,14 @@ class MessageResource(ItemResource):
 
     def on_get_messages_by_folderid(self, req, resp, folderid):
         store = req.context.server_store[1]
-        data = _folder(store, folderid)
-        data = self.folder_gen(req, data)
-        self.respond(req, resp, data, MessageResource.fields)
+        folder = _folder(store, folderid)
+        items, *items_fields = self.folder_gen(req, folder)
+        for item in items:
+            if not item.has_proposed_new_time():
+                items_fields.append((item, self.fields))
+            else:
+                items_fields.append((item, EventMessage.fields))
+        self.respond(req, resp, items_fields)
 
     def on_get_value(self, req, resp, folderid=None, itemid=None):
         """Get a message as RFC-2822 by folder ID.
@@ -462,3 +465,129 @@ class EmbeddedMessageResource(MessageResource):
     del fields['@odata.etag']  # TODO check MSG
     del fields['parentFolderId']
     del fields['changeKey']
+
+
+def _get_body(item):
+    """Get body."""
+    return {
+        "content": item.content,
+        "contentType": item.content_type,
+    }
+
+
+def _recurrence(item, time_zone):
+    """Fetch recurrence from data.
+
+    Args:
+        item (Recurrence): recurrence object.
+        time_zone (str): item time zone.
+
+    Returns:
+        Dict: fetched recurrence data.
+    """
+    if not item:
+        return None
+    return {
+        "pattern": {
+            "@odata.type": "microsoft.graph.recurrencePattern",
+            "dayOfMonth": item.monthday,
+            "daysOfWeek": item.weekdays,
+            "firstDayOfWeek": item.first_weekday,
+            "index": item.index,
+            "interval": item.interval,
+            "month": item.month,
+            "type": item.pattern,
+        },
+        "range": {
+            "@odata.type": "microsoft.graph.recurrenceRange",
+            "endDate": item.end,
+            "numberOfOccurrences": item.count,
+            "recurrenceTimeZone": time_zone,
+            "startDate": item.start,
+            "type": "endDate" if item.range_type == "end_date" else item.range_type,
+        },
+    }
+
+
+def _proposed_new_time(item):
+    """Fetch proposed new time from data."""
+    return {
+        "end": {
+            "@odata.type": "microsoft.graph.dateTimeTimeZone",
+            "end": _date(item.end),
+        },
+        "start": {
+            "@odata.type": "microsoft.graph.dateTimeTimeZone",
+            "start": _date(item.end),
+        },
+    }
+
+
+def _physical_address(item):
+    """Fetch physical address."""
+    return {
+        "city": item.address.city,
+        "countryOrRegion": item.address.countryOrRegion,
+        "postalCode": item.address.postalCode,
+        "state": item.address.state,
+        "street": item.address.street,
+    }
+
+
+def _followup_flag(item):
+    """Fetch follow up flag from data."""
+    return {
+        "completedDateTime": _date(item.completedDateTime, True),
+        "dueDateTime": _date(item.dueDateTime, True),
+        "flagStatus": item.flagStatus,
+        "startDateTime": _date(item.startDateTime, True),
+    }
+
+
+def _meeting_message_type(item):
+    """Return meeting message type.
+
+    Todo (mort):
+        Port "meeting" prefix into pyko (KC-1947).
+
+    Args:
+        item (Item): message item.
+
+    Returns:
+        str: meeting message type.
+    """
+    if item.response_status:
+        return "meeting{}".format(item.response_status)
+    return None
+
+
+class EventMessage(MessageResource):
+    """Event message resource.
+
+    Todo (mort):
+        complete eventMessage fields (KC-1946).
+        'flag': lambda item: _followup_flag(item).
+        'isDelegated': lambda item: item.is_delegated.
+        'isOutOfDate': lambda item: item.is_out_of_date.
+        'uniqueBody': lambda item: _get_body(item.unique_body).
+        'webLink': lambda item: item.web_link.
+    """
+
+    fields = {
+        **MessageResource.fields.copy(),
+        '@odata.type': '#microsoft.graph.eventMessage',
+        'allowNewTimeProposals': lambda item: item.allow_new_time_proposals,
+        'conversationIndex': lambda item: item.conversationid,
+        'endDateTime': lambda item: _date(item.end, True),
+        'interfenceClassification': lambda _: None,
+        'internetMessageHeaders': lambda item: item.headers(),
+        'isAllDay': lambda item: item.all_day,
+        'isDraft': lambda item: True if item.sent else False,
+        'location': lambda item: item.location,
+        'meetingMessageType': lambda item: _meeting_message_type(item),
+        'proposedNewTime': lambda item: _proposed_new_time(item),
+        'recurrence': lambda item: _recurrence(item.recurrence, item.tzinfo),
+        'responseRequested': lambda item: item.response_requested,
+        'startDateTime': lambda item: _date(item.start, True) if item.start else None,
+        'type': lambda item: item.type_,
+    }

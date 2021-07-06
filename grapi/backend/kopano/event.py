@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+"""Event resource handler."""
 import binascii
 
 import dateutil.parser
@@ -6,11 +7,13 @@ import falcon
 import kopano
 from kopano.defs import ASF_MEETING
 from kopano.pidlid import PidLidAppointmentStateFlags
+from MAPI.Tags import PR_RESPONSE_REQUESTED
 
 from grapi.api.v1.schema import event as event_schema
 
 from .item import ItemResource, get_body, get_email, set_body
-from .resource import _date, _start_end, _tzdate, set_date
+from .resource import (_date, _start_end, _tzdate, parse_datetime_timezone,
+                       set_date)
 from .utils import HTTPBadRequest, HTTPNotFound, _folder, experimental
 
 pattern_map = {
@@ -196,6 +199,20 @@ def is_event_organizer(req, item):
         return False
 
 
+def update_send_response(item, arg):
+    """Update 'sendResponse' attribute of an event.
+
+    Args:
+        item (Item): item object.
+        arg (bool): value.
+
+    Todo:
+        This function is no longer needed if PR-3554 is merged:
+        https://stash.kopano.io/projects/KC/repos/kopanocore/pull-requests/3554/overview
+    """
+    item[PR_RESPONSE_REQUESTED] = arg
+
+
 class EventResource(ItemResource):
     fields = ItemResource.fields.copy()
     fields.update({
@@ -223,6 +240,7 @@ class EventResource(ItemResource):
         'isOrganizer': lambda req, item: is_event_organizer(req, item),
         'isCancelled': lambda item: item.canceled,
         'responseStatus': lambda item: responsestatus_json(item),
+        'allowNewTimeProposals': lambda item: item.allow_new_time_proposals,
         # 8.7.x does not have onlinemeetingurl attribute, so we must check if its there for compatibility
         'onlineMeetingUrl': lambda item: item.onlinemeetingurl if hasattr(item, 'onlinemeetingurl') else ''
     })
@@ -239,6 +257,8 @@ class EventResource(ItemResource):
         'isReminderOn': lambda item, arg: setattr(item, 'reminder', arg),
         'categories': lambda item, arg: event_field_setter(item, 'categories', arg),
         'reminderMinutesBeforeStart': lambda item, arg: setattr(item, 'reminder_minutes', arg),
+        'sendResponse': update_send_response,
+        'allowNewTimeProposals': lambda item, arg: setattr(item, 'allow_new_time_proposals', arg),
         # 8.7.x does not have onlinemeetingurl attribute, so we must check if its there for compatibility
         'onlineMeetingUrl': lambda item, arg: setattr(item, 'onlinemeetingurl', arg) if hasattr(item, 'onlinemeetingurl') else None,
         'showAs': lambda item, arg: setattr(item, 'busystatus', arg)
@@ -321,6 +341,14 @@ class EventResource(ItemResource):
         fields = req.context.json_data
         self.validate_json(event_schema.create_schema_validator, fields)
 
+        if "sendResponse" not in fields:
+            fields["sendResponse"] = True
+        if "allowNewTimeProposals" not in fields:
+            fields["allowNewTimeProposals"] = fields["sendResponse"]
+
+        if not fields["sendResponse"] and fields["allowNewTimeProposals"]:
+            raise HTTPBadRequest("allowNewTimeProposals is true while sendResponse is false")
+
         store = req.context.server_store[1]
         folder = _folder(store, folderid)
         try:
@@ -369,12 +397,6 @@ class EventResource(ItemResource):
     def on_post_accept_event(self, req, resp, itemid):
         self._accept_event(req, resp, "calendar", itemid)
 
-    def handle_post_tentativelyAccept(self, req, resp, fields, item):
-        _ = req.context.i18n.gettext
-        self.validate_json(event_schema.action_schema_validator, fields)
-        item.accept(comment=fields.get('comment'), tentative=True, respond=(fields.get('sendResponse', True)), subject_prefix=_("Tentatively accepted"))
-        resp.status = falcon.HTTP_202
-
     def _decline_event(self, req, resp, folderid, itemid):
         fields = req.context.json_data
         self.validate_json(event_schema.action_schema_validator, fields)
@@ -392,23 +414,97 @@ class EventResource(ItemResource):
     def on_post_decline_event(self, req, resp, itemid):
         self._decline_event(req, resp, "calendar", itemid)
 
-    def on_post(self, req, resp, userid=None, folderid=None, itemid=None, method=None):
-        handler = None
+    @staticmethod
+    def _validate_tentatively_accept_change_request(event, json_data):
+        """Validate 'tentatively accept' change request on an event.
 
-        if method == 'tentativelyAccept':
-            handler = self.handle_post_tentativelyAccept
+        Args:
+            event (Item): event object.
+            json_data (Dict): request body.
 
-        elif method:
-            raise HTTPBadRequest("Unsupported event segment '%s'" % method)
+        Raises:
+            utils.HTTPBadRequest: if change request comes with 'false' sendResponse, or
+                when the event disabled proposals requests.
+        """
+        if "proposedNewTime" in json_data:
+            # It will be replaced by "response_requested" method if PR-3554 is merged:
+            # https://stash.kopano.io/projects/KC/repos/kopanocore/pull-requests/3554/overview
+            if not event.get(PR_RESPONSE_REQUESTED, True):
+                raise HTTPBadRequest("Event disabled sendResponse")
+            if not event.allow_new_time_proposals:
+                raise HTTPBadRequest("Event disabled requesting proposedNewTime")
+            if not json_data.get("sendResponse", False):
+                raise HTTPBadRequest("proposedNewTime must come with 'true' sendResponse")
 
+    def _tentatively_accept_propose_new_time(self, event, body, new_time):
+        pass
+
+    def _handle_post_tentatively_accept(self, req, json_data, folder, eventid):
+        """Handle POST tentatively accept in a specific folder by an event ID.
+
+        Args:
+            req (Request): Falcon request object.
+            json_data (Dict): request body.
+            folder (Folder): folder object.
+            eventid (str): event ID.
+        """
+        item = self.get_event(folder, eventid)
+        self._validate_tentatively_accept_change_request(item, json_data)
+        _ = req.context.i18n.gettext
+        subject_prefix = "New Time Proposed" if "proposedNewTime" in json_data else "Tentatively accepted"
+
+        if "proposedNewTime" in json_data:
+            proposed_new_time = [
+                parse_datetime_timezone(
+                    json_data["proposedNewTime"]["start"], "proposedNewTime/start"
+                ),
+                parse_datetime_timezone(
+                    json_data["proposedNewTime"]["end"], "proposedNewTime/end"
+                ),
+            ]
         else:
-            raise HTTPBadRequest("Unsupported in event")
+            proposed_new_time = []
 
-        server, store, userid = req.context.server_store
-        folder = _folder(store, folderid or 'calendar')
-        item = self.get_event(folder, itemid)
-        fields = req.context.json_data
-        handler(req, resp, fields=fields, item=item)
+        item.accept(
+            comment=json_data.get('comment'),
+            tentative=True,
+            respond=json_data.get('sendResponse', True),
+            subject_prefix=subject_prefix,
+            proposed_new_time=proposed_new_time
+        )
+        return falcon.HTTP_202
+
+    def on_post_tentatively_accept_by_folderid_eventid(self, req, resp, folderid, itemid):
+        """Handle POST tentative accept in a specific folder by event ID.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            folderid (str): folder ID.
+            itemid (str): an event ID.
+        """
+        json_data = req.context.json_data
+        self.validate_json(event_schema.action_schema_validator, json_data)
+        store = req.context.server_store[1]
+        folder = _folder(store, folderid)
+        resp.status = self._handle_post_tentatively_accept(
+            req, json_data, folder, itemid
+        )
+
+    def on_post_tentatively_accept_by_eventid(self, req, resp, itemid):
+        """Handle POST tentative accept in the 'calendar' folder by event ID.
+
+        Args:
+            req (Request): Falcon request object.
+            resp (Response): Falcon response object.
+            itemid (str): an event ID.
+        """
+        json_data = req.context.json_data
+        self.validate_json(event_schema.action_schema_validator, json_data)
+        store = req.context.server_store[1]
+        resp.status = self._handle_post_tentatively_accept(
+            req, json_data, store.calendar, itemid
+        )
 
     # PATCH
 
@@ -464,7 +560,7 @@ class EventResource(ItemResource):
             folderid (str): folder ID which the event exists in.
             itemid (str): item/event ID which should be deleted.
         """
-        server, store, userid = req.context.server_store
+        store = req.context.server_store[1]
         folder = _folder(store, folderid)
         event = self.get_event(folder, itemid)
         userstore = req.context.user_store

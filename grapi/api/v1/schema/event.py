@@ -150,17 +150,47 @@ _action_schema = {
             "type": "object",
             "properties": {
                 "start": {
-                    "type": "date-time",
+                    "type": "object",
+                    "properties": {
+                        "dateTime": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "timeZone": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "dateTime",
+                        "timeZone"
+                    ]
                 },
                 "end": {
-                    "type": "date-time",
-                },
+                    "type": "object",
+                    "properties": {
+                        "dateTime": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "timeZone": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "dateTime",
+                        "timeZone"
+                    ]
+                }
             },
+            "required": [
+                "start",
+                "end"
+            ]
         },
         "sendResponse": {
             "type": "boolean"
-        },
-    },
+        }
+    }
 }
 
 create_schema_validator = jsonschema.Draft4Validator(_create_schema)
