@@ -267,7 +267,7 @@ class Resource(BaseResource):
                         expand[field.split('/')[1]] = self.get_fields(req, obj2, resource.fields, resource.fields)
             resp.body = self.json(req, obj, fields, all_fields, expand=expand)
 
-    def generator(self, req, generator, count=0, args=None):
+    def generator(self, req, generator, count=0, args=None, query=None, store=None):
         """Response generator.
 
         It also determines pagination and ordering.
@@ -292,7 +292,12 @@ class Resource(BaseResource):
         if order:
             order = tuple(('-' if len(o.split()) > 1 and o.split()[1] == 'desc' else '') + o.split()[0] for o in order)
 
-        return generator(page_start=skip, page_limit=top, order=order), top, skip, count
+        if query is not None:
+            restriction = _query_to_restriction(query, 'message', store)
+        else:
+            restriction = None
+            
+        return generator(page_start=skip, page_limit=top, restriction=restriction, order=order), top, skip, count
 
     def create_message(self, folder, fields, all_fields=None, message_class=None):
         # TODO item.update and/or only save in the end
@@ -333,10 +338,7 @@ class Resource(BaseResource):
 
         if '$search' in args:
             query = args['$search'][0]
-
-            def yielder(**kwargs):
-                for item in folder.items(query=query):
-                    yield item
-            return self.generator(req, yielder, 0, args=args)
+            
+            return self.generator(req, yielder, 0, args=args, query=query, store=folder.store)
         else:
             return self.generator(req, folder.items, folder.count, args=args)
