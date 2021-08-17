@@ -339,6 +339,6 @@ class Resource(BaseResource):
         if '$search' in args:
             query = args['$search'][0]
             
-            return self.generator(req, yielder, 0, args=args, query=query, store=folder.store)
+            return self.generator(req, folder.items, 0, args=args, query=query, store=folder.store)
         else:
             return self.generator(req, folder.items, folder.count, args=args)
