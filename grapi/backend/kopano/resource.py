@@ -335,8 +335,8 @@ class Resource(BaseResource):
             query = args['$search'][0]
 
             def yielder(**kwargs):
-                for item in folder.items(query=query):
-                    yield item
+                yield from folder.items(query=query, **kwargs)
+                
             return self.generator(req, yielder, 0, args=args)
         else:
             return self.generator(req, folder.items, folder.count, args=args)
