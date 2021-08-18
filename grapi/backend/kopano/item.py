@@ -61,7 +61,7 @@ class ItemResource(Resource):
     @experimental
     def delta(self, req, resp, folder):
         args = self.parse_qs(req)
-        token = args['$deltatoken'][0] if '$deltatoken' in args else None
+        token = args['$deltatoken'][0] if '$deltatoken' in args else folder.state
         filter_ = args['$filter'][0] if '$filter' in args else None
         begin = None
         if filter_ and filter_.startswith('receivedDateTime ge '):
